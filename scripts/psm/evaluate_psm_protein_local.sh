@@ -14,11 +14,11 @@
 num_sampling_time=5
 
 MODEL_CONFIG=PSM1B_DIT
-global_step=global_step15000
+global_step=global_step40000
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1/checkpoints2
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_pdbcomplex_2/checkpoints
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_pdbcomplex_2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb_stage2/checkpoints
 
 # MODEL_CONFIG=PSM3B_DIT
@@ -54,7 +54,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
   diffusion_mode=edm \
-  backbone=exp \
+  backbone=exp2 \
   encoder_layers=26 \
   num_pred_attn_layer=4 \
   encoderfeat4noise=False \

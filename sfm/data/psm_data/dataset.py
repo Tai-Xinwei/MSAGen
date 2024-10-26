@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import select
 import zlib
 from functools import lru_cache
 
@@ -1705,6 +1706,27 @@ class PDBDataset(AFDBLMDBDataset):
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
+    def crop_spatial(self, data):
+        if len(data["pos"].shape) == 3:
+            coords = data["pos"][:, 1, :]
+        elif len(data["pos"].shape) == 2:
+            coords = data["pos"]
+        else:
+            raise ValueError(f"Invalid shape of data['pos']: {data['pos'].shape}")
+
+        indices = np.arange(coords.shape[0])
+        # get non nan index
+        nonNan_indices = indices[~np.isnan(coords).any(axis=1)]
+        if nonNan_indices.shape[0] <= self.args.max_length:
+            return nonNan_indices
+
+        c_index = np.random.choice(nonNan_indices)
+
+        d = np.linalg.norm(coords[nonNan_indices] - coords[c_index], axis=-1)
+        cutoff = np.partition(d, self.args.max_length - 1)[self.args.max_length - 1]
+        selected_indices = nonNan_indices[d <= cutoff]
+        return selected_indices
+
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
         value = self.txn.get(key.encode())
@@ -1714,12 +1736,27 @@ class PDBDataset(AFDBLMDBDataset):
 
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
-            coords = data["pos"][random_start : random_start + self.args.max_length, :]
+            # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            # data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            # coords = data["pos"][random_start : random_start + self.args.max_length, :]
+            if np.random.rand() < 0.25:
+                random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+                data["aa"] = data["aa"][
+                    random_start : random_start + self.args.max_length
+                ]
+                coords = data["pos"][
+                    random_start : random_start + self.args.max_length, :
+                ]
+                position_ids = range(random_start, random_start + self.args.max_length)
+            else:
+                selected_idx = self.crop_spatial(data)
+                data["aa"] = data["aa"][selected_idx]
+                coords = data["pos"][selected_idx, :]
+                position_ids = selected_idx
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"][:, :]
+            position_ids = range(0, len(data["aa"]))
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1750,6 +1787,7 @@ class PDBDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
 

@@ -137,15 +137,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 
-[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
+# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+
+[ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
-
-# [ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -323,7 +323,7 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=exp \
+          backbone=exp2 \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           num_pred_attn_layer=$num_pred_attn_layer \

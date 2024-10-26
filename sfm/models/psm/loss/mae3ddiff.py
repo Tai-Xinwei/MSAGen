@@ -384,10 +384,10 @@ class DiffMAE3dCriterions(nn.Module):
             mask_temp = upper_mask | lower_mask
 
             protein_contact_mask = (
-                (delta_pos_label >= 4)
-                & (delta_pos_label <= 32)
+                (delta_pos_label <= 32)
+                # & (delta_pos_label >= 4)
                 & pair_protein_mask
-                & mask_temp
+                # & mask_temp
             )
             protein_contact_mask = protein_contact_mask & dist_mask
             delta = dist_map.squeeze(-1) - delta_pos_label
