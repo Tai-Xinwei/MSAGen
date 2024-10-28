@@ -1,10 +1,12 @@
-CKPT=/hai1/renqian/SFM/threedimargen/outputs/3dargenlan_v0.1_base_mp_nomad_qmdb_ddp_noniggli_layer24_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256/checkpoint_E40.pt
+CKPT=/msralaphilly2/ml-la/renqian/SFM/threedimargen/outputs/3dargenlan_v0.1_base_mp_nomad_qmdb_ddp_noniggli_layer24_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256/checkpoint_E40.pt
 CKPT_FOLDER=$(dirname $CKPT)
 CKPT_NAME=$(basename $CKPT)
-INPUT=/hai1/renqian/SFM/threedimargen/data/materials_data/instructv1_mat_sample.unique.smactvalid.pkl
+#INPUT=/msralaphilly2/ml-la/yinxia/wu2/backup/SFM_for_material.20240430/instruct_mat_7b_beam4_06282024.pkl
+INPUT=/msralaphilly2/ml-la/yinxia/wu2/backup/SFM_for_material.20240430/instruct_mat_8b_beam4_07022024.pkl
 INPUT_FNAME=$(basename $INPUT)
 
-OUTPUT=${CKPT_FOLDER}/instructv1_mat_sample/
+#OUTPUT=instruct_mat_7b_beam4_06282024
+OUTPUT=instruct_mat_8b_beam4_07022024
 
 mkdir ${OUTPUT} -p
 

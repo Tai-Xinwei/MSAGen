@@ -32,7 +32,7 @@ def process_file(args, file):
     )
     keys = []
     with open(file, "rb") as fbin:
-        data = np.frombuffer(fbin.read(), dtype="<I").astype(np.uint32)
+        data = np.frombuffer(fbin.read(), dtype="<H").astype(np.uint16)
     token_count = data.shape[0]
     logger.info("number of tokens: {}".format(token_count))
     logger.info("first token loaded: {}, type {}".format(data[:10], data.dtype))
@@ -40,7 +40,7 @@ def process_file(args, file):
         # pad to multiple of seq_len
         data = np.append(
             data,
-            np.ones(args.seq_len - token_count % args.seq_len, dtype=np.uint32)
+            np.ones(args.seq_len - token_count % args.seq_len, dtype=np.uint16)
             * args.pad_idx,
         )
     data = data.reshape(-1, args.seq_len)
@@ -65,7 +65,7 @@ def main():
     parser.add_argument("input_files", type=str)
     parser.add_argument("output", type=str)
     parser.add_argument("--seq_len", type=int, default=8192)
-    parser.add_argument("--pad_idx", type=int, default=128256)
+    parser.add_argument("--pad_idx", type=int, default=32000)
     parser.add_argument("--max_workers", type=int, default=1)
     args = parser.parse_args()
 
