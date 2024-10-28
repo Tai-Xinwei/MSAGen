@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import json
+import logging
 import os
 import re
 import shutil
+from functools import partial
 from threading import Thread
 
 import gradio as gr
@@ -18,7 +20,6 @@ from transformers import (
 )
 
 from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer, NlmTokenizer
-from sfm.logging import logger
 
 MIXTRAL_BLOB_PATH = os.environ.get(
     "MIXTRAL_BLOB_PATH", "/home/shufxi/nlm/Mixtral-8x7B-v0.1"
@@ -33,12 +34,34 @@ CKPT = os.environ.get(
 )
 LOCAL_PATH = os.environ.get("LOCAL_PATH", "/dev/shm/nlmoe")
 DEMO_MODE = os.environ.get("DEMO_MODE", "chat").lower()
+DEMO_NAME = os.environ.get("DEMO_NAME", "sfm_seq")
 SERVER_PORT = int(os.environ.get("SERVER_PORT", 8234))
 
 N_MODEL_PARALLEL = int(os.environ.get("N_MODEL_PARALLEL", 2))
 MODEL_START_DEVICE = int(os.environ.get("MODEL_START_DEVICE", 0))
 
 MODEL_TYPE = os.environ.get("MODEL_TYPE", "mixtral_8x7b")
+
+
+def get_logger():
+    # Set up the logger
+    logger = logging.getLogger("ChatLogger")
+    logger.setLevel(logging.INFO)
+    # Create handlers
+    console_handler = logging.StreamHandler()  # Logs to the console
+    file_handler = logging.FileHandler(
+        "./webdemo/webdemo_logs/{}.txt".format(DEMO_NAME)
+    )  # Logs to a file
+
+    # Create formatter and add it to handlers
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    console_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
+
+    # Add handlers to the logger
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    return logger
 
 
 def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
@@ -407,6 +430,7 @@ def chat(
     temperature: float,
     beam_size: int,
     top_p: float,
+    logger,
 ):
     prompt_list = []
     if n_history != 0:
@@ -451,12 +475,19 @@ def chat(
         for text in streamer:
             generated_text += text
             yield post_process_response(generated_text)
-        print("ret", generated_text)
         yield post_process_response(generated_text)
     else:  # beam search is not supported by TextIteratorStreamer
         outputs = model.generate(**generation_kwargs)[0]
         text = tokenizer.decode(outputs)
         yield post_process_response(text)
+
+    logger.info(
+        "Response: {}".format(
+            [
+                post_process_response(generated_text).split("\n\n\nResponse:")[-1],
+            ]
+        )
+    )
 
 
 def complete(
@@ -514,8 +545,9 @@ def complete(
 
 
 if DEMO_MODE == "chat":
+    logger = get_logger()
     demo = gr.ChatInterface(
-        chat,
+        partial(chat, logger=logger),
         additional_inputs=[
             gr.Number(label="n_history", value=0),
             gr.Checkbox(label="do_sample", value=True),
@@ -548,7 +580,9 @@ else:  # DEMO_MODE == "COMPLETE"
             gr.Number(label="top_p", value=0.9),
         ],
         outputs=gr.Textbox(label="response", lines=31),
-        allow_flagging="never",
+        allow_flagging="auto",
+        flagging_mode="auto",
+        flagging_dir="./webdemo/webdemo_logs/{}".format(DEMO_NAME),
     )
 
 

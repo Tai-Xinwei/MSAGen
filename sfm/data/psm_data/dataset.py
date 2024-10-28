@@ -1062,7 +1062,11 @@ class MatterSimDataset:
             key = self.index_to_key_name[idx]
             data = pkl.loads(self.data_txn.get(key.encode()))
 
-        if self.data_path.find("force-filtered") != -1:
+        if (
+            self.data_path.find("force-filtered") != -1
+            and self.dataset_type
+            != "single structure file"  # we assume that single structure file is not used for diffusion
+        ):
             is_stable_periodic = True
         else:
             is_stable_periodic = False | self.add_unit_cell_virtual_node

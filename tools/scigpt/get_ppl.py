@@ -66,8 +66,10 @@ def get_sfm_ckpt(sfm_path, llama_path):
 
 
 def get_ppl(sentence, tokenizer, model):
-    encodings = tokenizer(sentence, return_tensors="pt")
-    input_ids = encodings.input_ids.cuda()
+    tokens = tokenizer._tokenize(sentence)
+    tokens = ['<s>'] + tokens + ['</s>']
+    input_ids = tokenizer.convert_tokens_to_ids(tokens)
+    input_ids = torch.tensor(input_ids).unsqueeze(0).cuda()
     target_ids = input_ids.clone()
 
     with torch.no_grad():
@@ -78,16 +80,23 @@ def get_ppl(sentence, tokenizer, model):
         # to the left by 1.
         neg_log_likelihood = outputs.loss
         ppl = torch.exp(neg_log_likelihood)
-    return ppl.item()
+    return ppl.item(), neg_log_likelihood.item()
 
 
 def evaluate(tokenizer, model, data):
     ppls = []
+    losses = []
+    i = 0
     for sentence in tqdm(data):
-        ppl = get_ppl(sentence, tokenizer, model)
+        ppl, loss = get_ppl(sentence, tokenizer, model)
         ppls.append(ppl)
+        losses.append(loss)
+        i += 1
+        if i % 1000 == 0:
+            print(f"step {i} loss: {sum(losses) / len(losses)}\tppl: {sum(ppls) / len(ppls)}")
     ppl = sum(ppls) / len(ppls)
-    return ppl
+    loss = sum(losses) / len(losses)
+    return ppl, loss
 
 
 def load_data(data_path):
@@ -109,8 +118,8 @@ def main():
 
     # evaluate bio0
     tokenizer, model = get_sfm_ckpt(sfm_path, llama_path)
-    ppl = evaluate(tokenizer, model, data)
-    print(f"sfm ppl: {ppl}")
+    ppl, loss = evaluate(tokenizer, model, data)
+    print(f"sfm loss: {loss}\tppl: {ppl}")
 
 
 if __name__ == "__main__":

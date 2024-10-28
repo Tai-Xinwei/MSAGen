@@ -295,7 +295,7 @@ class ThreeDimARGenNum(LlamaForCausalLM):
             attentions=outputs.attentions,
         )
 
-    def greedy_search(
+    def _greedy_search(
         self,
         input_ids: torch.LongTensor,
         logits_processor: Optional[LogitsProcessorList] = None,

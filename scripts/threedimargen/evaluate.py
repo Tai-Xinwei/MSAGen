@@ -2,6 +2,7 @@
 import itertools
 import json
 import re
+import signal
 import sys
 from argparse import ArgumentParser
 from collections import Counter
@@ -239,6 +240,86 @@ def get_pred_structure(data, backend=None):
         return get_pred_structure_from_coords(data)
 
 
+class TimeoutException(Exception):
+    pass
+
+
+def timeout_handler(signum, frame):
+    raise TimeoutException("Function execution timed out")
+
+
+def timeout(seconds):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)  # Disable the alarm
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+@timeout(1)
+def get_rms_dist(matcher, pred_structure, gt_structure):
+    rms_dist = matcher.get_rms_dist(pred_structure, gt_structure)
+    return rms_dist
+
+
+@timeout(2)
+def evaluate_singe(data, backend, matcher):
+    sites = [site["element"] for site in data["sites"]]
+    try:
+        # print("constructing")
+        pred_structure = get_pred_structure(data, backend)
+        gt_strucutre = Structure(
+            lattice=Lattice(data["lattice"]),
+            species=sites,
+            coords=[site["fractional_coordinates"] for site in data["sites"]],
+        )
+        constructed = True
+    except:
+        constructed = False
+    if args.valid:
+        elem_counter = Counter(sites)
+        composition = [
+            (elem, elem_counter[elem]) for elem in sorted(elem_counter.keys())
+        ]
+        elems, counts = list(zip(*composition))
+        counts = np.array(counts)
+        counts = counts / np.gcd.reduce(counts)
+        comps = tuple(counts.astype("int").tolist())
+        # print("smact ing")
+        comp_valid = smact_validity(elems, comps)
+        if constructed:
+            try:
+                # print("structing validiting")
+                struct_valid = structure_validity(pred_structure)
+            except:
+                struct_valid = False
+        else:
+            struct_valid = False
+        is_valid = comp_valid and struct_valid
+    else:
+        is_valid = None
+        comp_valid = None
+        struct_valid = None
+    if args.valid and not is_valid:
+        rms_dist = None
+    else:
+        try:
+            # print("getting rms")
+            rms_dist = get_rms_dist(matcher, pred_structure, gt_strucutre)
+            rms_dist = None if rms_dist is None else rms_dist[0]
+        except:
+            rms_dist = None
+    return rms_dist, is_valid, comp_valid, struct_valid
+
+
 def evaluate(fname):
     if args.valid:
         print("Using SMACt and structure validity check")
@@ -256,61 +337,25 @@ def evaluate(fname):
             backend = InvCryRep()
         for line in tqdm(lines):
             data = json.loads(line)
-            sites = [site["element"] for site in data["sites"]]
             try:
-                pred_structure = get_pred_structure(data, backend)
-                gt_strucutre = Structure(
-                    lattice=Lattice(data["lattice"]),
-                    species=sites,
-                    coords=[site["fractional_coordinates"] for site in data["sites"]],
+                rms_dist, is_valid, comp_valid, struct_valid = evaluate_singe(
+                    data, backend, matcher
                 )
-                constructed = True
             except:
-                constructed = False
+                rms_dist = None
+                is_valid = None
+                comp_valid = None
+                struct_valid = None
+            rms_dists.append(rms_dist)
+            valids.append(is_valid)
+            smact_valids.append(comp_valid)
+            struct_valids.append(struct_valid)
 
-            if args.valid:
-                elem_counter = Counter(sites)
-                composition = [
-                    (elem, elem_counter[elem]) for elem in sorted(elem_counter.keys())
-                ]
-                elems, counts = list(zip(*composition))
-                counts = np.array(counts)
-                counts = counts / np.gcd.reduce(counts)
-                comps = tuple(counts.astype("int").tolist())
-                comp_valid = smact_validity(elems, comps)
-
-                if constructed:
-                    try:
-                        struct_valid = structure_validity(pred_structure)
-                    except:
-                        struct_valid = False
-                else:
-                    struct_valid = False
-                is_valid = comp_valid and struct_valid
-                valids.append(is_valid)
-                smact_valids.append(comp_valid)
-                struct_valids.append(struct_valid)
-
-            if args.valid and not is_valid:
-                rms_dists.append(None)
-            else:
-                # with Pool(1) as pool:
-                #     res = pool.apply_async(
-                #         matcher.get_rms_dist, (pred_strucutre, gt_strucutre)
-                #     )
-                #     try:
-                #         # rms_dist = matcher.get_rms_dist(pred_strucutre, gt_strucutre)
-                #         rms_dist = res.get(timeout=1)
-                #         rms_dist = None if rms_dist is None else rms_dist[0]
-                #         rms_dists.append(rms_dist)
-                #     except:
-                #         rms_dists.append(None)
-                try:
-                    rms_dist = matcher.get_rms_dist(pred_structure, gt_strucutre)
-                    rms_dist = None if rms_dist is None else rms_dist[0]
-                    rms_dists.append(rms_dist)
-                except:
-                    rms_dists.append(None)
+            rms_dists_np = np.array(rms_dists)
+            match_rate = sum(rms_dists_np != None) / len(rms_dists_np)  # noqa
+            mean_rms_dist = rms_dists_np[rms_dists_np != None].mean()  # noqa
+            # print(f"Match rate: {match_rate:.4f}")
+            # print(f"Average RMS distance: {mean_rms_dist:.4f}")
 
         rms_dists = np.array(rms_dists)
         match_rate = sum(rms_dists != None) / len(rms_dists)  # noqa

@@ -51,6 +51,19 @@ class ThreeDimARGenConfig(LlamaConfig, DistributedTrainConfig):
     ft: bool = False
     infer: bool = False
 
+    # for diffusion
+    num_timesteps_stepsize: int = -250
+    ddpm_schedule: str = "sigmoid"
+    num_timesteps: int = 5000
+    ddpm_beta_start: float = 1e-7
+    ddpm_beta_end: float = 2e-3
+    diffusion_noise_std: float = 1.0
+
+    # only for dpm solver
+    algorithm_type: str = "dpmsolver++"
+    solver_order: int = 2
+    solver_type: str = "midpoint"
+
     def __init__(
         self,
         **kwargs,
