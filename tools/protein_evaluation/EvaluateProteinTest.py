@@ -98,11 +98,12 @@ def evaluate_predicted_structure(
 
 def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
     CATEGORY = {
+        "CAMEO Full": ["Easy", "Medium", "Hard"],
+        "CASP14 Full": ["MultiDom"],
+        "CASP15 Full": ["MultiDom"],
         "CAMEO  Easy": ["Easy"],
         "CAMEO  Medi": ["Medium"],
         "CAMEO  Hard": ["Hard"],
-        "CASP14 Full": ["MultiDom"],
-        "CASP15 Full": ["MultiDom"],
         "CASP14 TBM-easy": ["TBM-easy"],
         "CASP14 TBM-hard": ["TBM-hard"],
         "CASP14 FM": ["FM/TBM", "FM"],
@@ -176,9 +177,9 @@ if __name__ == '__main__':
     print(df)
 
     logger.info(f"Average TMscore for different categories.")
-    df.to_csv(Path(preddir) / "Score4EachModel.csv")
+    df.to_csv(Path(preddir) / "../Score4EachModel.csv")
     newdf, meandf = calculate_average_score(df)
-    newdf.to_csv(Path(preddir) / "Score4Target.csv")
+    newdf.to_csv(Path(preddir) / "../Score4Target.csv")
     print(newdf)
     with pd.option_context('display.float_format', '{:.2f}'.format):
         print(meandf)

@@ -487,14 +487,16 @@ class DiffusionModule3(nn.Module):
             ),
         )
 
-        self.pair_feat_proj = nn.Sequential(
+        self.pair2node = nn.Sequential(
             nn.Linear(
                 psm_config.encoder_pair_embed_dim,
                 psm_config.encoder_pair_embed_dim,
                 bias=False,
             ),
             nn.SiLU(),
-            nn.Linear(psm_config.encoder_pair_embed_dim, 1, bias=False),
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim, psm_config.embedding_dim, bias=False
+            ),
         )
 
         for nl in range(psm_config.num_pred_attn_layer):
@@ -537,8 +539,13 @@ class DiffusionModule3(nn.Module):
                 padding_mask.unsqueeze(-1).unsqueeze(2), 0.0
             )
 
-            pair_map = self.pair_feat_proj(pair_feat).squeeze(-1)
-            feat2node = torch.einsum("bij,bjh->bih", pair_map, pos_embedding)
+            feat2nodeindex = torch.topk(pair_feat_bias.mean(dim=1), 20, dim=1)[1]
+            feat2node = torch.gather(
+                pair_feat,
+                1,
+                feat2nodeindex.unsqueeze(-1).expand(-1, -1, -1, pair_feat.size(-1)),
+            ).mean(dim=1)
+            feat2node = self.pair2node(feat2node)
         else:
             pair_feat_bias = None
             feat2node = None
@@ -549,7 +556,7 @@ class DiffusionModule3(nn.Module):
             mixed_attn_bias = pair_feat_bias
 
         if feat2node is not None:
-            pos_embedding = pos_embedding + feat2node
+            x = x + feat2node
 
         for _, layer in enumerate(self.layers):
             pos_embedding = layer(

@@ -7,19 +7,21 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=exp3
-# [ -z "${layers}" ] && layers=36
-# [ -z "${hidden_size}" ] && hidden_size=2048
-# [ -z "${ffn_size}" ] && ffn_size=8192
-[ -z "${layers}" ] && layers=26
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=1024
-# [ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
+
+# [ -z "${layers}" ] && layers=26
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+
 [ -z "${num_head}" ] && num_head=32
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=384
@@ -107,10 +109,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,32,32'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,1,4,4'
 
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240101_PDB_Training_Data,MGnify'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdb,mgnify'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.60,0.10,0.30'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,16,16'
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240101_PDB_Training_Data,MGnify'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdb,mgnify'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.60,0.10,0.30'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,4,4'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -149,10 +151,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
 
-[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16'
+# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16'
 # [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged,'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -193,7 +195,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=True
+[ -z "${fp16}" ] && fp16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
