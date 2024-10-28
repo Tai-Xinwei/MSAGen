@@ -6,8 +6,6 @@ from functools import lru_cache
 import numpy as np
 import pyximport
 
-from SFM_framework.sfm.data.psm_data import crop
-
 pyximport.install(setup_args={"include_dirs": np.get_include()})
 import bisect
 import glob
