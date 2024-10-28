@@ -43,7 +43,12 @@ from .modules.confidence_model import lddt
 from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
-from .modules.timestep_encoder import DiffNoise, TimeStepSampler
+from .modules.timestep_encoder import (
+    DiffNoise,
+    DiffNoise_EDM,
+    NoiseStepSampler_EDM,
+    TimeStepSampler,
+)
 
 
 class PSMModel(Model):
@@ -96,7 +101,12 @@ class PSMModel(Model):
         self.psm_finetune_head = psm_finetune_head
         self.checkpoint_loaded = self.reload_checkpoint()
 
-        self.diffnoise = DiffNoise(self.psm_config)
+        if self.psm_config.diffusion_mode == "edm":
+            self.diffnoise = DiffNoise_EDM(self.psm_config)
+            self.diffnoise.alphas_cumprod = None
+        else:
+            self.diffnoise = DiffNoise(self.psm_config)
+
         self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
             self.psm_config.diffusion_sampling
         ](self.diffnoise.alphas_cumprod, self.psm_config)
@@ -810,18 +820,38 @@ class PSMModel(Model):
             self.psm_config.num_timesteps_stepsize,
         ):
             # forward
-            time_step = self.time_step_sampler.get_continuous_time_step(
-                t, n_graphs, device=device, dtype=batched_data["pos"].dtype
-            )
-            time_step = time_step.unsqueeze(-1).repeat(1, batched_data["pos"].shape[1])
-            if clean_mask is not None:
-                time_step = time_step.masked_fill(clean_mask, 0.0)
+            if self.psm_config.diffusion_mode == "edm":
+                time_step = None
+            else:
+                time_step = self.time_step_sampler.get_continuous_time_step(
+                    t, n_graphs, device=device, dtype=batched_data["pos"].dtype
+                )
+                time_step = time_step.unsqueeze(-1).repeat(
+                    1, batched_data["pos"].shape[1]
+                )
+                if clean_mask is not None:
+                    time_step = time_step.masked_fill(clean_mask, 0.0)
 
-            batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
-                self.diffnoise.sqrt_one_minus_alphas_cumprod,
-                (time_step * self.psm_config.num_timesteps).long(),
-                batched_data["pos"].shape,
-            )
+            x_t = batched_data["pos"].clone()  # to avoid in-place operation in edm
+            if self.psm_config.diffusion_mode == "edm":
+                t_hat = self.diffusion_process.t_to_sigma(t)
+                # Reshape sigma to (B, L, 1)
+                t_hat = t_hat.unsqueeze(-1).repeat(1, x_t.shape[1]).unsqueeze(-1)
+                t_hat = t_hat.double()
+                c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
+                batched_data["edm_sigma"] = t_hat
+                batched_data["c_skip"] = c_skip
+                batched_data["c_out"] = c_out
+                batched_data["c_in"] = c_in
+                batched_data["c_noise"] = c_noise
+            else:
+                batched_data[
+                    "sqrt_one_minus_alphas_cumprod_t"
+                ] = self.diffnoise._extract(
+                    self.diffnoise.sqrt_one_minus_alphas_cumprod,
+                    (time_step * self.psm_config.num_timesteps).long(),
+                    batched_data["pos"].shape,
+                )
 
             net_result = self.net(
                 batched_data,
@@ -840,7 +870,7 @@ class PSMModel(Model):
             )
 
             batched_data["pos"] = self.diffusion_process.sample_step(
-                batched_data["pos"],
+                x_t,
                 batched_data["init_pos"],
                 predicted_noise,
                 epsilon,
