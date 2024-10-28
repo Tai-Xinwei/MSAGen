@@ -154,6 +154,23 @@ class PSMConfig(GraphormerConfig):
     kl_weight: float = 0.1
     ratio_clip: float = 1e-4
 
+    # EDM
+    edm_P_mean: float = -1.2
+    edm_P_std: float = 1.5
+    edm_sigma_data: float = 16.0
+    edm_sample_num_steps: int = 200
+    edm_sample_sigma_min: float = 4e-4  # 0.004
+    edm_sample_sigma_max: float = 160.0
+    edm_sample_rho: float = 7.0
+    edm_sample_S_churn: float = 0.0
+    edm_sample_S_min: float = 0.0
+    edm_sample_S_max: float = 100  # 3.0e30
+    edm_sample_S_noise: float = 1.0
+    # for AF3
+    af3_sample_gamma_0: float = 0.8
+    af3_sample_gamma_min: float = 1.0
+    af3_sample_step_scale: float = 1.5
+    noise_embedding: str = "fourier"
     # for force
     force_loss_type: ForceLoss = ForceLoss.L1
     force_head_type: ForceHeadType = ForceHeadType.GATED_EQUIVARIANT
@@ -230,6 +247,17 @@ class PSMConfig(GraphormerConfig):
     # dali pipeline
     use_dali_pipeline: bool = False
 
+    # for structure relaxation
+    relax_after_sampling_structure: bool = False
+    structure_relax_step_size: float = 0.01
+    use_autograd_force_for_relaxation_and_md: bool = False
+    relax_ase_steps: int = 8000
+    relax_initial_cell_matrix: str = "1,1,1"
+    relax_lower_deformation: int = 0
+    relax_upper_deformation: int = 0
+    relax_deformation_step: int = 5
+    relax_fmax: float = 0.01
+
     def __init__(
         self,
         args,
@@ -239,3 +267,6 @@ class PSMConfig(GraphormerConfig):
         for k, v in asdict(self).items():
             if hasattr(args, k):
                 setattr(self, k, getattr(args, k))
+        self.relax_initial_cell_matrix = [
+            int(i) for i in self.relax_initial_cell_matrix.split(",")
+        ]

@@ -27,6 +27,7 @@ class ScigptModel(SFMPipelineModelMixin):
         self.loss = AutoregressiveCriterion(config)
         if config.infer:
             llama_config = LlamaConfig.from_pretrained(config.llm_model_name_or_path)
+            llama_config.rope_theta = 1000000
             self.decoder = LlamaForCausalLM(llama_config)
 
     def to_layers(self):

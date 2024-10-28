@@ -642,7 +642,7 @@ class Trainer(object):
                         self.state.global_step += 1
                         self.state.sample += model_output.num_examples
 
-                        if self.should_do_batch_validate():
+                        if self.should_do_batch_validate() and not self.args.profiling:
                             self.validate()
 
                         if self.should_log():

@@ -1,13 +1,14 @@
 CKPT_FOLDER=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_base_mp_nomad_qmdb_ddp_noniggli_layer24_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256
 CKPT_FOLDER=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_base_ft_mp_20_ddp_noniggli_base_epoch10_warmup1_lr1e-5_wd0.1_bs16
 CKPT_FOLDER=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_base_ft_perov5_ddp_noniggli_base_epoch10_warmup1_lr1e-5_wd0.1_bs16
+CKPT_FOLDER=/msralaphilly2/ml-la/renqian/SFM/threedimargen/outputs/3dargenlan_v0.1_base_mp_nomad_qmdb_ddp_noniggli_layer24_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256
 CKPT_LIST=`ls ${CKPT_FOLDER}/checkpoint_E*.pt`
 for CKPT in ${CKPT_LIST}; do
 CKPT_NAME=$(basename $CKPT)
-#INPUT=/hai1/SFM/threedimargen/data/materials_data/mp_20_test.jsonl
-#INPUT=/hai1/SFM/threedimargen/data/materials_data/mpts-52_test.jsonl
-#INPUT=/hai1/SFM/threedimargen/data/materials_data/carbon_24_test.jsonl
-INPUT=/hai1/SFM/threedimargen/data/materials_data/perov_5_test.jsonl
+#INPUT=/msralaphilly2/ml-la/renqian/SFM/threedimargen/data/materials_data/mp_20_test.jsonl
+#INPUT=/msralaphilly2/ml-la/renqian/SFM/threedimargen/data/materials_data/mpts-52_test.jsonl
+#INPUT=/msralaphilly2/ml-la/renqian/SFM/threedimargen/data/materials_data/carbon_24_test.jsonl
+INPUT=/msralaphilly2/ml-la/renqian/SFM/threedimargen/data/materials_data/perov_5_test.jsonl
 INPUT_FNAME=$(basename $INPUT)
 
 SG_FLAG=0
@@ -35,5 +36,5 @@ else
     ${SG}
 fi
 
-python scripts/threedimargen/evaluate.py ${OUTPUT} --valid True --output ${CKPT_FOLDER}/eval.log
+python scripts/threedimargen/evaluate.py ${OUTPUT} --valid True --output ${CKPT_FOLDER}/${INPUT_FNAME}_eval.log
 done

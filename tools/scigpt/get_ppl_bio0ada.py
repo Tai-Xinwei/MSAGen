@@ -32,9 +32,9 @@ def get_llama_ckpt(llama_path):
 def get_sfm_ckpt(sfm_path, llama_path, args, data):
     tokenizer = SFMDecTokenizer.from_pretrained(
         llama_path,
-        prot_spm_path='/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt/ur50bpe/bpe',
-        dna_spm_path='/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt/dnabpe/bpe',
-        rna_spm_path='/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt/rnabpe/bpe',
+        prot_spm_path='/blob/shufxi/data/scigpt/ur50bpe/bpe',
+        dna_spm_path='/blob/shufxi/data/scigpt/dnabpe/bpe',
+        rna_spm_path='/blob/shufxi/data/scigpt/rnabpe/bpe',
     )
     print(len(tokenizer))
 
@@ -78,32 +78,37 @@ def get_sfm_ckpt(sfm_path, llama_path, args, data):
 
 
 def get_ppl(sentence, tokenizer, model):
-    encodings = tokenizer(sentence, return_tensors="pt")
-    input_ids = encodings.input_ids.cuda()
+    tokens = tokenizer._tokenize(sentence)
+    tokens = ['<s>'] + tokens + ['</s>']
+    input_ids = tokenizer.convert_tokens_to_ids(tokens)
+    input_ids = torch.tensor(input_ids).unsqueeze(0).cuda()
     target_ids = input_ids.clone()
 
     with torch.no_grad():
-        outputs = model(input_ids)
+        outputs = model(input_ids, labels=target_ids)
 
         # loss is calculated using CrossEntropyLoss which averages over valid labels
         # N.B. the model only calculates loss over trg_len - 1 labels, because it internally shifts the labels
         # to the left by 1.
         neg_log_likelihood = outputs.loss
         ppl = torch.exp(neg_log_likelihood)
-    return ppl.item()
+    return ppl.item(), neg_log_likelihood.item()
 
 
 def evaluate(tokenizer, model, data):
     ppls = []
+    losses = []
     i = 0
     for sentence in tqdm(data):
-        ppl = get_ppl(sentence, tokenizer, model)
+        ppl, loss = get_ppl(sentence, tokenizer, model)
         ppls.append(ppl)
+        losses.append(loss)
         i += 1
         if i % 1000 == 0:
-            print(f"step {i} ppl: {sum(ppls) / len(ppls)}")
+            print(f"step {i} loss: {sum(losses) / len(losses)}\tppl: {sum(ppls) / len(ppls)}")
     ppl = sum(ppls) / len(ppls)
-    return ppl
+    loss = sum(losses) / len(losses)
+    return ppl, loss
 
 
 def load_data(data_path):
@@ -123,9 +128,9 @@ def set_args(llama_path):
     return args
 
 def main():
-    llama_path = '/data/peiran/blob/hai1data/sfm/llama/llama-2-7b'
-    sfm_path = "/data/peiran/blob/hai1data/sfm/sfmexpresults/peiran/output/stageA_prot_e10_bs512_ada_emb_8xG8H100/global_step5781/"
-    data_path = "/data/peiran/blob/msralaphilly2/ml-la/renqian/data/sfm/ur90/valid.uniref90.shuf.10k"
+    llama_path = '/hai1/mfm/ds_dataset/llama2/llama-2-7b'
+    sfm_path = "/hai1/sfm/sfmexpresults/peiran/output/stageA_prot_e10_bs512_ada_emb_8xG8H100/global_step11562/"
+    data_path = "/blob/renqian/data/sfm/ur90/valid.uniref90.shuf.10k"
     data = load_data(data_path)
 
     # evaluate llama

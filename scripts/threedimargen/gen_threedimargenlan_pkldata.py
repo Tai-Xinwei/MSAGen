@@ -25,26 +25,29 @@ from sfm.utils.move_to_device import move_to_device
 
 
 def convert_to_dict(
-    path="/hai1/SFM/threedimargen/data/materials_data/instructv1_mat_sample.unique.smactvalid.pkl",
+    path="/msralaphilly2/ml-la/yinxia/wu2/backup/SFM_for_material.20240430/instruct_mat_7b_beam4_06282024.pkl",
     space_group=True,
 ):
     with open(path, "rb") as f:
         data = pickle.load(f)
     res = []
     for i in range(len(data)):
-        sites = [{"element": ele} for ele, count in data[i][0] for _ in range(count)]
-        space_groups = list(data[i][1])
+        if len(data[i][1]) == 0:
+            continue
+        seq = data[i][1][0]
+        # extract sequence in seq before <sg*> tag
+        elements = re.findall(r"([A-Z][a-z]*)", seq)
+        sites = [{"element": ele} for ele in elements]
+
         if space_group:
-            for sg in space_groups:
-                sg_no = int(re.findall(r"\d+", sg)[0])
+            sg_no = re.search(r"<sg(\d+)>", seq)
+            if sg_no is None:
+                logger.error(f"no space group found in {seq}")
+            else:
+                sg_no = int(sg_no.group(1))
                 res.append({"id": i, "sites": sites, "space_group": {"no": sg_no}})
         else:
-            res.append(
-                {
-                    "id": i,
-                    "sites": sites,
-                }
-            )
+            res.append({"id": i, "sites": sites})
     return res
 
 
