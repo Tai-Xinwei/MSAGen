@@ -674,7 +674,6 @@ class Trainer(object):
                 metric_logger.log(log_output, "train", self.state.global_step)
 
                 self.state.batch = 0
-                self.state.global_step = 0
 
                 self.accelerator.barrier()
                 if self.should_save_epoch_checkpoint():
@@ -871,7 +870,7 @@ class Trainer(object):
                 if torch.cuda.is_available()
                 else None
             ),
-            "iteration": self.state.global_step,
+            "iteration": self.state.batch,
             "epoch": self.state.epoch,
         }
 

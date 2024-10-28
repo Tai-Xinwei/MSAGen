@@ -16,8 +16,8 @@ target:
   name: townsend1
 
 environment:
-  # image: ai4s-sfm:20240531.170731
-  image: ai4s-sfm:20241024.134650-pt26n
+  image: ai4s-sfm:20240531.170731
+  # image: ai4s-sfm:20241024.134650-pt26n
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
 

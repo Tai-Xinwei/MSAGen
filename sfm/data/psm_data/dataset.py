@@ -6,6 +6,8 @@ from functools import lru_cache
 import numpy as np
 import pyximport
 
+from SFM_framework.sfm.data.psm_data import crop
+
 pyximport.install(setup_args={"include_dirs": np.get_include()})
 import bisect
 import glob
@@ -2220,127 +2222,98 @@ class PDBComplexDataset(AFDBLMDBDataset):
         random.shuffle(cropped_chain_idxes_list)
 
         # reconstruct the polymer chains
-        if np.random.rand() < 0.25:  # contiguous crop
-            return None
-            # n_added, n_remaining = 0, 0
+        for idx, chain in enumerate(cropped_chain_idxes_list):
+            chain_name = chain["chain_name"]
+            cropped_chain_idxes = chain["cropped_chain_idxes"]
+            chain = polymer_chains[chain_name]
 
-            # for chain_id in chains:
-            #     n_remaining += item["chains"][chain_id]["token_index"].shape[0]
-
-            # for chain_id in chains:
-            #     token_index = item["chains"][chain_id]["token_index"]
-            #     n_k = token_index.shape[0]
-            #     n_remaining -= n_k
-            #     crop_size_max = min(n_res - n_added, n_k)
-            #     crop_size_min = min(n_k, max(0, n_res - (n_added + n_remaining)))
-            #     crop_size = np.random.randint(crop_size_min, crop_size_max + 1)
-            #     n_added += crop_size
-            #     crop_start = np.random.randint(n_k - crop_size + 1)
-            #     crop.append(token_index[crop_start : crop_start + crop_size])
-
-            # crop = np.concatenate(crop, axis=0)
-            # return crop
-        else:  # spatial crop
-            for idx, chain in enumerate(cropped_chain_idxes_list):
-                chain_name = chain["chain_name"]
-                cropped_chain_idxes = chain["cropped_chain_idxes"]
-                chain = polymer_chains[chain_name]
-
-                # rescontruct the residue sequence
-                crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
-                if idx == len(cropped_chain_idxes_list) - 1:
-                    token_type.extend(crop_chain)
-                else:
-                    token_type.extend(crop_chain + ["."])
-
-                # rescontruct the coords
-                if idx == len(cropped_chain_idxes_list) - 1:
-                    crop_coords = chain["center_coord"][cropped_chain_idxes]
-                else:
-                    crop_coords = np.concatenate(
-                        [
-                            chain["center_coord"][cropped_chain_idxes],
-                            np.zeros((1, 3)),
-                        ],
-                        axis=0,
-                    )
-                coords.append(crop_coords)
-
-                # build discontinuous position ids for rope
-                if idx == len(cropped_chain_idxes_list) - 1:
-                    position_ids.extend(
-                        range(start_position_ids, start_position_ids + len(crop_chain))
-                    )
-                    start_position_ids = start_position_ids + len(crop_chain) + 1000
-                    chain_ids.extend([idx + 1] * len(crop_chain))
-                    polymer_len += len(crop_chain)
-                else:
-                    position_ids.extend(
-                        range(
-                            start_position_ids, start_position_ids + len(crop_chain) + 1
-                        )
-                    )
-                    start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
-                    chain_ids.extend([idx + 1] * len(crop_chain) + [0])
-                    polymer_len += len(crop_chain) + 1
-
-            if polymer_len > 0:
-                x = [VOCAB[tok] - 1 for tok in token_type]
-                node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
+            # rescontruct the residue sequence
+            crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
+            if idx == len(cropped_chain_idxes_list) - 1:
+                token_type.extend(crop_chain)
             else:
-                x = []
+                token_type.extend(crop_chain + ["."])
 
-            # reconstruct the ligand
-            if center_ligand_idx != -1:
-                ligand = non_polymers[center_ligand_idx]
-
-                # rescontruct the atom type of the ligand
-                atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-                if len(x) > 0:
-                    x.extend([VOCAB["."] - 1] + atom_ids)
-                    pos = np.concatenate(
-                        [np.zeros((1, 3)), ligand["node_coord"]], axis=0
-                    )
-                    # build position ids for ligand, but this may not used in the attention, just for length alignment
-                    position_ids.extend(
-                        range(
-                            start_position_ids, start_position_ids + len(atom_ids) + 1
-                        )
-                    )
-                    chain_ids.extend(
-                        [len(cropped_chain_idxes_list) + 1] * len(atom_ids) + [0]
-                    )
-                else:
-                    x.extend(atom_ids)
-                    pos = ligand["node_coord"]
-                    # build position ids for ligand, but this may not used in the attention, just for length alignment
-                    position_ids.extend(
-                        range(start_position_ids, start_position_ids + len(atom_ids))
-                    )
-                    chain_ids.extend(
-                        [len(cropped_chain_idxes_list) + 1] * len(atom_ids)
-                    )
-
-                # rescontruct the coords of the ligand
-                coords.append(pos)
-
-                if polymer_len == 0:
-                    node_feature = torch.from_numpy(ligand["node_feat"])
-                else:
-                    node_feature = torch.cat(
-                        [
-                            node_feature,
-                            torch.zeros((1, 9), dtype=torch.int32),
-                            torch.from_numpy(ligand["node_feat"]),
-                        ],
-                        dim=0,
-                    )
-                    polymer_len += 1
-
-                edge_index = ligand["edge_index"]
-                # edge_attr = ligand["edge_feat"]
+            # rescontruct the coords
+            if idx == len(cropped_chain_idxes_list) - 1:
+                crop_coords = chain["center_coord"][cropped_chain_idxes]
             else:
-                edge_index = None
+                crop_coords = np.concatenate(
+                    [
+                        chain["center_coord"][cropped_chain_idxes],
+                        np.zeros((1, 3)),
+                    ],
+                    axis=0,
+                )
+            coords.append(crop_coords)
+
+            # build discontinuous position ids for rope
+            if idx == len(cropped_chain_idxes_list) - 1:
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(crop_chain))
+                )
+                start_position_ids = start_position_ids + len(crop_chain) + 1000
+                chain_ids.extend([idx + 1] * len(crop_chain))
+                polymer_len += len(crop_chain)
+            else:
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(crop_chain) + 1)
+                )
+                start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
+                chain_ids.extend([idx + 1] * len(crop_chain) + [0])
+                polymer_len += len(crop_chain) + 1
+
+        if polymer_len > 0:
+            x = [VOCAB[tok] - 1 for tok in token_type]
+            node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
+        else:
+            x = []
+
+        # reconstruct the ligand
+        if center_ligand_idx != -1:
+            ligand = non_polymers[center_ligand_idx]
+
+            # rescontruct the atom type of the ligand
+            atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
+            if len(x) > 0:
+                x.extend([VOCAB["."] - 1] + atom_ids)
+                pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
+                # build position ids for ligand, but this may not used in the attention, just for length alignment
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(atom_ids) + 1)
+                )
+                chain_ids.extend(
+                    [len(cropped_chain_idxes_list) + 1] * len(atom_ids) + [0]
+                )
+            else:
+                x.extend(atom_ids)
+                pos = ligand["node_coord"]
+                # build position ids for ligand, but this may not used in the attention, just for length alignment
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(atom_ids))
+                )
+                chain_ids.extend([len(cropped_chain_idxes_list) + 1] * len(atom_ids))
+
+            # rescontruct the coords of the ligand
+            coords.append(pos)
+
+            if polymer_len == 0:
+                node_feature = torch.from_numpy(ligand["node_feat"])
+            else:
+                node_feature = torch.cat(
+                    [
+                        node_feature,
+                        torch.zeros((1, 9), dtype=torch.int32),
+                        torch.from_numpy(ligand["node_feat"]),
+                    ],
+                    dim=0,
+                )
+                polymer_len += 1
+
+            edge_index = ligand["edge_index"]
+            # edge_attr = ligand["edge_feat"]
+        else:
+            edge_index = None
 
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
         x = torch.tensor(x, dtype=torch.int32)
@@ -2361,6 +2334,100 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         return data
 
+    def contiguous_crop(self, data):
+        """
+        Crop the complex and multimers in a contiguous way
+        """
+        polymer_chains = data["polymer_chains"]
+        data["nonpoly_graphs"]
+
+        # shuffle the chain idxes to avoid the order of the chains
+        polymer_chains_idxes = []
+        for key in polymer_chains.keys():
+            # # TODO: filter DNA/RNA chains, needs to be considered in the future
+            # if np.any(polymer_chains[key]["restype"] == "N"):
+            #     continue
+
+            # some croped polymer has all Nan coords, so we need to avoid it
+            if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
+                polymer_chains_idxes.append(key)
+
+        random.shuffle(polymer_chains_idxes)
+
+        n_added, n_remaining, n_res = 0, 0, self.max_residue_num
+
+        for polymer_chains_idx in polymer_chains_idxes:
+            n_remaining += polymer_chains[polymer_chains_idx]["center_coord"].shape[0]
+
+        token_type = []
+        coords = []
+        position_ids = []
+        chain_ids = []
+        start_position_ids = 0
+        polymer_len = 0
+
+        for idx, polymer_chains_idx in enumerate(polymer_chains_idxes):
+            n_k = polymer_chains[polymer_chains_idx]["center_coord"].shape[0]
+            n_remaining -= n_k
+            crop_size_max = min(n_res - n_added, n_k)
+            crop_size_min = min(n_k, max(0, n_res - (n_added + n_remaining)))
+
+            crop_size = np.random.randint(crop_size_min, crop_size_max + 1) - 1
+            n_added += crop_size + 1
+            if n_added > self.max_residue_num:
+                break
+            crop_start = np.random.randint(n_k - crop_size + 1)
+            crop_chain = polymer_chains[polymer_chains_idx]["seqres"][
+                crop_start : crop_start + crop_size
+            ].tolist()
+            token_type.extend(crop_chain + ["."])
+            crop_coords = np.concatenate(
+                [
+                    polymer_chains[polymer_chains_idx]["center_coord"][
+                        crop_start : crop_start + crop_size
+                    ],
+                    np.zeros((1, 3)),
+                ],
+                axis=0,
+            )
+            coords.append(crop_coords)
+
+            position_ids.extend(
+                range(start_position_ids, start_position_ids + len(crop_chain) + 1)
+            )
+            start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
+            chain_ids.extend([idx + 1] * len(crop_chain) + [0])
+            polymer_len += len(crop_chain) + 1
+
+        coords = np.concatenate(coords, axis=0)
+        if len(token_type) > 0:
+            token_type = token_type[: self.max_residue_num]
+            coords = coords[: self.max_residue_num, :]
+            position_ids = position_ids[: self.max_residue_num]
+            chain_ids = chain_ids[: self.max_residue_num]
+
+        x = [VOCAB[tok] - 1 for tok in token_type]
+        node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
+
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        x = torch.tensor(x, dtype=torch.int32)
+        coords = torch.tensor(coords, dtype=torch.float64)
+        position_ids = torch.tensor(position_ids, dtype=torch.int32)
+        chain_ids = torch.tensor(chain_ids, dtype=torch.int32)
+
+        data = {
+            "token_type": x,
+            "coords": coords,
+            "polymer_len": polymer_len,
+            "position_ids": position_ids,
+            "chain_ids": chain_ids,
+            "node_feature": node_feature,
+            "edge_index": None,
+            "edge_attr": edge_attr,
+        }
+
+        return data
+
     def __getitem__(self, index: int) -> dict:
         key = self.keys[index]
         value = self.txn.get(key.encode())
@@ -2368,8 +2435,11 @@ class PDBComplexDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         ori_data = bstr2obj(value)
 
-        # crop and reconstruct the graph
-        data = self._crop_and_reconstruct_graph(ori_data)
+        if np.random.rand() < 0.25:  # contiguous crop
+            data = self.contiguous_crop(ori_data)
+        else:  # spatial crop
+            # crop and reconstruct the graph
+            data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
         data["key"] = key
