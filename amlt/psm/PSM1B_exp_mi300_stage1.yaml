@@ -131,7 +131,6 @@ jobs:
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_scale1_sigmoid_dit_v20_1b_stage1/checkpoints/global_step57456/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b_stage2/checkpoints
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_afdb_amd/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace

@@ -59,7 +59,7 @@ from sfm.data.psm_data.utils import VOCAB
 #     dists = np.linalg.norm(ligand_coords - crop_center, axis=1)
 
 #     # Get the index of the atoms within the crop size
-#     idxes = np.where(dists < 100000)[0]
+#     idxes = np.where(dists < 10000)[0]
 
 #     return idxes, dists, ligand_center
 
@@ -234,7 +234,7 @@ def ligand_max_dist(ligand_coords: np.ndarray, crop_center: np.ndarray) -> np.nd
     # Calculate the distance between the atoms and the crop center
     dists = np.linalg.norm(ligand_coords - crop_center, axis=1)
     # Get the index of the atoms within the crop size
-    idxes = np.where(dists < 100000)[0]
+    idxes = np.where(dists < 10000)[0]
 
     return dists[idxes].max()
 
@@ -264,7 +264,7 @@ def crop_ligand(
     dists = np.linalg.norm(ligand_coords - crop_center, axis=1)
 
     # Get the index of the atoms within the crop size
-    idxes = np.where(dists < 100000)[0]
+    idxes = np.where(dists < 10000)[0]
 
     return idxes, dists, ligand_center
 
@@ -335,6 +335,7 @@ def spatial_crop_psm(
         polymer_chains_idx: a list of polymer chains index
         crop_size: the size of the cropped polymer chains
         crop_center: the center of the crop
+        ligand_buffer: the buffer size of the ligand
         keep_num: the number of residues to keep
     Returns:
         cropped_chain_idxes_list: a list of cropped polymer chains index

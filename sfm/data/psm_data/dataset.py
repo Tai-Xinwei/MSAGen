@@ -2731,38 +2731,18 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
             # rescontruct the residue sequence
             crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
-            # if idx == len(cropped_chain_idxes_list) - 1:
             token_type.extend(crop_chain)
-            # else:
-            # token_type.extend(crop_chain + ["."])
 
-            # rescontruct the coords
-            # if idx == len(cropped_chain_idxes_list) - 1:
             crop_coords = chain["center_coord"][cropped_chain_idxes]
-            # else:
-            #     crop_coords = np.concatenate(
-            #         [
-            #             chain["center_coord"][cropped_chain_idxes],
-            #             np.zeros((1, 3)),
-            #         ],
-            #         axis=0,
-            #     )
             coords.append(crop_coords)
 
             # build discontinuous position ids for rope
-            # if idx == len(cropped_chain_idxes_list) - 1:
             position_ids.extend(
                 range(start_position_ids, start_position_ids + len(crop_chain))
             )
             start_position_ids = start_position_ids + len(crop_chain) + 1000
             chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
             polymer_len += len(crop_chain)
-            # else:
-            #     position_ids.extend(
-            #         range(start_position_ids, start_position_ids + len(crop_chain) + 1)
-            #     )
-            #     start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
-            #     polymer_len += len(crop_chain) + 1
 
         if polymer_len > 0:
             x = [VOCAB[tok] - 1 for tok in token_type]
@@ -2772,27 +2752,13 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         # reconstruct the ligands
         if len(candidate_ligand_idx_list) > 0:
-            # if polymer_len > 0:  # count for [.] between polymers and ligands
-            #     polymer_len += 1
-
             cum_ligand_len = 0
             for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
                 ligand = non_polymers[center_ligand_idx]
 
                 # rescontruct the atom type of the ligand
                 atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-                # if len(x) > 0 or idx != 0:
-                #     x.extend([VOCAB["."] - 1] + atom_ids)
-                #     pos = np.concatenate(
-                #         [np.zeros((1, 3)), ligand["node_coord"]], axis=0
-                #     )
-                #     # build position ids for ligand, but this may not used in the attention, just for length alignment
-                #     position_ids.extend(
-                #         range(
-                #             start_position_ids, start_position_ids + len(atom_ids) + 1
-                #         )
-                #     )
-                # else:
+
                 x.extend(atom_ids)
                 pos = ligand["node_coord"]
                 # build position ids for ligand, but this may not used in the attention, just for length alignment
@@ -2812,7 +2778,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
                     node_feature = torch.cat(
                         [
                             node_feature,
-                            # torch.zeros((1, 9), dtype=torch.int32),
                             torch.from_numpy(ligand["node_feat"]),
                         ],
                         dim=0,
@@ -2913,7 +2878,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             position_ids.extend(
                 range(start_position_ids, start_position_ids + len(crop_chain))  # + 1)
             )
-            start_position_ids = start_position_ids + len(crop_chain) + 1000  # +1
+            start_position_ids = start_position_ids + len(n_k) + 1000  # +1
             chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
             polymer_len += len(crop_chain)  # + 1
 
