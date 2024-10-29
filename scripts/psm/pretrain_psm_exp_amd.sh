@@ -6,22 +6,28 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+[ -z "${backbone}" ] && backbone=exp3
 
-# [ -z "${layers}" ] && layers=36
+# [ -z "${layers}" ] && layers=32
 # [ -z "${hidden_size}" ] && hidden_size=2048
 # [ -z "${ffn_size}" ] && ffn_size=8192
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
+
 [ -z "${layers}" ] && layers=26
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=1024
-# [ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+
 [ -z "${num_head}" ] && num_head=32
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=384
-[ -z "${max_residue_num}" ] && max_residue_num=768
+[ -z "${max_residue_num}" ] && max_residue_num=384
 [ -z "${ligand_crop_size}" ] && ligand_crop_size=20.0
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
@@ -383,6 +389,5 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
-          # ifresume=True \
 
 sleep infinity

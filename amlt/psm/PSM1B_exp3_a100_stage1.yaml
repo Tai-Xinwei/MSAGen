@@ -11,13 +11,17 @@ env_defaults:
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
+# target:
+#   service: aml
+#   name: townsend1
+
 target:
-  service: aml
-  name: townsend1
+  service: sing
+  name: palisades01
+  workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731
-  # image: ai4s-sfm:20241024.134650-pt26n
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
 
@@ -26,10 +30,10 @@ storage:
     storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /sfm
-  # eastus2:
-  #   storage_account_name: sfmdataeastus2 # Storage account
-  #   container_name: psm # Container name
-  #   mount_dir: /psm
+  eastus2:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
 
 code:
   local_dir: ../SFM_framework
@@ -76,9 +80,10 @@ jobs:
   - export max_length=384
   - export max_residue_num=384
   - export ligand_crop_size=0.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export data_path=/nfs6/psmdata/
+  - export data_path=/psm/data
+  # - export data_path=/nfs6/psmdata/
   # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
   # - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm,pdbcomplexmultimer'
   # - export dataset_split_raito='0.05,0.13,0.2,0.3,0.02,0.1,0.2'
@@ -95,10 +100,12 @@ jobs:
   # - export dataset_name_list='afdb,mgnify,pdb'
   # - export dataset_split_raito='0.5,0.3,0.2'
   # - export dataset_micro_batch_size='12,12,12'
-  - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
-  - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240630_PDB_Training_Data'
+  - export dataset_name_list='esm,mgnify,pdbcomplexmultimer'
+  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
+  # - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
   - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='12,12,12'
+  - export dataset_micro_batch_size='8,8,8'
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
   # - export dataset_name_list='afdb,mgnify'
   # - export dataset_split_raito='0.7,0.3'
@@ -115,7 +122,7 @@ jobs:
   - export clean_sample_ratio=0.7
   - export diffusion_mode=edm
   - export diffusion_noise_std=1.0
-  # - export diffusion_rescale_coeff=100.0
+  - export diffusion_rescale_coeff=1.0
   - export ddpm_schedule=sigmoid
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
@@ -133,10 +140,9 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_nocomplex/checkpoints/global_step16896/mp_rank_00_model_states.pt
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_nocomplex/checkpoints/global_step42240/mp_rank_00_model_states.pt
   - export psm_finetune_mode=True
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_all/checkpoints
-  # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
