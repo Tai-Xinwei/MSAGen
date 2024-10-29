@@ -25,8 +25,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=384
-[ -z "${max_residue_num}" ] && max_residue_num=768
-[ -z "${ligand_crop_size}" ] && ligand_crop_size=20.0
+[ -z "${max_residue_num}" ] && max_residue_num=384
+[ -z "${ligand_crop_size}" ] && ligand_crop_size=0.0
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
 
@@ -149,12 +149,12 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdb'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
 
-[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4'
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.3,0.2'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='12,12,12'
 
 # [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged,'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
