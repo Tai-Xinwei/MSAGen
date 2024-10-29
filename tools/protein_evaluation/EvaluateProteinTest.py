@@ -164,7 +164,7 @@ if __name__ == '__main__':
         sys.exit(f"Usage: {sys.argv[0]} <proteintest_lmdb> <prediction_directory> [max_model_num=1]")
     inplmdb, preddir = sys.argv[1:3]
     global_step = sys.argv[4]
-    max_model_num = int(sys.argv[3]) if len(sys.argv) == 4 else 1
+    max_model_num = int(sys.argv[3]) if len(sys.argv) == 5 else 1
 
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
