@@ -2715,6 +2715,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         token_type = []
         coords = []
         position_ids = []
+        chain_ids = []
         start_position_ids = 0
         polymer_len = 0
 
@@ -2730,37 +2731,38 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
             # rescontruct the residue sequence
             crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
-            if idx == len(cropped_chain_idxes_list) - 1:
-                token_type.extend(crop_chain)
-            else:
-                token_type.extend(crop_chain + ["."])
+            # if idx == len(cropped_chain_idxes_list) - 1:
+            token_type.extend(crop_chain)
+            # else:
+            # token_type.extend(crop_chain + ["."])
 
             # rescontruct the coords
-            if idx == len(cropped_chain_idxes_list) - 1:
-                crop_coords = chain["center_coord"][cropped_chain_idxes]
-            else:
-                crop_coords = np.concatenate(
-                    [
-                        chain["center_coord"][cropped_chain_idxes],
-                        np.zeros((1, 3)),
-                    ],
-                    axis=0,
-                )
+            # if idx == len(cropped_chain_idxes_list) - 1:
+            crop_coords = chain["center_coord"][cropped_chain_idxes]
+            # else:
+            #     crop_coords = np.concatenate(
+            #         [
+            #             chain["center_coord"][cropped_chain_idxes],
+            #             np.zeros((1, 3)),
+            #         ],
+            #         axis=0,
+            #     )
             coords.append(crop_coords)
 
             # build discontinuous position ids for rope
-            if idx == len(cropped_chain_idxes_list) - 1:
-                position_ids.extend(
-                    range(start_position_ids, start_position_ids + len(crop_chain))
-                )
-                start_position_ids = start_position_ids + len(crop_chain) + 1000
-                polymer_len += len(crop_chain)
-            else:
-                position_ids.extend(
-                    range(start_position_ids, start_position_ids + len(crop_chain) + 1)
-                )
-                start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
-                polymer_len += len(crop_chain) + 1
+            # if idx == len(cropped_chain_idxes_list) - 1:
+            position_ids.extend(
+                range(start_position_ids, start_position_ids + len(crop_chain))
+            )
+            start_position_ids = start_position_ids + len(crop_chain) + 1000
+            chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
+            polymer_len += len(crop_chain)
+            # else:
+            #     position_ids.extend(
+            #         range(start_position_ids, start_position_ids + len(crop_chain) + 1)
+            #     )
+            #     start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
+            #     polymer_len += len(crop_chain) + 1
 
         if polymer_len > 0:
             x = [VOCAB[tok] - 1 for tok in token_type]
@@ -2768,76 +2770,81 @@ class PDBComplexDataset(AFDBLMDBDataset):
         else:
             x = []
 
-        # # reconstruct the ligands
-        # if len(candidate_ligand_idx_list) > 0:
-        #     if polymer_len > 0:  # count for [.] between polymers and ligands
-        #         polymer_len += 1
+        # reconstruct the ligands
+        if len(candidate_ligand_idx_list) > 0:
+            # if polymer_len > 0:  # count for [.] between polymers and ligands
+            #     polymer_len += 1
 
-        #     cum_ligand_len = 0
-        #     for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
-        #         ligand = non_polymers[center_ligand_idx]
+            cum_ligand_len = 0
+            for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
+                ligand = non_polymers[center_ligand_idx]
 
-        #         # rescontruct the atom type of the ligand
-        #         atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-        #         if len(x) > 0 or idx != 0:
-        #             x.extend([VOCAB["."] - 1] + atom_ids)
-        #             pos = np.concatenate(
-        #                 [np.zeros((1, 3)), ligand["node_coord"]], axis=0
-        #             )
-        #             # build position ids for ligand, but this may not used in the attention, just for length alignment
-        #             position_ids.extend(
-        #                 range(
-        #                     start_position_ids, start_position_ids + len(atom_ids) + 1
-        #                 )
-        #             )
-        #         else:
-        #             x.extend(atom_ids)
-        #             pos = ligand["node_coord"]
-        #             # build position ids for ligand, but this may not used in the attention, just for length alignment
-        #             position_ids.extend(
-        #                 range(start_position_ids, start_position_ids + len(atom_ids))
-        #             )
+                # rescontruct the atom type of the ligand
+                atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
+                # if len(x) > 0 or idx != 0:
+                #     x.extend([VOCAB["."] - 1] + atom_ids)
+                #     pos = np.concatenate(
+                #         [np.zeros((1, 3)), ligand["node_coord"]], axis=0
+                #     )
+                #     # build position ids for ligand, but this may not used in the attention, just for length alignment
+                #     position_ids.extend(
+                #         range(
+                #             start_position_ids, start_position_ids + len(atom_ids) + 1
+                #         )
+                #     )
+                # else:
+                x.extend(atom_ids)
+                pos = ligand["node_coord"]
+                # build position ids for ligand, but this may not used in the attention, just for length alignment
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(atom_ids))
+                )
+                chain_ids.extend(
+                    [len(cropped_chain_idxes_list) + idx + 1] * len(atom_ids)
+                )  # + [0])
 
-        #         # rescontruct the coords of the ligand
-        #         coords.append(pos)
+                # rescontruct the coords of the ligand
+                coords.append(pos)
 
-        #         if polymer_len == 0 and idx == 0:
-        #             node_feature = torch.from_numpy(ligand["node_feat"])
-        #         else:
-        #             node_feature = torch.cat(
-        #                 [
-        #                     node_feature,
-        #                     torch.zeros((1, 9), dtype=torch.int32),
-        #                     torch.from_numpy(ligand["node_feat"]),
-        #                 ],
-        #                 dim=0,
-        #             )
+                if polymer_len == 0 and idx == 0:
+                    node_feature = torch.from_numpy(ligand["node_feat"])
+                else:
+                    node_feature = torch.cat(
+                        [
+                            node_feature,
+                            # torch.zeros((1, 9), dtype=torch.int32),
+                            torch.from_numpy(ligand["node_feat"]),
+                        ],
+                        dim=0,
+                    )
 
-        #         if idx == 0:
-        #             edge_index = ligand["edge_index"]
-        #         else:
-        #             edge_index = np.concatenate(
-        #                 [
-        #                     edge_index,
-        #                     ligand["edge_index"] + cum_ligand_len,
-        #                 ],
-        #                 axis=1,
-        #             )
-        #         cum_ligand_len += len(atom_ids) + 1
-        #         # edge_attr = ligand["edge_feat"]
-        # else:
-        edge_index = None
+                if idx == 0:
+                    edge_index = ligand["edge_index"]
+                else:
+                    edge_index = np.concatenate(
+                        [
+                            edge_index,
+                            ligand["edge_index"] + cum_ligand_len,
+                        ],
+                        axis=1,
+                    )
+                cum_ligand_len += len(atom_ids)  # + 1
+                # edge_attr = ligand["edge_feat"]
+        else:
+            edge_index = None
 
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
         x = torch.tensor(x, dtype=torch.int32)
         coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float64)
         position_ids = torch.tensor(position_ids, dtype=torch.int32)
+        chain_ids = torch.tensor(chain_ids, dtype=torch.int32)
 
         data = {
             "token_type": x,
             "coords": coords,
             "polymer_len": polymer_len,
             "position_ids": position_ids,
+            "chain_ids": chain_ids,
             "node_feature": node_feature,
             "edge_index": edge_index,
             "edge_attr": edge_attr,
@@ -2883,32 +2890,32 @@ class PDBComplexDataset(AFDBLMDBDataset):
             crop_size_max = min(n_res - n_added, n_k)
             crop_size_min = min(n_k, max(0, n_res - (n_added + n_remaining)))
 
-            crop_size = np.random.randint(crop_size_min, crop_size_max + 1) - 1
-            n_added += crop_size + 1
+            crop_size = np.random.randint(crop_size_min, crop_size_max + 1)  # - 1
+            n_added += crop_size  # + 1
             if n_added > self.max_residue_num:
                 break
             crop_start = np.random.randint(n_k - crop_size + 1)
             crop_chain = polymer_chains[polymer_chains_idx]["seqres"][
                 crop_start : crop_start + crop_size
             ].tolist()
-            token_type.extend(crop_chain + ["."])
+            token_type.extend(crop_chain)  # + ["."])
             crop_coords = np.concatenate(
                 [
                     polymer_chains[polymer_chains_idx]["center_coord"][
                         crop_start : crop_start + crop_size
                     ],
-                    np.zeros((1, 3)),
+                    # np.zeros((1, 3)),
                 ],
                 axis=0,
             )
             coords.append(crop_coords)
 
             position_ids.extend(
-                range(start_position_ids, start_position_ids + len(crop_chain) + 1)
+                range(start_position_ids, start_position_ids + len(crop_chain))  # + 1)
             )
-            start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
-            chain_ids.extend([idx + 1] * len(crop_chain) + [0])
-            polymer_len += len(crop_chain) + 1
+            start_position_ids = start_position_ids + len(crop_chain) + 1000  # +1
+            chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
+            polymer_len += len(crop_chain)  # + 1
 
         coords = np.concatenate(coords, axis=0)
         if len(token_type) > 0:

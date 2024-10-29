@@ -428,4 +428,5 @@ def spatial_crop_psm(
     assert (
         total_residue_num + total_atom_num <= keep_num
     ), f"{total_residue_num=}, {total_atom_num=}, {keep_num=}"
+
     return cropped_chain_idxes_list, candidate_ligand_idx_list
