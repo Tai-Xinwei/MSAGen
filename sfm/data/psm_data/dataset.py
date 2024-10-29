@@ -2878,7 +2878,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             position_ids.extend(
                 range(start_position_ids, start_position_ids + len(crop_chain))  # + 1)
             )
-            start_position_ids = start_position_ids + len(n_k) + 1000  # +1
+            start_position_ids = start_position_ids + n_k + 1000  # +1
             chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
             polymer_len += len(crop_chain)  # + 1
 
