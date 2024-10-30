@@ -7,19 +7,19 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=exp3
-# [ -z "${layers}" ] && layers=32
-# [ -z "${hidden_size}" ] && hidden_size=2048
-# [ -z "${ffn_size}" ] && ffn_size=8192
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
-# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
 
-[ -z "${layers}" ] && layers=26
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+# [ -z "${layers}" ] && layers=26
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -149,7 +149,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
@@ -244,7 +244,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
@@ -390,6 +390,6 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
-          # ifresume=True \
+          ifresume=True \
 
 sleep infinity
