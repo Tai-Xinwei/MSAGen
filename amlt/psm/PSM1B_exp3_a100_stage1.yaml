@@ -7,18 +7,18 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 4
+  NODES: 8
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-target:
-  service: aml
-  name: townsend1
-
 # target:
-#   service: sing
-#   name: palisades01
-#   workspace_name: sfm-ws
+#   service: aml
+#   name: townsend1
+
+target:
+  service: sing
+  name: palisades01
+  workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -80,7 +80,7 @@ jobs:
   - export max_length=384
   - export max_residue_num=384
   - export ligand_crop_size=0.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/psm/data
   # - export data_path=/nfs6/psmdata/
@@ -100,12 +100,12 @@ jobs:
   # - export dataset_name_list='afdb,mgnify,pdb'
   # - export dataset_split_raito='0.5,0.3,0.2'
   # - export dataset_micro_batch_size='12,12,12'
-  # - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240630_PDB_Training_Data'
-  # - export dataset_name_list='esm,mgnify,pdbcomplexmultimer'
-  - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
-  - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240630_PDB_Training_Data'
+  - export dataset_name_list='esm,mgnify,pdbcomplexmultimer'
+  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
+  # - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
   - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='16,16,16'
+  - export dataset_micro_batch_size='8,8,8'
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
   # - export dataset_name_list='afdb,mgnify'
   # - export dataset_split_raito='0.7,0.3'
