@@ -46,6 +46,7 @@ from sfm.models.psm.modules.mixembedding import (
     PSMLightPEmbedding,
     PSMMix3dDitEmbedding,
     PSMMix3dEmbedding,
+    PSMMixSeqEmbedding,
     PSMSeqEmbedding,
 )
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
@@ -1642,7 +1643,8 @@ class PSM(nn.Module):
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
         elif args.backbone in ["exp", "exp2", "exp3"]:
-            self.embedding = PSMSeqEmbedding(psm_config)
+            # self.embedding = PSMSeqEmbedding(psm_config)
+            self.embedding = PSMMixSeqEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
 

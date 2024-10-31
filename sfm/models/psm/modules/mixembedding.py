@@ -1199,3 +1199,150 @@ class PSMSeqEmbedding(nn.Module):
             None,
             x,
         )
+
+
+class PSMMixSeqEmbedding(PSMSeqEmbedding):
+    """
+    Class for the embedding layer in the PSM model.
+    """
+
+    def __init__(self, psm_config: PSMConfig, use_unified_batch_sampler: bool = False):
+        super().__init__(psm_config, use_unified_batch_sampler)
+
+        self.embed = nn.Embedding(160, psm_config.encoder_embed_dim)
+        self.atom_feature_embed = nn.Embedding(
+            psm_config.num_atom_features, psm_config.encoder_embed_dim
+        )
+
+        # maximum 300 chains
+        self.chain_id_embed = nn.Embedding(300, psm_config.encoder_embed_dim)
+
+        self.time_step_encoder = TimeStepEncoder(
+            psm_config.num_timesteps,
+            psm_config.embedding_dim,
+            psm_config.diffusion_time_step_encoder_type,
+        )
+
+        if psm_config.diffusion_mode == "edm":
+            if psm_config.noise_embedding == "positional":
+                self.noise_cond_embed_edm = PositionalEmbedding_EDM(
+                    num_channels=psm_config.embedding_dim,
+                )
+            elif psm_config.noise_embedding == "fourier":
+                self.noise_cond_embed_edm = FourierEmbedding_AF3(
+                    num_channels=psm_config.embedding_dim,
+                )
+
+        self.mol_bond_emb = nn.Embedding(
+            psm_config.num_edges, psm_config.num_3d_bias_kernel, padding_idx=0
+        )
+
+        self.bias_proj = NonLinear(
+            psm_config.num_3d_bias_kernel, psm_config.num_attention_heads
+        )
+
+        self.psm_config = psm_config
+
+    @torch.compiler.disable(recursive=False)
+    def _2dedge_emb(
+        self,
+        adj: torch.Tensor,
+        molecule_mask: torch.Tensor,
+        padding_mask: torch.Tensor,
+        batched_data: torch.Tensor,
+    ):
+        if molecule_mask.any():
+            edge_bond_feature = self.mol_bond_emb(
+                batched_data["node_type_edge"].squeeze(-1)
+            )
+            edge_bond_feature = edge_bond_feature.masked_fill(~adj.unsqueeze(-1), 0.0)
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
+            )
+
+            graph_attn_bias = self.bias_proj(edge_bond_feature)
+
+            graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
+        else:
+            graph_attn_bias = None
+
+        return graph_attn_bias
+
+    def forward(
+        self,
+        batched_data: Dict,
+        time_step: Optional[Tensor] = None,
+        time_step_1d: Optional[Tensor] = None,
+        clean_mask: Optional[Tensor] = None,
+        aa_mask: Optional[Tensor] = None,
+        pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
+    ) -> Tensor:
+        """
+        Forward pass of the PSMMixEmbedding class.
+        Args:
+            batched_data: Input data for the forward pass.
+        Returns:
+            x: The embedding representation.
+            padding_mask: The padding mask.
+        """
+        token_id = batched_data["token_id"]
+        chain_id = batched_data["chain_ids"]
+        padding_mask = token_id.eq(0)  # B x T x 1
+        is_periodic = batched_data["is_periodic"]
+        molecule_mask = (
+            (token_id <= 129) & (token_id > 1) & (~is_periodic.unsqueeze(-1))
+        )
+
+        if aa_mask is not None:
+            mask_token_type = token_id.masked_fill(
+                aa_mask, 157
+            )  # 157 is the mask token
+        else:
+            mask_token_type = token_id
+
+        if "hot_token_id" not in batched_data:
+            batched_data["masked_token_type"] = mask_token_type
+            x = self.embed(mask_token_type)
+        else:
+            x = torch.matmul(batched_data["one_hot_token_id"], self.embed.weight)
+
+        if self.psm_config.diffusion_mode == "edm":
+            noise_embed_edm = self.noise_cond_embed_edm(
+                batched_data["c_noise"].to(x.dtype).flatten()
+            ).to(x.dtype)
+            time_embed = noise_embed_edm.reshape((x.size(0), x.size(1), -1))
+        elif time_step is not None:
+            time_embed = self.time_step_encoder(time_step, clean_mask)
+
+        if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
+            atom_feature_embedding = self.atom_feature_embed(
+                batched_data["node_attr"][:, :, 1:]
+            ).sum(
+                dim=-2
+            )  # B x T x #ATOM_FEATURE x D -> # B x T x D
+            atom_feature_embedding = atom_feature_embedding.masked_fill(
+                ~molecule_mask.unsqueeze(-1), 0.0
+            )
+
+            x += atom_feature_embedding
+
+        chain_embed = self.chain_id_embed(chain_id)
+        x = x + chain_embed
+
+        graph_attn_bias = self._2dedge_emb(
+            batched_data["adj"],
+            molecule_mask,
+            padding_mask,
+            batched_data,
+        )
+
+        return (
+            x,
+            padding_mask,
+            time_embed.to(x.dtype),
+            graph_attn_bias,
+            x,
+        )
