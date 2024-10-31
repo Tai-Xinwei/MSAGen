@@ -62,8 +62,8 @@ from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
 from .modules.timestep_encoder import (
     DiffNoise,
-    DiffNoise_EDM,
-    NoiseStepSampler_EDM,
+    DiffNoiseEDM,
+    NoiseStepSamplerEDM,
     TimeStepSampler,
 )
 
@@ -119,7 +119,7 @@ class PSMModel(Model):
         self.checkpoint_loaded = self.reload_checkpoint()
 
         if self.psm_config.diffusion_mode == "edm":
-            self.diffnoise = DiffNoise_EDM(self.psm_config)
+            self.diffnoise = DiffNoiseEDM(self.psm_config)
             self.diffnoise.alphas_cumprod = None
         else:
             self.diffnoise = DiffNoise(self.psm_config)
@@ -129,7 +129,7 @@ class PSMModel(Model):
             ](self.diffnoise.alphas_cumprod, self.psm_config)
 
         if self.psm_config.diffusion_mode == "edm":
-            self.time_step_sampler = NoiseStepSampler_EDM()
+            self.time_step_sampler = NoiseStepSamplerEDM()
         else:
             self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 

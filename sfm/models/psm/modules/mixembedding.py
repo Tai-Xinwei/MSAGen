@@ -7,8 +7,8 @@ from torch import Tensor
 
 from sfm.models.psm.invariant.mixture_bias import GaussianLayer, NonLinear
 from sfm.models.psm.modules.timestep_encoder import (
-    FourierEmbedding_AF3,
-    PositionalEmbedding_EDM,
+    FourierEmbeddingAF3,
+    PositionalEmbeddingEDM,
     TimeStepEncoder,
 )
 from sfm.models.psm.psm_config import PSMConfig
@@ -62,11 +62,11 @@ class PSMMix3dEmbedding(nn.Module):
 
         if psm_config.diffusion_mode == "edm":
             if psm_config.noise_embedding == "positional":
-                self.noise_cond_embed_edm = PositionalEmbedding_EDM(
+                self.noise_cond_embed_edm = PositionalEmbeddingEDM(
                     num_channels=psm_config.embedding_dim,
                 )
             elif psm_config.noise_embedding == "fourier":
-                self.noise_cond_embed_edm = FourierEmbedding_AF3(
+                self.noise_cond_embed_edm = FourierEmbeddingAF3(
                     num_channels=psm_config.embedding_dim,
                 )
 
@@ -287,11 +287,11 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
 
         if psm_config.diffusion_mode == "edm":
             if psm_config.noise_embedding == "positional":
-                self.noise_cond_embed_edm = PositionalEmbedding_EDM(
+                self.noise_cond_embed_edm = PositionalEmbeddingEDM(
                     num_channels=psm_config.embedding_dim,
                 )
             elif psm_config.noise_embedding == "fourier":
-                self.noise_cond_embed_edm = FourierEmbedding_AF3(
+                self.noise_cond_embed_edm = FourierEmbeddingAF3(
                     num_channels=psm_config.embedding_dim,
                 )
 
@@ -1121,11 +1121,11 @@ class PSMSeqEmbedding(nn.Module):
 
         if psm_config.diffusion_mode == "edm":
             if psm_config.noise_embedding == "positional":
-                self.noise_cond_embed_edm = PositionalEmbedding_EDM(
+                self.noise_cond_embed_edm = PositionalEmbeddingEDM(
                     num_channels=psm_config.embedding_dim,
                 )
             elif psm_config.noise_embedding == "fourier":
-                self.noise_cond_embed_edm = FourierEmbedding_AF3(
+                self.noise_cond_embed_edm = FourierEmbeddingAF3(
                     num_channels=psm_config.embedding_dim,
                 )
 
@@ -1225,11 +1225,11 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
         if psm_config.diffusion_mode == "edm":
             if psm_config.noise_embedding == "positional":
-                self.noise_cond_embed_edm = PositionalEmbedding_EDM(
+                self.noise_cond_embed_edm = PositionalEmbeddingEDM(
                     num_channels=psm_config.embedding_dim,
                 )
             elif psm_config.noise_embedding == "fourier":
-                self.noise_cond_embed_edm = FourierEmbedding_AF3(
+                self.noise_cond_embed_edm = FourierEmbeddingAF3(
                     num_channels=psm_config.embedding_dim,
                 )
 

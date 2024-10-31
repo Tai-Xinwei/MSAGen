@@ -760,8 +760,12 @@ class DiffMAE3dCriterions(nn.Module):
                         inter_dist_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
                         )
+                        contact_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
                         num_pddt_loss = 0
                         num_inter_dist_loss = 0
+                        num_contact_losss = 0
 
                     if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         pos_label = torch.einsum(

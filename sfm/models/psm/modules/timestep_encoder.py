@@ -356,7 +356,7 @@ class DiffNoise(nn.Module):
         return x_start + noise, noise, sigma
 
 
-class NoiseStepSampler_EDM:
+class NoiseStepSamplerEDM:
     def __init__(self):
         pass
 
@@ -371,9 +371,9 @@ class NoiseStepSampler_EDM:
         return noise_step, clean_mask
 
 
-class DiffNoise_EDM(nn.Module):
+class DiffNoiseEDM(nn.Module):
     def __init__(self, psm_config: PSMConfig):
-        super(DiffNoise_EDM, self).__init__()
+        super(DiffNoiseEDM, self).__init__()
         self.psm_config = psm_config
 
         self.unit_noise_scale = psm_config.diffusion_noise_std
@@ -509,9 +509,9 @@ class DiffNoise_EDM(nn.Module):
         return self.sigma_data * (rand_normal * self.P_std + self.P_mean).exp()
 
 
-class PositionalEmbedding_EDM(torch.nn.Module):
+class PositionalEmbeddingEDM(torch.nn.Module):
     def __init__(self, num_channels, max_positions=10000, endpoint=False):
-        super(PositionalEmbedding_EDM, self).__init__()
+        super(PositionalEmbeddingEDM, self).__init__()
         self.num_channels = num_channels
         self.max_positions = max_positions
         self.endpoint = endpoint
@@ -527,9 +527,9 @@ class PositionalEmbedding_EDM(torch.nn.Module):
         return x
 
 
-class FourierEmbedding_AF3(torch.nn.Module):
+class FourierEmbeddingAF3(torch.nn.Module):
     def __init__(self, num_channels):
-        super(FourierEmbedding_AF3, self).__init__()
+        super(FourierEmbeddingAF3, self).__init__()
         self.num_channels = num_channels
         self.proj = nn.Linear(1, num_channels, dtype=torch.float64)
         self.proj.requires_grad_(False)
@@ -543,7 +543,6 @@ class FourierEmbedding_AF3(torch.nn.Module):
         x = self.proj(x.to(self.proj.weight.dtype))
         embedding = torch.cos(2 * torch.pi * x).to(self.noise_proj[0].weight.dtype)
         embedding = self.noise_proj(embedding)
-
         return embedding
 
 
