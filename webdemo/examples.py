@@ -19,3 +19,20 @@ small_mole_tasks = [
     "How is the compound from <mol>COCC(C)n1c(C)cc(/C=C(\C#N)C(=O)NCCN2CCN(c3ncccn3)CC2)c1C</mol> notated in IUPAC terms?",
     "Can you decode the SMILES from this 3-ethyl-1-[(4-methoxy-6-methylpyridin-2-yl)methyl]-7-methyl-1,4-diazepane structure?",
 ]
+
+protein_tasks = [
+    "Please produce a protein sequence that exhibits stability.",
+    "Generate a soluble protein sequence.",
+    "Please create a protein sequence that ensures insolubility.",
+    "Can you illustrate the genetic function of the <protein>MSLVSDLINLNLSDSTDKIIAEYIWVGGSGMDMRSKARTLPGPVTDPSQLPKWNYDGSSTGQAPGEDSEVILYPQAIFKDPFRRGNNILVMCDAYTPAGEPIPTNKRHAAAKVFSNPDVAAEVPWYGIEQEYTLLQKDVKWPVGWPIGGYPGPQGPYYCGIGADKSFGRDVVDSHYKACLYAGINISGINGEVMPGQWEFQVGPAVGISAADEIWVARYILERITEIAGVVVSFDPKPIPGDWNGAGAHCNYSTKSMREEGGYEIIKKAIDKLGLRHKEHIAAYGEGNERRLTGHHETADINTFLWGVANRGASIRVGRDTEKEGKGYFEDRRPASNMDPYIVTSMIAETTILWNP</protein> protein?",
+    "How would you define the gene function of the <protein>MEDEAHEFFHTSDFAVDDLLVDFSNDDDEENDVVADSTTTTTITDSSNFSAADLPSFHGDVQDGTSFSGDLCIPSDDLADELEWLSNIVDESLSPEDVHKLELISGFKSRPDPKSDTGSPENPNSSSPIFTTDVSVPAKARSKRSRAAACNWASRGLLKETFYDSPFTGETILSSQQHLSPPTSPPLLMAPLGKKQAVDGGHRRKKDVSSPESGGAEERRCLHCATDKTPQWRTGPMGPKTLCNACGVRYKSGRLVPEYRPAASPTFVLAKHSNSHRKVMELRRQKEMSRAHHEFIHHHHGTDTAMIFDVSSDGDDYLIHHNVGPDFRQLI</protein> protein?",
+    "Could you describe the function that the <protein>MSSTTTDSTELQNLIKLFQNCQTHPRQHFPAKSSAVLVCLYQEQREDKNELRVILTKRSTTLSSHPGEVALPGGKRDQEDKDDIATALREAREEIGLDPSLVTIISVLEPFVNKKGMSVAPVIGFLHDKKAFKQLPNPAEVEEIFDVPLEMFLKKQASRGTRA</protein> protein's gene performs?",
+]
+
+material_tasks = [
+    "Generate a material that contains Li, Fe, Co, O",
+    "Assemble a substance with Mg, Cr, O",
+    "Construct the composition for a material with a required  bulk modulus of 0 GPa.",
+    "Assemble the composition details for a material with a specified bulk modulus of 100 GPa.",
+    "Generate the composition corresponding to a required  bulk modulus of 200 GPa.",
+]

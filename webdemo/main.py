@@ -11,7 +11,13 @@ import gradio as gr
 import safetensors.torch as st
 import torch
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
-from examples import dna2rna_tasks, dnapred_tasks, small_mole_tasks
+from examples import (
+    dna2rna_tasks,
+    dnapred_tasks,
+    material_tasks,
+    protein_tasks,
+    small_mole_tasks,
+)
 from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
@@ -334,7 +340,7 @@ elif MODEL_TYPE == "ph3_mini":
         "/data/yeqi/cache/hf_models/Phi-3.5-mini-instruct/"
     )
     model = AutoModelForCausalLM.from_pretrained(
-        "/data/yeqi/cache/hf_models/Phi-3.5-mini-instruct/"
+        "/data/yeqi/cache/hf_models/Phi-3.5-mini-instruct/", trust_remote_code=True
     )
     model.eval()  # Set to evaluation mode
     model.cuda()  # Move model to GPU if available
@@ -581,8 +587,14 @@ if DEMO_MODE == "chat":
         ),
     )
 elif DEMO_MODE == "chat_dev":
-    tasks = dna2rna_tasks + dnapred_tasks + small_mole_tasks
-    examples = [[task_str, 0, True, 300, 1.0, 1, 0.9] for task_str in tasks]
+    tasks = (
+        dna2rna_tasks
+        + dnapred_tasks
+        + small_mole_tasks
+        + protein_tasks
+        + material_tasks
+    )
+    examples = [[task_str, 0, True, 2048, 1.0, 1, 0.9] for task_str in tasks]
     logger = get_logger()
     demo = gr.ChatInterface(
         partial(chat, logger=logger),
