@@ -1,0 +1,66 @@
+code:
+  #local_dir: ../SFM_framework_3dar_amd
+  local_dir: ~/SFM_framework
+description: finetune_nlm_for_matbench
+env_defaults:
+  GPUS: 8
+  NODES: 1
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+jobs:
+- command:
+  - export wandb_key=local-8904f1b2b7174cdb7c0bf0b8a2c3195c1889c537
+  - export wandb_team=ai4s-sfm
+  - export wandb_project=finetune_nlm_1B
+  - export wandb_group=finetune_nlm_1B_matbench
+  - export NCCL_DEBUG=INFO
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - pip uninstall flash-attn -y
+  - pip install ase
+  - python setup_cython.py build_ext --inplace
+  - export train_batch_size=32
+  - export val_batch_size=32
+  - export gradient_accumulation_steps=1
+  - export tensor_model_parallel_size=1
+  - export pipeline_model_parallel_size=1
+  - export epochs=20
+  - export total_num_steps=9000000
+  - export warmup_num_steps=4000
+  - export save_batch_interval=0
+  - export max_lr=2e-5
+  - export load_ckpt=True
+  - export train_data_path=/blob/v-yantingli/matbench_1011/matbench_sfm/fold_4_train.tsv
+  - export valid_data_path=/blob/v-yantingli/matbench_1011/matbench_sfm/fold_4_valid.tsv
+  - export dict_path=/sfmdata/llama/Meta-Llama-3-8B/original
+  - export loadcheck_path=/sfmdata/peiran/output/finetune_base_150B_G64/global_step28464/
+  - export save_dir=/blob/v-yantingli/nlm/matbench/sfm_1b_e20/fold_4
+  - bash scripts/nlm/finetune_base1b_matbench.sh
+  identity: managed
+  mpi: true
+  name: finetune_matbench_1b_fold4
+  process_count_per_node: 1
+  sku: ${NODES}xG${GPUS}
+  sla_tier: premium
+  # submit_args:
+  #   env:
+  #     AMLT_DOCKERFILE_TEMPLATE: "none"
+  #     _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+  tags:
+  - Project_Name:Science_Foundation_Model
+  - ProjectID:PRJ-0209-A40
+  - Experiment:SFMV1_Alignment
+storage:
+  mlla:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /blob
+  sfmdata:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /sfmdata
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth

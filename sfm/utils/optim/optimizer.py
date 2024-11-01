@@ -5,8 +5,6 @@ from typing import Callable, List, Optional, Tuple
 from sfm.logging.loggers import logger
 
 try:
-    # from torch.optim import Adam
-    # logger.info("using torch adam")
     from apex.optimizers import FusedAdam as Adam  # isort:skip
 
     logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
@@ -14,13 +12,14 @@ try:
     def AdamW(*args, **kwargs):
         return Adam(*args, **kwargs, adam_w_mode=True)
 
-    # from torch.optim import Adam
 except:
     logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
+    # from sfm.utils.optim.mem_eff_adam import (
+    #     MemoryEfficientFP16Adam as Adam,  # isort:skip
+    # )
+    from torch.optim import Adam
+
     from sfm.utils.optim.adam import AdamW
-    from sfm.utils.optim.mem_eff_adam import (
-        MemoryEfficientFP16Adam as Adam,  # isort:skip
-    )
 
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
