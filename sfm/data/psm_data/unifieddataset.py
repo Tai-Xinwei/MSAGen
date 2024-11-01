@@ -262,7 +262,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
             self.train_len += len(train_dataset)
             self.valid_len += len(valid_dataset)
             logger.info(
-                f"Loaded dataset {dataset_name} with total {len_total/1000/1000:0.2f} samples, {len(train_dataset)/1000/1000:0.2f} for training, {len(valid_dataset)/1000/1000:0.2f} for validation"
+                f"Loaded dataset {dataset_name} with total {len_total/1000/1000:0.2f}M samples, {len(train_dataset)/1000/1000:0.2f}M for training, {len(valid_dataset)/1000/1000:0.2f}M for validation"
             )
 
         self.num_datasets = len(self.train_dataset_list)
@@ -299,7 +299,7 @@ class BatchedDataDataset(FoundationModelDataset):
             )
             self.dataset_split_raito[-1] = 1.0 - sum(self.dataset_split_raito[:-1])
 
-        logger.info(f"Total data Length is {len_data:0.2f}")
+        logger.info(f"Total data Length is {len_data/1000/1000:0.2f}M")
 
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max

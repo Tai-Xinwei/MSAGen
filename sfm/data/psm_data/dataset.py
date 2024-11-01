@@ -464,6 +464,10 @@ class GEOMDataset(MoleculeLMDBDataset):
     def __init__(self, args, path, version=None, keys=None, sizes=None):
         assert os.path.exists(path)
         super().__init__(args, path, keys=keys, sizes=sizes)
+        self.filter_indices_by_size(
+            indices=np.array(range(len(self.keys))),
+            max_sizes=128,
+        )
 
     @classmethod
     def _open_db(cls, lmdb_path):
@@ -2593,7 +2597,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs_rmfarlig_complexonly.lmdb"
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
-        version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
+        version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
 
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num

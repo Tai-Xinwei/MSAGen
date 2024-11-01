@@ -1103,7 +1103,7 @@ class PSMModel(Model):
             )
         return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
 
-    def config_optimizer(self):
+    def config_optimizer(self, model: nn.Module = None):
         """
         Return the optimizer and learning rate scheduler for this model.
 

@@ -1045,12 +1045,10 @@ class DeepSpeedAccelerator(Accelerator):
                 self.args.unfreeze_param_list
             )
 
-            self.optimizer, self.lr_scheduler = self.model.config_optimizer(
-                model=self.model
-            )
-
             if self.optimizer is None or self.args.zero_offload:
-                self.optimizer, self.lr_scheduler = self.model.config_optimizer()
+                self.optimizer, self.lr_scheduler = self.model.config_optimizer(
+                    model=self.model
+                )
             else:
                 # When using custom scheduler, it is a good idea to set the optimizer type to None
                 logger.info("custom optimizer is set, DS optimizer is disabled")
