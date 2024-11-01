@@ -1171,7 +1171,7 @@ class PSMModel(Model):
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        if self.args.backbone in ["dit", "ditp"]:
+        if self.args.backbone in ["dit", "ditp", "exp", "exp2", "exp3"]:
             if_recenter = False
         else:
             if_recenter = True
@@ -2376,31 +2376,6 @@ class PSM(nn.Module):
                         batched_data["c_skip"] * pos_noised_no_c_in
                         + batched_data["c_out"] * noise_pred_periodic
                     )
-                # elif self.args.diffusion_mode == "epsilon":
-                #     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-                #     logit_bias = torch.logit(
-                #         batched_data["sqrt_one_minus_alphas_cumprod_t"]
-                #     )
-                #     scale = torch.sigmoid(scale_shift + logit_bias)
-                #     noise_pred = (
-                #         scale * (batched_data["pos"] - batched_data["init_pos"])
-                #         + (1 - scale) * noise_pred
-                #     )
-                #     noise_pred_periodic = (
-                #         scale * (batched_data["pos"] - batched_data["init_pos"])
-                #         + (1 - scale) * noise_pred_periodic
-                #     )
-                # elif self.args.diffusion_mode == "x0":
-                #     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-                #     logit_bias = torch.logit(
-                #         batched_data["sqrt_one_minus_alphas_cumprod_t"]
-                #     )
-                #     scale = torch.sigmoid(scale_shift + logit_bias)
-                #     noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
-                # else:
-                #     raise ValueError(
-                #         f"diffusion mode: {self.args.diffusion_mode} is not supported"
-                #     )
 
                 if (
                     self.args.AutoGradForce
