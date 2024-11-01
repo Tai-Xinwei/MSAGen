@@ -5,9 +5,9 @@ defaults:
 model_type: psm
 num_classes: 1
 encoder_attention_heads: 32
-encoder_ffn_embed_dim: 6144
-encoder_embed_dim: 1536
-encoder_layers: 20
+encoder_ffn_embed_dim: 8192
+encoder_embed_dim: 2048
+encoder_layers: 36
 num_pred_attn_layer: 2
 num_3d_bias_kernel: 32
 max_length: 512
@@ -37,7 +37,7 @@ num_timesteps: 5000
 num_timesteps_stepsize: -1
 ddpm_beta_start: 1.0e-07
 ddpm_beta_end: 0.002
-ddpm_schedule: sigmoid #sigmoid, cosine, linear, quadratic, sqrt
+ddpm_schedule: sigmoid #sigmoid, cosine, linear
 noise_mode: diff
 num_edges: 25600
 num_atom_features: 5120
@@ -94,8 +94,7 @@ molecule_ref_energy_source: null
 molecule_outlier_energy_atoms: DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST
 diffusion_sampling: ddpm
 diffusion_mode: epsilon
-diffusion_noise_std: 1.0
-diffusion_rescale_coeff: 1.0
+diffusion_noise_std: 10.0
 ddim_eta: 0.0
 ddim_steps: 50
 clean_sample_ratio: 0.6
@@ -132,7 +131,7 @@ NoisePredForce: false
 seq_only: false
 freeze_backbone: false
 hard_dist_loss_raito: 20.0
-use_hard_dist_loss: false
+use_hard_dist_loss: true
 if_total_energy: false
 num_force_and_noise_head_layers: 2
 psm_validation_mode: false

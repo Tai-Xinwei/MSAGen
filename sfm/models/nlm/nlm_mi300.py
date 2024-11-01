@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 
 import torch
 from torch import nn
-from torch.optim import AdamW, Optimizer
+from torch.optim import Adam, AdamW, Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import (
@@ -18,7 +18,7 @@ from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP
 from sfm.models.nlm.moduels.autoregressive import AutoregressiveCriterion
 from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.model import Model
-from sfm.utils.optim.optimizer import myAdam
+from sfm.utils.optim.optimizer import myAdam, myAdamW
 from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
@@ -48,7 +48,7 @@ class NLMBaseAMDModel(Model):
         if model is None:
             model = self
 
-        optimizer, _ = myAdam(
+        optimizer, _ = myAdamW(
             model,
             unfreeze_list=self.args.unfreeze_param_list,
             lr=self.args.max_lr,

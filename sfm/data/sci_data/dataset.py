@@ -96,6 +96,7 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
         if self.shuffle_subseq:
             assert self.eos_idx != -1, "eos_idx must be set if shuffle_subseq is True"
         self.acc_data_size_list = []
+        self.acc_data_size_list.append(0)
         for i in range(len(self.data_list)):
             cur_num = self.data_list[i].shape[0] * self.replicate
             self.acc_data_size_list.append(self.acc_data_size_list[i] + cur_num)
@@ -116,7 +117,7 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
         return torch.from_numpy(data.astype(np.int64))
 
     def get_real_index(self, index):
-        list_index = bisect.bisect_right([0] + self.acc_data_size_list, index)
+        list_index = bisect.bisect_right(self.acc_data_size_list, index)
         return list_index - 1, index - self.acc_data_size_list[list_index - 1]
 
     def __len__(self):

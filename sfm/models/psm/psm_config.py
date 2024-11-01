@@ -18,6 +18,7 @@ class VecInitApproach(Enum):
 
 class DiffusionTrainingLoss(Enum):
     L1: str = "L1"
+    L2: str = "L2"
     MSE: str = "MSE"
     SmoothL1: str = "SmoothL1"
 
@@ -27,6 +28,7 @@ class DiffusionTrainingLoss(Enum):
 
 class ForceLoss(Enum):
     L1: str = "L1"
+    L2: str = "L2"
     MSE: str = "MSE"
     SmoothL1: str = "SmoothL1"
     NoiseTolerentL1: str = "NoiseTolerentL1"
@@ -66,11 +68,13 @@ class PSMConfig(GraphormerConfig):
     seq_masking_method: str = "transformerM"
 
     add_rope: bool = True
+    rope_theta: int = 10000
     num_residues: int = 32
     max_num_aa: int = 1024
 
-    encoder_pair_embed_dim: int = 64
-    decoder_ffn_dim: int = 1024
+    encoder_pair_embed_dim: int = 32
+    decoder_ffn_dim: int = 2048
+    decoder_hidden_dim: int = 512
 
     task: str = "mae"
     sample_mode: bool = False
@@ -112,6 +116,7 @@ class PSMConfig(GraphormerConfig):
     num_timesteps_stepsize: int = -1
     diffusion_mode: str = "epsilon"
     diffusion_noise_std: float = 1.0
+    diffusion_rescale_coeff: float = 1.0
     ddim_eta: float = 0.0
     ddim_steps: int = 50
     clean_sample_ratio: float = 0.5
@@ -120,6 +125,34 @@ class PSMConfig(GraphormerConfig):
         DiffusionTimeStepEncoderType.POSITIONAL
     )
     align_x0_in_diffusion_loss: bool = True
+    # EDM
+    edm_P_mean: float = -1.2
+    edm_P_std: float = 1.5
+    edm_sigma_data: float = 16.0
+    edm_sample_num_steps: int = 200
+    edm_sample_sigma_min: float = 0.004
+    edm_sample_sigma_max: float = 160.0
+    edm_sample_rho: float = 7.0
+    edm_sample_S_churn: float = 0.0
+    edm_sample_S_min: float = 0.0
+    edm_sample_S_max: float = 3.0e30
+    edm_sample_S_noise: float = 1.0
+    # for AF3
+    af3_sample_gamma_0: float = 0.8
+    af3_sample_gamma_min: float = 1.0
+    af3_sample_step_scale: float = 1.5
+    noise_embedding: str = "fourier"
+
+    # for RL
+    psm_finetuneRL_mode: bool = True
+    diffusion_sampling_rl: str = "ddpm"
+    num_timesteps_stepsize_rl: int = -1
+    reward_model: str = "lddt"
+    psm_value_step: int = 1
+    perturbation_each_traj: int = 2
+    reward_weight: float = 10.0
+    kl_weight: float = 0.1
+    ratio_clip: float = 1e-4
 
     # EDM
     edm_P_mean: float = -1.2
@@ -153,7 +186,7 @@ class PSMConfig(GraphormerConfig):
     smooth_factor: float = 20.0
     use_smooth_equviariant_norm: bool = False
     no_rotary_embedding_for_vector: bool = False
-    mlm_from_decoder_feature: bool = True
+    mlm_from_decoder_feature: bool = False
     disable_data_aug: bool = False
     use_fp32_in_decoder: bool = False
 
@@ -174,14 +207,17 @@ class PSMConfig(GraphormerConfig):
     energy_per_atom_label_scale: float = 1.0
     molecule_energy_per_atom_std_override: float = 1.0
     decoder_feat4energy: bool = True
+    encoderfeat4noise: bool = False
     AutoGradForce: bool = False
     supervise_force_from_head_when_autograd: bool = False
     NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False
-    hard_dist_loss_raito: float = 20.0
+    hard_dist_loss_raito: float = 1.0
     use_hard_dist_loss: bool = False
     if_total_energy: bool = False
+    group_optimizer: bool = False
+    group_lr_ratio: float = 1.0
 
     # used in force and noise heads
     num_force_and_noise_head_layers: int = 2
