@@ -7,18 +7,18 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 16
+  NODES: 8
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-target:
-  service: aml
-  name: townsend1
-
 # target:
-#   service: sing
-#   name: palisades01
-#   workspace_name: sfm-ws
+#   service: aml
+#   name: townsend1
+
+target:
+  service: sing
+  name: palisades01
+  workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -82,8 +82,8 @@ jobs:
   - export ligand_crop_size=0.0
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  # - export data_path=/psm/data
-  - export data_path=/nfs6/psmdata/
+  - export data_path=/psm/data
+  # - export data_path=/nfs6/psmdata/
   # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
   # - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm,pdbcomplexmultimer'
   # - export dataset_split_raito='0.05,0.13,0.2,0.3,0.02,0.1,0.2'
@@ -102,10 +102,10 @@ jobs:
   # - export dataset_micro_batch_size='12,12,12'
   # - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240630_PDB_Training_Data'
   # - export dataset_name_list='esm,mgnify,pdbcomplexmultimer'
-  - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
-  - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
-  - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='16,16,16'
+  - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
+  - export dataset_name_list='afdb,mgnify,pdbcomplexmultimerk,geom'
+  - export dataset_split_raito='0.4,0.2,0.2,0.2'
+  - export dataset_micro_batch_size='16,16,16,32'
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
   # - export dataset_name_list='afdb,mgnify'
   # - export dataset_split_raito='0.7,0.3'
@@ -119,7 +119,7 @@ jobs:
   # - export dataset_split_raito='0.2,0.8'
   # - export dataset_micro_batch_size='16,2'
   - export fp16=False
-  - export clean_sample_ratio=0.7
+  - export clean_sample_ratio=0.0
   - export diffusion_mode=edm
   - export diffusion_noise_std=1.0
   - export diffusion_rescale_coeff=1.0

@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 
 import torch
 from torch import nn
-from torch.optim import AdamW, Optimizer
+from torch.optim import Adam, AdamW, Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import (

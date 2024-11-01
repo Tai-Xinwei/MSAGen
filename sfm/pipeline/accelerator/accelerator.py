@@ -1041,6 +1041,14 @@ class DeepSpeedAccelerator(Accelerator):
                 "gradient_accumulation_steps"
             ] = self.args.gradient_accumulation_steps
         else:
+            unfreeze_params = self.get_unfreeze_param_list(
+                self.args.unfreeze_param_list
+            )
+
+            self.optimizer, self.lr_scheduler = self.model.config_optimizer(
+                model=self.model
+            )
+
             if self.optimizer is None or self.args.zero_offload:
                 self.optimizer, self.lr_scheduler = self.model.config_optimizer()
             else:
@@ -1054,6 +1062,10 @@ class DeepSpeedAccelerator(Accelerator):
                 logger.info("lr scheduler is set, remove the ds default scheduler")
                 self.args.deepspeed_config["scheduler"]["type"] = None
 
+            model_parameters = (
+                unfreeze_params if len(unfreeze_params) > 0 else self.model.parameters()
+            )
+
             (
                 self.model_engine,
                 self.optimizer,
@@ -1062,7 +1074,7 @@ class DeepSpeedAccelerator(Accelerator):
             ) = deepspeed.initialize(
                 args=self.args,
                 model=self.model,
-                model_parameters=self.model.parameters(),
+                model_parameters=model_parameters,
                 training_data=self.train_data,
                 collate_fn=self.train_data.collate,
                 optimizer=self.optimizer,

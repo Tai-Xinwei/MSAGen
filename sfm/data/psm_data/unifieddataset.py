@@ -19,6 +19,7 @@ from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
     ESMDataset,
+    GEOMDataset,
     MatterSimDataset,
     MGnifyDataset,
     PDBComplexDataset,
@@ -242,6 +243,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.dataset_lens[dataset_name] = len(train_dataset)
             elif dataset_name == "pubchemqc-b3lyp":
                 dataset = PubChemQCB3LYPLMDBDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset(
+                    validation_ratio=0.01
+                )
+                len_total = len(dataset)
+            elif dataset_name == "geom":
+                dataset = GEOMDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset(
                     validation_ratio=0.01
                 )
