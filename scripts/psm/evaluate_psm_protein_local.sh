@@ -8,9 +8,34 @@
 # MODEL_CONFIG=PSM300M_DIT
 # CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step80000/mp_rank_00_model_states.pt
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_300m/checkpoints/global_step80000/prediction
-MODEL_CONFIG=PSM1B_DIT
-CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step145000/mp_rank_00_model_states.pt
-SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step145000/proteintest-nocenter
+# CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step75000/mp_rank_00_model_states.pt
+# SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
+
+num_sampling_time=5
+
+# MODEL_CONFIG=PSM1B_DIT
+MODEL_CONFIG=PSM1B_exp3
+global_step=global_step30000
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1/checkpoints2
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_pdbcomplex_2/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb_stage2/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_all/checkpoints
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_nocomplex/checkpoints2
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_all_continue59136/checkpoints
+
+
+# MODEL_CONFIG=PSM3B_DIT
+# global_step=global_step120000
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_3/checkpoints
+
+# MODEL_CONFIG=PSM300M_DIT
+# global_step=global_step40000
+# ckpt_folder_path=/data/peiran/output/dit300m/
+
+CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
+SMPL_PATH=/home/peiranjin/output/$global_step/prediction
 
 DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
@@ -19,7 +44,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   mode_prob=\"0.0,1.0,0.0\" \
   max_length=2048 \
   mask_ratio=0.0 \
-  data_path=/casp/sfm/psm \
+  data_path=/fastdata/peiran/psm \
   data_path_list=ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
   dataset_name_list=proteintest \
   dataset_split_raito=1.0 \
@@ -30,11 +55,16 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   gradient_accumulation_steps=1 \
   diffusion_sampling=dpm \
   num_timesteps_stepsize=-250 \
-  num_sampling_time=5 \
+  num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
+  diffusion_mode=edm \
+  # backbone=exp \
+  # encoder_layers=26 \
+  # num_pred_attn_layer=4 \
+  # encoderfeat4noise=False \
+  # ddpm_beta_end=2e-3 \
 
-# tools/protein_evaluation/EvaluateProteinTest.py \
-#   /casp/sfm/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
-#   $CMPL_PATH \
-#   1 \
+echo $CKPT_PATH
+
+./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time $global_step

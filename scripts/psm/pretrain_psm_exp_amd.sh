@@ -6,22 +6,28 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+[ -z "${backbone}" ] && backbone=exp3
 
-# [ -z "${layers}" ] && layers=36
+# [ -z "${layers}" ] && layers=32
 # [ -z "${hidden_size}" ] && hidden_size=2048
 # [ -z "${ffn_size}" ] && ffn_size=8192
-[ -z "${layers}" ] && layers=32
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
+
+[ -z "${layers}" ] && layers=26
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=1024
-# [ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+
 [ -z "${num_head}" ] && num_head=32
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
+
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=384
-[ -z "${max_residue_num}" ] && max_residue_num=768
+[ -z "${max_residue_num}" ] && max_residue_num=384
 [ -z "${ligand_crop_size}" ] && ligand_crop_size=20.0
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
@@ -43,7 +49,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -63,7 +69,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
 
 # [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
@@ -105,10 +111,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,32,32'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,1,4,4'
 
-[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240101_PDB_Training_Data,MGnify'
-[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdb,mgnify'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.60,0.10,0.30'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,16,16'
+# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240101_PDB_Training_Data,MGnify'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdb,mgnify'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.60,0.10,0.30'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,16,16'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -137,10 +143,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdb'
@@ -243,7 +249,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
-[ -z "${encoderfeat4noise}" ] && encoderfeat4noise=True
+[ -z "${encoderfeat4noise}" ] && encoderfeat4noise=False
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
@@ -252,7 +258,7 @@ export MKL_THREADING_LAYER='GNU'
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
-[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
+[ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
@@ -323,7 +329,7 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=dit \
+          backbone=exp \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           num_pred_attn_layer=$num_pred_attn_layer \
@@ -383,6 +389,5 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
-          # ifresume=True \
 
 sleep infinity

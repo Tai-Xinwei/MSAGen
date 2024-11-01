@@ -42,11 +42,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dict_path}" ] && dict_path='/data/peiran/blob/sfmdataeastus2/nlm/llama/Meta-Llama-3-8B/original'
 
 # [ -z "${train_data_path}" ] && train_data_path='/data/peiran/v5_train/train.npy'
-[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split'
-[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/v5_train/valid.npy'
+[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/v5_train/valid.npy'
 [ -z "${data_ratio}" ] && data_ratio="0.1,0.1,0.2,0.2,0.2,0.2"
 # [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdataeastus2/nlm/llama/Meta-Llama-3-8B/original'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdataeastus2/nlm/zekun/output/base8b/stageB/global_step11000'
+# [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/output/llama3_stageB_G256/global_step4000/'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/output/llama3_stageB_G128_ratio/global_step500'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/blob/tmp/'
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -105,7 +106,7 @@ else
   load_ckpt=""
 fi
 
-[ -z "${weighted_dataset}" ] && weighted_dataset=True
+[ -z "${weighted_dataset}" ] && weighted_dataset=False
 if [[ "${weighted_dataset}" == "True" ]]; then
   weighted_dataset="--weighted_dataset"
 else
@@ -145,8 +146,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-train_data_sas=$(cat /nlm/peiran/llama3_processed_data/sas.txt)
-$azcopy_path/azcopy copy "$train_data_sas" /tmp/train.npy
+# train_data_sas=$(cat /nlm/peiran/llama3_processed_data/sas.txt)
+# $azcopy_path/azcopy copy "$train_data_sas" /tmp/train.npy
 
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key

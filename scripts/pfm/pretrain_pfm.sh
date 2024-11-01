@@ -28,7 +28,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${mask_prob}" ] && mask_prob=0.3
+[ -z "${mask_prob}" ] && mask_prob=0.15
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
@@ -46,14 +46,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=DDP
 
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
-# [ -z "${train_data_path}" ] && train_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536.lmdb'
-# [ -z "${valid_data_path}" ] && valid_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb'
-[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/psm/ur50_23_bpe_pack1536.lmdb/'
-[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/psm/uniref50_valid.lmdb/'
+[ -z "${train_data_path}" ] && train_data_path='/fastdata/peiran/psm/ur50_23_bpe_pack1536.lmdb'
+[ -z "${valid_data_path}" ] && valid_data_path='/fastdata/peiran/psm/ur50_23_bpe_pack1536.lmdb'
+# [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/psm/ur50_23_bpe_pack1536.lmdb/'
+# [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/psm/uniref50_valid.lmdb/'
 
 
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/bfm/checkpoints/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2'
+# [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/bfm/checkpoints/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/psm/checkpoint_E144.pt'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/bfm/checkpoints/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2'
 # [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -178,7 +179,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+          --load_ckpt --loadcheck_path $loadcheck_path \
 
           # --dynamic_loader \
           # --stack_seq \

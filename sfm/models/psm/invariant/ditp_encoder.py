@@ -3,7 +3,7 @@ from typing import Callable, Dict, Optional
 
 import torch
 import torch.nn as nn
-from sympy import ff
+from sklearn.metrics import pair_confusion_matrix
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
@@ -16,29 +16,13 @@ def modulate(x, shift, scale):
     return x * (1 + scale) + shift
 
 
-class DiTBlock(nn.Module):
+class DiTPairBlock(nn.Module):
     """
     A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
 
-    def __init__(
-        self,
-        args,
-        psm_config: PSMConfig,
-        embedding_dim: torch.Tensor = None,
-        ffn_embedding_dim: torch.Tensor = None,
-        num_attention_heads: int = None,
-    ):
+    def __init__(self, args, psm_config: PSMConfig):
         super().__init__()
-        if embedding_dim is None:
-            embedding_dim = psm_config.embedding_dim
-
-        if ffn_embedding_dim is None:
-            ffn_embedding_dim = psm_config.ffn_embedding_dim
-
-        if num_attention_heads is None:
-            num_attention_heads = psm_config.num_attention_heads
-
         self.norm1 = nn.LayerNorm(
             psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
         )
@@ -50,8 +34,8 @@ class DiTBlock(nn.Module):
             attn_cls = MemEffAttn
 
         self.attn = attn_cls(
-            embedding_dim,
-            num_attention_heads,
+            psm_config.embedding_dim,
+            psm_config.num_attention_heads,
             dropout=psm_config.dropout,
             k_bias=False,
             q_bias=False,
@@ -66,38 +50,60 @@ class DiTBlock(nn.Module):
             psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
         )
         self.mlp = nn.Sequential(
-            nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
+            nn.Linear(
+                psm_config.embedding_dim, psm_config.ffn_embedding_dim, bias=False
+            ),
             nn.SiLU(),
-            nn.Linear(ffn_embedding_dim, embedding_dim, bias=False),
+            nn.Linear(
+                psm_config.ffn_embedding_dim, psm_config.embedding_dim, bias=False
+            ),
         )
-        self.adaLN_modulation = nn.Sequential(
+
+        self.adaLN_modulation = nn.Linear(
+            psm_config.embedding_dim, 2 * psm_config.encoder_pair_embed_dim, bias=False
+        )
+        self.pair_feat_bias = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(embedding_dim, 6 * embedding_dim, bias=False),
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.num_attention_heads,
+                bias=False,
+            ),
         )
+
+        self.pair_ln = nn.LayerNorm(psm_config.encoder_pair_embed_dim)
 
     def forward(
         self,
         x,
         c,
+        pair_feat,
         padding_mask,
         batched_data,
         pbc_expand_batched=None,
         mixed_attn_bias=None,
         ifbackprop=False,
     ):
-        math_kernel = ifbackprop and pbc_expand_batched is not None
+        math_kernel = ifbackprop  # and pbc_expand_batched is not None
 
-        (
-            shift_msa,
-            scale_msa,
-            gate_msa,
-            shift_mlp,
-            scale_mlp,
-            gate_mlp,
-        ) = self.adaLN_modulation(c).chunk(6, dim=2)
+        p1, p2 = self.adaLN_modulation(x).chunk(2, dim=-1)
+        pair_feat_i = torch.einsum("blh,bkh->blkh", p1, p2)
+        if pair_feat is not None:
+            pair_feat = pair_feat + pair_feat_i
+        else:
+            pair_feat = pair_feat_i
+
+        pair_feat = self.pair_ln(pair_feat) + pair_feat
+
+        pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
+        if mixed_attn_bias is not None:
+            mixed_attn_bias = mixed_attn_bias + pair_feat_bias
+        else:
+            mixed_attn_bias = pair_feat_bias
+
         if self.psm_config.only_use_rotary_embedding_for_protein:
-            x = x + gate_msa * self.attn(
-                modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
+            x = x + self.attn(
+                self.norm1(x).transpose(0, 1),
                 key_padding_mask=padding_mask,
                 is_protein=batched_data["is_protein"],
                 position_ids=batched_data["position_ids"],
@@ -106,19 +112,20 @@ class DiTBlock(nn.Module):
                 math_kernel=math_kernel,
             )[0].transpose(0, 1)
         else:
-            x = x + gate_msa * self.attn(
-                modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
+            x = x + self.attn(
+                self.norm1(x).transpose(0, 1),
                 key_padding_mask=padding_mask,
                 position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
                 attn_bias=mixed_attn_bias,
                 math_kernel=math_kernel,
             )[0].transpose(0, 1)
-        x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
-        return x
+
+        x = x + self.mlp(self.norm2(x))
+        return x, pair_feat
 
 
-class PSMDiTEncoder(nn.Module):
+class PSMPDiTPairEncoder(nn.Module):
     """
     Implements a Transformer-M Encoder Layer.
     """
@@ -129,7 +136,7 @@ class PSMDiTEncoder(nn.Module):
         self.layers = nn.ModuleList([])
 
         for nl in range(psm_config.num_encoder_layers):
-            self.layers.extend([DiTBlock(args, psm_config)])
+            self.layers.extend([DiTPairBlock(args, psm_config)])
 
         # dummy param for lora, do not remove
         self.dummy = nn.Linear(1, 1, bias=False)
@@ -149,10 +156,12 @@ class PSMDiTEncoder(nn.Module):
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
+        pair_feat = None
         for layer_index, layer in enumerate(self.layers):
-            x = layer(
+            x, pair_feat = layer(
                 x,
                 c,
+                pair_feat,
                 padding_mask,
                 batched_data,
                 pbc_expand_batched=pbc_expand_batched,

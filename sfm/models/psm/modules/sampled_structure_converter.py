@@ -138,7 +138,7 @@ class MoleculeConverter(BaseConverter):
                     )
                 except Exception as e:
                     print(
-                        f"Failed to generate moelcule from sampled structure for index {index[i]}. {e}"
+                        f"Failed to generate molecule from sampled structure for index {index[i]}. {e}"
                     )
                     mol = None
                 structures.append(mol)

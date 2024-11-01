@@ -4,31 +4,35 @@
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
 
-description: PSMV1
+description: PSMV1_mi300x
 
 env_defaults:
-  NODES: 8
+  NODES: 4
   GPUS: 8
-  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+  WANDB_API_KEY: ${WANDB_API_KEY}
 
 target:
-  service: aml
-  name: townsend1
+  service: sing
+  name: whitney02
+  workspace_name: sfm-ws
 
 environment:
-  image: ai4s-sfm:20240531.170731
+  image: ai4s-sfm/amd:20241022.151209
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
+  setup:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
 
 storage:
-  blob:
+  eastus2:
+    storage_account_name: sfmdataeastus2prem # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
+  arca100:
     storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /sfm
-  # eastus2:
-  #   storage_account_name: sfmdataeastus2 # Storage account
-  #   container_name: psm # Container name
-  #   mount_dir: /psm
 
 code:
   local_dir: ../SFM_framework
@@ -47,8 +51,8 @@ jobs:
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir ./output
   - export path=run.sh
-  - export num_pred_attn_layer=2
-  - export layers=20
+  - export num_pred_attn_layer=4
+  - export layers=26
   - export hidden_size=1536
   - export ffn_size=6144
   - export num_head=32
@@ -75,7 +79,8 @@ jobs:
   - export ligand_crop_size=20.0
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export data_path=/nfs7/psmdata/
+  # - export data_path=/psm/data/
+  - export data_path=/tmp/data_3/
   # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
   # - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm,pdbcomplexmultimer'
   # - export dataset_split_raito='0.05,0.13,0.2,0.3,0.02,0.1,0.2'
@@ -92,15 +97,14 @@ jobs:
   # - export dataset_name_list='afdb,mgnify,pdb'
   # - export dataset_split_raito='0.6,0.3,0.1'
   # - export dataset_micro_batch_size='16,16,16'
-  - export data_path_list='AFDB70-plddt70.lmdb,20240101_PDB_Training_Data'
-  - export dataset_name_list='afdb,pdb'
-  - export dataset_split_raito='0.8,0.2'
-  - export dataset_micro_batch_size='16,16'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb'
+  - export dataset_name_list='esm'
+  - export dataset_split_raito='1.0'
+  - export dataset_micro_batch_size='32'
   - export fp16=False
   - export clean_sample_ratio=0.7
   - export diffusion_mode=edm
   - export diffusion_noise_std=1.0
-  # - export diffusion_rescale_coeff=100.0
   - export ddpm_schedule=sigmoid
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
@@ -114,18 +118,18 @@ jobs:
   - export use_unified_batch_sampler=True
   - export align_x0_in_diffusion_loss=True
   - export decoder_feat4energy=False
-  - export encoderfeat4noise=True
+  - export encoderfeat4noise=False
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_scale1_sigmoid_dit_v20_1b_stage1/checkpoints/global_step57456/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b_stage2/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1_pdb_afdb/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_afdb_amd/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
-  - bash ./scripts/psm/pretrain_psm_dit.sh
+  - bash ./scripts/psm/azcopydata.sh
+  - bash ./scripts/psm/pretrain_psm_exp_amd.sh
   submit_args:
     env:
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity

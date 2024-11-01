@@ -675,15 +675,16 @@ class Trainer(object):
 
                 self.state.batch = 0
 
-                if self.should_do_epoch_validate() and not self.args.profiling:
-                    valid_log = self.validate()
-                else:
-                    valid_log = None
-
                 self.accelerator.barrier()
                 if self.should_save_epoch_checkpoint():
                     checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
                     self.save_checkpoint(checkpoint_name, self.state)
+
+                if self.should_do_epoch_validate():
+                    valid_log = self.validate()
+                else:
+                    valid_log = None
+                self.accelerator.barrier()
 
                 # if use early stopping
                 if self.args.early_stopping:

@@ -7,8 +7,10 @@ num_classes: 1
 encoder_attention_heads: 32
 encoder_ffn_embed_dim: 6144
 encoder_embed_dim: 1536
-encoder_layers: 20
-num_pred_attn_layer: 2
+decoder_hidden_dim: 1536
+decoder_ffn_dim: 1536
+encoder_layers: 26
+num_pred_attn_layer: 8
 num_3d_bias_kernel: 32
 max_length: 512
 pbc_expanded_token_cutoff: 256
@@ -70,7 +72,6 @@ add_rope: true
 num_residues: 32
 max_num_aa: 1024
 encoder_pair_embed_dim: 64
-decoder_ffn_dim: 1024
 task: mae
 sample_mode: false
 train_data_path: ''
@@ -93,7 +94,7 @@ sample_ligand_only: false
 molecule_ref_energy_source: null
 molecule_outlier_energy_atoms: DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST
 diffusion_sampling: ddpm
-diffusion_mode: epsilon
+diffusion_mode: edm
 diffusion_noise_std: 1.0
 diffusion_rescale_coeff: 1.0
 ddim_eta: 0.0
@@ -126,7 +127,7 @@ molecule_energy_loss_ratio: 1.0
 energy_per_atom_label_scale: 1.0
 molecule_energy_per_atom_std_override: 1.0
 decoder_feat4energy: false
-encoderfeat4noise: true
+encoderfeat4noise: false
 AutoGradForce: false
 NoisePredForce: false
 seq_only: false
@@ -229,6 +230,6 @@ deepspeed_config: ''
 dist_backend: nccl
 backbone_config:
   model_type: graphormer
-backbone: dit
+backbone: exp3
 ode_mode: false
 finetune_module: null

@@ -98,14 +98,18 @@ def evaluate_predicted_structure(
 
 def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
     CATEGORY = {
-        "CAMEO  Easy": ["Easy"],
-        "CAMEO  Medi": ["Medium", "Hard"],
+        "CAMEO Full": ["Easy", "Medium", "Hard"],
         "CASP14 Full": ["MultiDom"],
         "CASP15 Full": ["MultiDom"],
-        "CASP14 Easy": ["TBM-easy", "TBM-hard"],
-        "CASP14 Hard": ["FM/TBM", "FM"],
-        "CASP15 Easy": ["TBM-easy", "TBM-hard"],
-        "CASP15 Hard": ["FM/TBM", "FM"],
+        "CAMEO  Easy": ["Easy"],
+        "CAMEO  Medi": ["Medium"],
+        "CAMEO  Hard": ["Hard"],
+        "CASP14 TBM-easy": ["TBM-easy"],
+        "CASP14 TBM-hard": ["TBM-hard"],
+        "CASP14 FM": ["FM/TBM", "FM"],
+        "CASP15 TBM-Easy": ["TBM-easy"],
+        "CASP15 TBM-Hard": ["TBM-hard"],
+        "CASP15 FM": ["FM/TBM", "FM"],
         "(   0, 384]": ["Easy", "Medium", "Hard", "MultiDom"],
         "( 384, 512]": ["Easy", "Medium", "Hard", "MultiDom"],
         "( 512,8192]": ["Easy", "Medium", "Hard", "MultiDom"],
@@ -156,10 +160,11 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3 and len(sys.argv) != 4:
+    if len(sys.argv) != 3 and len(sys.argv) != 5:
         sys.exit(f"Usage: {sys.argv[0]} <proteintest_lmdb> <prediction_directory> [max_model_num=1]")
     inplmdb, preddir = sys.argv[1:3]
-    max_model_num = int(sys.argv[3]) if len(sys.argv) == 4 else 1
+    global_step = sys.argv[4]
+    max_model_num = int(sys.argv[3]) if len(sys.argv) == 5 else 1
 
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
@@ -173,9 +178,9 @@ if __name__ == '__main__':
     print(df)
 
     logger.info(f"Average TMscore for different categories.")
-    df.to_csv(Path(preddir) / "Score4EachModel.csv")
+    df.to_csv(Path(preddir) / f"../Score4EachModel_{global_step}.csv")
     newdf, meandf = calculate_average_score(df)
-    newdf.to_csv(Path(preddir) / "Score4Target.csv")
+    newdf.to_csv(Path(preddir) / f"../Score4Target_{global_step}.csv")
     print(newdf)
     with pd.option_context('display.float_format', '{:.2f}'.format):
         print(meandf)

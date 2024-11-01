@@ -44,22 +44,21 @@ jobs:
   - pip install git+https://github.com/NVIDIA/TransformerEngine.git@v1.6
   - pip uninstall flash-attn -y
   - pip install ase
-  - export train_batch_size=512
-  - export val_batch_size=512
-  - export gradient_accumulation_steps=32
+  - export train_batch_size=4096
+  - export val_batch_size=4096
+  - export gradient_accumulation_steps=64
   - export tensor_model_parallel_size=1
   - export pipeline_model_parallel_size=2
-  - export total_num_steps=10000
-  - export warmup_num_steps=1000
+  - export total_num_steps=156250
+  - export warmup_num_steps=3000
   - export max_lr=6e-5
-  - export learnable_cutoff=32000
   - export load_ckpt=True
-  - export unfreeze_param_list="lm_head.weight,word_embeddings.weight"
   - export train_data_path=/nlm/SFMData/pretrain/20240724/train_split_lmdb/
   - export valid_data_path=/nlm/SFMData/pretrain/20240724/valid_split_lmdb/
   - export dict_path=/nlm/mistral/Mistral-7B-v0.1/
-  - export loadcheck_path=/nlm/mistral/Mistral-7B-v0.1/original/
-  - export save_dir=/nlm/peiran/output/pretrain_base_7T_G32/
+  # - export loadcheck_path=/nlm/peiran/output/pretrain_base_7T_G32/global_step10000/
+  - export loadcheck_path=/nlm/peiran/output/pretrain_base_7T_G128_stageB/global_step2000/
+  - export save_dir=/nlm/peiran/output/pretrain_base_7T_G128_stageB_2/
   - bash scripts/nlm/pretrain_base7b_1T.sh
   submit_args:
     env:
