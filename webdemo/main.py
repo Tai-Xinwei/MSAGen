@@ -11,9 +11,11 @@ import gradio as gr
 import safetensors.torch as st
 import torch
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+from examples import dna2rna_tasks, dnapred_tasks, small_mole_tasks
 from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
+    AutoTokenizer,
     LlamaConfig,
     LlamaForCausalLM,
     TextIteratorStreamer,
@@ -326,6 +328,18 @@ elif MODEL_TYPE == "llama8b":
 
     model = load_llama3_model(config, CKPT)
     model.eval()
+elif MODEL_TYPE == "ph3_mini":
+    # Load the model and tokenizer from Hugging Face for Ph3-mini
+    tokenizer = AutoTokenizer.from_pretrained(
+        "/data/yeqi/cache/hf_models/Phi-3.5-mini-instruct/"
+    )
+    model = AutoModelForCausalLM.from_pretrained(
+        "/data/yeqi/cache/hf_models/Phi-3.5-mini-instruct/"
+    )
+    model.eval()  # Set to evaluation mode
+    model.cuda()  # Move model to GPU if available
+else:
+    raise ValueError(f"Unsupported model type {MODEL_TYPE}")
 
 
 def close_last_tag(xml_string):
@@ -548,6 +562,31 @@ if DEMO_MODE == "chat":
     logger = get_logger()
     demo = gr.ChatInterface(
         partial(chat, logger=logger),
+        additional_inputs=[
+            gr.Number(label="n_history", value=0),
+            gr.Checkbox(label="do_sample", value=True),
+            gr.Number(label="max_new_tokens", value=300),
+            gr.Slider(
+                label="temperature", value=1.0, minimum=0.01, maximum=5.0, step=0.01
+            ),
+            gr.Number(label="beam_size", value=1),
+            gr.Number(label="top_p", value=0.9),
+        ],
+        chatbot=gr.Chatbot(
+            bubble_full_width=False,
+            height=580,
+        ),
+        additional_inputs_accordion=gr.Accordion(
+            label="Chat Settings", visible=True, open=True
+        ),
+    )
+elif DEMO_MODE == "chat_dev":
+    tasks = dna2rna_tasks + dnapred_tasks + small_mole_tasks
+    examples = [[task_str, 0, True, 300, 1.0, 1, 0.9] for task_str in tasks]
+    logger = get_logger()
+    demo = gr.ChatInterface(
+        partial(chat, logger=logger),
+        examples=examples,
         additional_inputs=[
             gr.Number(label="n_history", value=0),
             gr.Checkbox(label="do_sample", value=True),
