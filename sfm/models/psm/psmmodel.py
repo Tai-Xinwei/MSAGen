@@ -145,8 +145,8 @@ class PSMModel(Model):
             "exp3",
         ]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
-            if self.psm_config.psm_finetune_mode:
-                self.disable_data_aug = True
+            # if self.psm_config.psm_finetune_mode:
+            # self.disable_data_aug = True
             if self.disable_data_aug:
                 logger.warning(
                     f"=== N O T E === Data augmentation is disabled for {self.args.backbone}"
