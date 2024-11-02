@@ -106,7 +106,7 @@ jobs:
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
   # - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
   - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='2,2,2'
+  - export dataset_micro_batch_size='1,1,1'
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
   # - export dataset_name_list='afdb,mgnify'
   # - export dataset_split_raito='0.7,0.3'

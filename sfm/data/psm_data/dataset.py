@@ -1332,7 +1332,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
         confidence = data["confidence"]
 
         indices = np.arange(coords.shape[0])
-        nonNan_indices = indices[confidence > 0.7]
+        nonNan_indices = indices[confidence > 70]
         if nonNan_indices.shape[0] <= self.args.max_length:
             return nonNan_indices
 
