@@ -1329,13 +1329,27 @@ class AFDBLMDBDataset(FoundationModelDataset):
         else:
             raise ValueError(f"Invalid shape of data['pos']: {data['pos'].shape}")
 
-        indices = np.arange(coords.shape[0])
-        c_index = np.random.choice(indices)
+        confidence = data["confidence"]
 
-        d = np.linalg.norm(coords - coords[c_index], axis=-1)
+        indices = np.arange(coords.shape[0])
+        nonNan_indices = indices[confidence > 0.7]
+        if nonNan_indices.shape[0] <= self.args.max_length:
+            return nonNan_indices
+
+        c_index = np.random.choice(nonNan_indices)
+
+        d = np.linalg.norm(coords[nonNan_indices] - coords[c_index], axis=-1)
         cutoff = np.partition(d, self.args.max_length - 1)[self.args.max_length - 1]
-        selected_indices = indices[d <= cutoff]
+        selected_indices = nonNan_indices[d <= cutoff]
         return selected_indices
+
+        # indices = np.arange(coords.shape[0])
+        # c_index = np.random.choice(indices)
+
+        # d = np.linalg.norm(coords - coords[c_index], axis=-1)
+        # cutoff = np.partition(d, self.args.max_length - 1)[self.args.max_length - 1]
+        # selected_indices = indices[d <= cutoff]
+        # return selected_indices
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
