@@ -101,3 +101,17 @@ def sfm_nlm_8b_base_config(config: MoeModelConfig):
     config.max_position_embeddings = 8192
     config.tokens_per_sample = 8192
     return config
+
+
+def sfm_nlm_phi35_mini_config(config: MoeModelConfig):
+    config.vocab_size = 32064
+    config.pad_token_id = 32000
+    config.hidden_size = 3072
+    config.intermediate_size = 8192
+    config.max_position_embeddings = 4096  # LongRoPE: 131072
+    config.num_hidden_layers = 32
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 32
+    config.rms_norm_eps = 1e-5
+    config.rope_theta = 10000.0
+    return config
