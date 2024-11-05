@@ -13,13 +13,9 @@ env_defaults:
 
 target:
   service: aml
-#   name: townsend1
-  name: sfm-psm-pretrain
+  name: alta4
+  workspace_name: sfm-ws
 
-# target:
-#   service: sing
-#   name: palisades01
-#   workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731

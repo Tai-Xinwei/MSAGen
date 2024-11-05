@@ -121,6 +121,17 @@ class PSMModel(Model):
         if self.psm_config.diffusion_mode == "edm":
             self.diffnoise = DiffNoiseEDM(self.psm_config)
             self.diffnoise.alphas_cumprod = None
+
+            if self.psm_config.diffusion_sampling == "dpm_edm":
+                self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
+                    self.psm_config.diffusion_sampling
+                ](self.diffnoise.alphas_cumprod, self.psm_config)
+            elif self.psm_config.diffusion_sampling == "edm":
+                self.diffusion_process = None
+            else:
+                raise ValueError(
+                    f"Invalid diffusion_sampling: {self.psm_config.diffusion_sampling}"
+                )
         else:
             self.diffnoise = DiffNoise(self.psm_config)
 
@@ -797,7 +808,10 @@ class PSMModel(Model):
                 batched_data["pos"]
             )  # zero position to avoid any potential leakage
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
-            if self.psm_config.diffusion_mode == "edm":
+            if (
+                self.psm_config.diffusion_mode == "edm"
+                and self.psm_config.diffusion_sampling == "edm"
+            ):
                 # if self.psm_config.edm_sampling_method == "af3":
                 self.sample_AF3(batched_data=batched_data)
                 # elif self.psm_config.edm_sampling_method == "2nd":
