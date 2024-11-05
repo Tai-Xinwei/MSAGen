@@ -2266,6 +2266,9 @@ class PDBComplexDataset(AFDBLMDBDataset):
             chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
             polymer_len += len(crop_chain)
 
+            if idx == 299:
+                break
+
         if polymer_len > 0:
             x = [VOCAB[tok] - 1 for tok in token_type]
             node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
@@ -2274,8 +2277,12 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         # reconstruct the ligands
         if len(candidate_ligand_idx_list) > 0:
+            random.shuffle(candidate_ligand_idx_list)
             cum_ligand_len = 0
             for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
+                if len(cropped_chain_idxes_list) + idx + 1 == 299:
+                    break
+
                 ligand = non_polymers[center_ligand_idx]
 
                 # rescontruct the atom type of the ligand
@@ -2317,6 +2324,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
                     )
                 cum_ligand_len += len(atom_ids)  # + 1
                 # edge_attr = ligand["edge_feat"]
+
         else:
             edge_index = None
 
