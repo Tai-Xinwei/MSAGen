@@ -1343,14 +1343,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
         selected_indices = nonNan_indices[d <= cutoff]
         return selected_indices
 
-        # indices = np.arange(coords.shape[0])
-        # c_index = np.random.choice(indices)
-
-        # d = np.linalg.norm(coords - coords[c_index], axis=-1)
-        # cutoff = np.partition(d, self.args.max_length - 1)[self.args.max_length - 1]
-        # selected_indices = indices[d <= cutoff]
-        # return selected_indices
-
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
         value = self.txn.get(key.encode())
@@ -2117,6 +2109,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
         version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
+        testflag = "ComplexTest"
 
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
@@ -2124,8 +2117,14 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         self.iter_flag = True
 
-        if lmdb_path.find(version) == -1:
+        if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
+
+        if lmdb_path.find(testflag) != -1:
+            self.sample_mode = True
+        else:
+            self.sample_mode = False
+
         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
     def _init_db(self):
@@ -2440,12 +2439,15 @@ class PDBComplexDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         ori_data = bstr2obj(value)
 
-        # crop and reconstruct the graph
-        if np.random.rand() < 0.25:  # contiguous crop
-            data = self.contiguous_crop(ori_data)
-        else:  # spatial crop
-            # crop and reconstruct the graph
+        if self.sample_mode:
             data = self._crop_and_reconstruct_graph(ori_data)
+        else:
+            # crop and reconstruct the graph
+            if np.random.rand() < 0.25:  # contiguous crop
+                data = self.contiguous_crop(ori_data)
+            else:  # spatial crop
+                # crop and reconstruct the graph
+                data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
         data["key"] = key

@@ -128,10 +128,6 @@ class PSMModel(Model):
                 ](self.diffnoise.alphas_cumprod, self.psm_config)
             elif self.psm_config.diffusion_sampling == "edm":
                 self.diffusion_process = None
-            else:
-                raise ValueError(
-                    f"Invalid diffusion_sampling: {self.psm_config.diffusion_sampling}"
-                )
         else:
             self.diffnoise = DiffNoise(self.psm_config)
 

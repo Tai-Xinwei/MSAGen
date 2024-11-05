@@ -205,6 +205,7 @@ def collate_fn(
         sample_in_validation
         and "edge_attr" in items[0]
         and items[0]["edge_attr"] is not None
+        and items[0]["sample_type"] != 6
     ):
         # add original edge information to recover the molecule
         max_num_edges = max(i["edge_attr"].size()[0] for i in items)
@@ -281,11 +282,15 @@ def collate_fn(
         and "edge_attr" in items[0]
         and items[0]["edge_attr"] is not None
     ):
-        batched_data.update(
-            dict(
-                edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
+        if items[0]["sample_type"] != 6:
+            batched_data.update(
+                dict(
+                    edge_attr=edge_attr,
+                    edge_index=edge_index,
+                    num_edges=num_edges,
+                    idx=idx,
+                )
             )
-        )
         if "key" in items[0]:
             batched_data["key"] = [i["key"] for i in items]
 
