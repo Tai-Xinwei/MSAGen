@@ -7,15 +7,13 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 8
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 target:
   service: aml
   name: alta4
-  workspace_name: sfm-ws
-
 
 environment:
   image: ai4s-sfm:20240531.170731

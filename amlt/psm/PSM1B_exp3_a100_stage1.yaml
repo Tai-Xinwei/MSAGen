@@ -84,11 +84,11 @@ jobs:
   - export gradient_accumulation_steps=8
   - export log_interval=100
   - export data_path=/psm/data
-  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
-  - export dataset_name_list='esm,mgnify,pdbcomplexmultimer,geom'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,mgnify,pdbcomplexmultimer,geom'
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
   # - export dataset_name_list='afdb,mgnify,pdbcomplexmultimerk,geom'
-  - export dataset_split_raito='0.4,0.2,0.2,0.2'
+  - export dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
   # - export dataset_micro_batch_size='6,6,6,12'
   - export dataset_micro_batch_size='3,3,3,32'
   - export fp16=False
