@@ -717,6 +717,7 @@ class DiffMAE3dCriterions(nn.Module):
                         # align pred pos and calculate smooth lddt loss for protein
                         (
                             smooth_lddt_loss,
+                            num_pddt_loss,
                             hard_dist_loss,
                             inter_dist_loss,
                             num_inter_dist_loss,
@@ -726,8 +727,6 @@ class DiffMAE3dCriterions(nn.Module):
                         ) = self.dist_loss(
                             model_output, R, T, noise_pred, atomic_numbers
                         )
-                        num_pddt_loss = 1
-
                         if hard_dist_loss is None:
                             hard_dist_loss = torch.tensor(
                                 0.0, device=smooth_lddt_loss.device, requires_grad=True
