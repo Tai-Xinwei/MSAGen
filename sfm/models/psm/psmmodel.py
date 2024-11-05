@@ -12,6 +12,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pydash import clean
 from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
@@ -800,9 +801,10 @@ class PSMModel(Model):
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
             original_cell = batched_data["cell"].clone()
-            batched_data["pos"] = torch.zeros_like(
-                batched_data["pos"]
-            )  # zero position to avoid any potential leakage
+            if not self.psm_config.sample_ligand_only:
+                batched_data["pos"] = torch.zeros_like(
+                    batched_data["pos"]
+                )  # zero position to avoid any potential leakage
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
             if (
                 self.psm_config.diffusion_mode == "edm"
@@ -1406,6 +1408,9 @@ class PSMModel(Model):
         for i, (t_prev, t_cur) in enumerate(
             zip(t_steps[:-1], t_steps[1:])
         ):  # 1, ..., N
+            # batched_data["pos"] = torch.where(
+            #     clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+            # )
             x_cur = batched_data["pos"].clone()
 
             gamma = gamma_0 if t_cur > gamma_min else 0.0
@@ -1414,10 +1419,10 @@ class PSMModel(Model):
             t_prev = t_prev.unsqueeze(-1).repeat(1, x_cur.shape[1])
             t_cur = t_cur.unsqueeze(-1).repeat(1, x_cur.shape[1])
             if clean_mask is not None:
-                t_prev = t_prev.masked_fill(clean_mask, 0.0)
-                t_cur = t_cur.masked_fill(clean_mask, 0.0)
+                t_prev = t_prev.masked_fill(clean_mask, 0.0064)
+                t_cur = t_cur.masked_fill(clean_mask, 0.0064)
 
-            # Data Augmentation
+            # # # Data Augmentation
             R = uniform_random_rotation(
                 x_cur.size(0), device=x_cur.device, dtype=x_cur.dtype
             )
@@ -1427,6 +1432,9 @@ class PSMModel(Model):
             t_prev = t_prev.unsqueeze(-1)
             t_cur = t_cur.unsqueeze(-1)
             t_hat = (1.0 + gamma) * t_prev
+
+            if clean_mask is not None:
+                t_hat = t_hat.masked_fill(clean_mask.unsqueeze(-1), 0.0064)
 
             # Euler step.
             ksi = (
@@ -1459,8 +1467,9 @@ class PSMModel(Model):
 
             if clean_mask is not None:
                 batched_data["pos"] = torch.where(
-                    clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+                    clean_mask.unsqueeze(-1), x_cur, batched_data["pos"]
                 )
+
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             if if_recenter:
                 batched_data["pos"] = center_pos(

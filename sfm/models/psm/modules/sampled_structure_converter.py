@@ -85,6 +85,7 @@ class BaseConverter(ABC, metaclass=ABCMeta):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         # if matched successfully, return RMSD.
         # otherwise, return nan
@@ -152,6 +153,7 @@ class MoleculeConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -237,6 +239,7 @@ class PeriodicConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if sampled_structure is None or original_structure is None:
             return {"rmsd": np.nan}
@@ -350,6 +353,7 @@ class ProteinConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -471,6 +475,7 @@ class ComplexConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -525,6 +530,7 @@ class ComplexConverter(BaseConverter):
         # extract positions for common protein residues and ligand atoms
         sampled_protein, sampled_ligand = _get_xyz(sampled_structure)
         original_protein, original_ligand = _get_xyz(original_structure)
+
         commprt = set([_[0] for _ in sampled_protein]) & set(
             [_[0] for _ in original_protein]
         )
@@ -540,7 +546,12 @@ class ComplexConverter(BaseConverter):
         kabsch_rmsd = _calc_rmsd(smpllig, origlig)
         # calculate pocket aligned RMSD
         dist = np.linalg.norm(smplprt[:, None, :] - smpllig[None, :, :], axis=-1)
-        mask = np.min(dist, axis=-1) < 10  # 10 Angstrom
+
+        if given_protein:
+            mask = np.min(dist, axis=-1) < 1000  # 1000 Angstrom
+        else:
+            mask = np.min(dist, axis=-1) < 10  # 10 Angstrom
+
         smpl_pocket, orig_pocket = smplprt[mask], origprt[mask]
         assert len(smpl_pocket) >= 1, f"Cannot find pocket atoms for {key}."
         pocket_aligned_rmsd = _calc_rmsd(smpllig, origlig, smpl_pocket, orig_pocket)
@@ -597,6 +608,7 @@ class SampledStructureConverter:
         if exitcode != 0:
             raise ValueError(f"Program 'lddt' not installed, {output}.")
         self.psm_config = psm_config
+        self.given_protein = self.psm_config.sample_ligand_only
         self.model = model
         self.relaxers = {
             "protein": None,
@@ -666,5 +678,6 @@ class SampledStructureConverter:
                         int(index),
                         self.sampled_structure_output_path,
                         sample_index,
+                        self.given_protein,
                     )
         return all_results

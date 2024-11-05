@@ -2324,6 +2324,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
                     )
                 cum_ligand_len += len(atom_ids)  # + 1
                 # edge_attr = ligand["edge_feat"]
+                if self.sample_mode:
+                    break
 
         else:
             edge_index = None

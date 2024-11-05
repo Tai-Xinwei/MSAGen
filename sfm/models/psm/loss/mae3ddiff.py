@@ -362,15 +362,20 @@ class DiffMAE3dCriterions(nn.Module):
         )
         dist_mask = dist_mask_protein  # | dist_mask_ligand
 
-        delta = torch.abs(delta_pos_label - delta_pos_pred)
-        delta1 = delta[dist_mask]
-        error = 0.25 * (
-            torch.sigmoid(0.5 - delta1)
-            + torch.sigmoid(1 - delta1)
-            + torch.sigmoid(2 - delta1)
-            + torch.sigmoid(4 - delta1)
-        )
-        lddt = error.mean()
+        if dist_mask.any():
+            delta = torch.abs(delta_pos_label - delta_pos_pred)
+            delta1 = delta[dist_mask]
+            error = 0.25 * (
+                torch.sigmoid(0.5 - delta1)
+                + torch.sigmoid(1 - delta1)
+                + torch.sigmoid(2 - delta1)
+                + torch.sigmoid(4 - delta1)
+            )
+            lddt = error.mean()
+            num_pddt_loss = 1
+        else:
+            lddt = torch.tensor(1.0, device=delta.device, requires_grad=True)
+            num_pddt_loss = 0
 
         dist_map = model_output["dist_map"]
         if dist_map is not None:
@@ -391,40 +396,16 @@ class DiffMAE3dCriterions(nn.Module):
             )
             protein_contact_mask = protein_contact_mask & dist_mask
             delta = dist_map.squeeze(-1) - delta_pos_label
-            contact_loss = torch.abs(delta[protein_contact_mask]).mean()
-            # contact_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            if protein_contact_mask.any():
+                contact_loss = torch.abs(delta[protein_contact_mask]).mean()
+                num_contact_losss = 1
+            else:
+                contact_loss = torch.tensor(
+                    0.0, device=delta.device, requires_grad=True
+                )
+                num_contact_losss = 0
 
-            # if L > 6 and dist_map is not None:
-            #     # filter out 3 lines around diagnal
-            #     mask_temp = torch.ones(L, L, dtype=torch.bool, device=delta.device)
-
-            #     # Create upper and lower triangular masks
-            #     upper_mask = torch.triu(mask_temp, diagonal=6)
-            #     lower_mask = torch.tril(mask_temp, diagonal=-6)
-
-            #     # Combine the masks
-            #     mask_temp = upper_mask | lower_mask
-
-            #     protein_contact_mask = (
-            #         (delta_pos_label >= 6) & pair_protein_mask & mask_temp
-            #     )
-            #     contact_label = (delta_pos_label <= 12).long()
-
-            #     contact_loss = self.contact_loss(
-            #         dist_map[protein_contact_mask],
-            #         contact_label[protein_contact_mask],
-            #     )
-
-            #     contact_acc = (
-            #         (
-            #             dist_map[protein_contact_mask].view(-1, dist_map.size(-1)).argmax(dim=-1)
-            #             == contact_label[protein_contact_mask]
-            #         )
-            #         .to(torch.float32)
-            #         .mean()
-            #     )
             contact_acc = 0.0
-            num_contact_losss = 1
         else:
             contact_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
             contact_acc = 0.0
@@ -503,6 +484,7 @@ class DiffMAE3dCriterions(nn.Module):
 
         return (
             1 - lddt,
+            num_pddt_loss,
             hard_dist_loss,
             inter_dist_loss,
             num_inter_dist_loss,
@@ -618,6 +600,7 @@ class DiffMAE3dCriterions(nn.Module):
                         # align pred pos and calculate smooth lddt loss for protein
                         (
                             smooth_lddt_loss,
+                            num_pddt_loss,
                             hard_dist_loss,
                             inter_dist_loss,
                             num_inter_dist_loss,
@@ -625,7 +608,6 @@ class DiffMAE3dCriterions(nn.Module):
                             contact_acc,
                             num_contact_losss,
                         ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
-                        num_pddt_loss = 1
                         if hard_dist_loss is None:
                             hard_dist_loss = torch.tensor(
                                 0.0, device=smooth_lddt_loss.device, requires_grad=True
