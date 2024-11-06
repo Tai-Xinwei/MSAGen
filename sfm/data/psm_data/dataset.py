@@ -1548,6 +1548,10 @@ class ESMDataset(AFDBLMDBDataset):
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             if np.random.rand() < 0.25:
+                # confidence = data["confidence"]
+                # indices = np.arange(coords.shape[0])
+                # nonNan_indices = indices[confidence > 70]
+
                 random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
@@ -2280,8 +2284,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
             random.shuffle(candidate_ligand_idx_list)
             cum_ligand_len = 0
             for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
-                if len(cropped_chain_idxes_list) + idx + 1 == 299:
-                    break
+                # if len(cropped_chain_idxes_list) + idx + 1 == 299:
+                #     break
 
                 ligand = non_polymers[center_ligand_idx]
 

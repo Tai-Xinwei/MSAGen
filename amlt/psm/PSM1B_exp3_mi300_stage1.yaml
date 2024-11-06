@@ -30,7 +30,7 @@ storage:
     container_name: sfm # Container name
     mount_dir: /sfm
   eastus2:
-    storage_account_name: sfmdataeastus2 # Storage account
+    storage_account_name: sfmdataeastus2prem # Storage account
     container_name: psm # Container name
     mount_dir: /psm
 
@@ -77,17 +77,17 @@ jobs:
   - export train_batch_size=2048
   - export val_batch_size=512
   - export max_tokens=16000
-  - export max_length=384
-  - export max_residue_num=384
+  - export max_length=768
+  - export max_residue_num=768
   - export ligand_crop_size=0.0
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  # - export data_path=/tmp/data_3/
-  - export data_path=/psm/data/
-  - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
-  - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
-  - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='32,32,32'
+  - export data_path=/tmp/data_copy/
+  # - export data_path=/psm/data/
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,mgnify,pdbcomplexmultimer,geom'
+  - export dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
+  - export dataset_micro_batch_size='8,8,8,8,64'
   - export fp16=False
   - export clean_sample_ratio=0.7
   - export diffusion_mode=edm
@@ -109,10 +109,10 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_nocomplex/checkpoints/global_step16896/mp_rank_00_model_states.pt
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_p_stage2/checkpoints/global_step30000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=True
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_all/checkpoints
-  # - bash ./scripts/psm/azcopydata.sh
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v21_1b_ps_stage2_768/checkpoints
+  - bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm_exp_amd.sh
   submit_args:
     env:

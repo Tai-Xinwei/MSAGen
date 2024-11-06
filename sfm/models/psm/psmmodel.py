@@ -5,15 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
-import token
 from contextlib import nullcontext
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pydash import clean
-from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger

@@ -156,8 +156,8 @@ def collate_fn(
     position_ids = torch.cat(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
     )
-    chain_ids = torch.cat(
-        [pad_1d_unsqueeze(i["chain_ids"], max_node_num) for i in items]
+    chain_ids = (
+        torch.cat([pad_1d_unsqueeze(i["chain_ids"], max_node_num) for i in items]) - 1
     )
 
     confidence = torch.cat(
