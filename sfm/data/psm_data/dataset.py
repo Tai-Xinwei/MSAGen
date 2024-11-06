@@ -1548,11 +1548,19 @@ class ESMDataset(AFDBLMDBDataset):
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             if np.random.rand() < 0.25:
-                # confidence = data["confidence"]
-                # indices = np.arange(coords.shape[0])
-                # nonNan_indices = indices[confidence > 70]
+                confidence = data["confidence"]
+                indices = np.arange(confidence.shape[0])
+                nonNan_indices = indices[confidence > 70]
 
-                random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+                # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+                random_center = np.random.choice(nonNan_indices)
+                random_start = random_center - self.args.max_length // 2
+                if random_start > len(data["aa"]) - self.args.max_length:
+                    random_start = len(data["aa"]) - self.args.max_length
+
+                if random_start < 0:
+                    random_start = 0
+
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
                 ]
@@ -2270,8 +2278,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
             chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
             polymer_len += len(crop_chain)
 
-            if idx == 299:
-                break
+            # if idx == 299:
+            #     break
 
         if polymer_len > 0:
             x = [VOCAB[tok] - 1 for tok in token_type]

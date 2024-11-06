@@ -15,6 +15,16 @@ def pad_1d_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
+def pad_1d_chain_ids_unsqueeze(x, padlen):
+    x = x + 1
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen], dtype=x.dtype)
+        new_x[:xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
 def pad_1d_confidence_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
@@ -156,8 +166,8 @@ def collate_fn(
     position_ids = torch.cat(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
     )
-    chain_ids = (
-        torch.cat([pad_1d_unsqueeze(i["chain_ids"], max_node_num) for i in items]) - 1
+    chain_ids = torch.cat(
+        [pad_1d_chain_ids_unsqueeze(i["chain_ids"], max_node_num) for i in items]
     )
 
     confidence = torch.cat(

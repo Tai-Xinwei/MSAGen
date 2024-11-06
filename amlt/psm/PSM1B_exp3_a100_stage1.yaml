@@ -11,10 +11,10 @@ env_defaults:
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-# target:
-#   service: aml
-# #   name: townsend1
-#   name: sfm-psm-pretrain
+target:
+  service: aml
+#   name: townsend1
+  name: sfm-psm-pretrain
 
 target:
   service: sing
@@ -70,7 +70,7 @@ jobs:
   - export droppath_prob=0.0
   - export mask_ratio=0.0
   - export d_tilde=1.0
-  - export max_lr=6e-5
+  - export max_lr=4e-5
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=400000
@@ -84,14 +84,12 @@ jobs:
   - export gradient_accumulation_steps=8
   - export log_interval=100
   - export data_path=/psm/data
-  # - export data_path=/tmp/data_copy
+  - export data_path=/tmp/data_copy
   - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
   - export dataset_name_list='esm,esm,mgnify,pdbcomplexmultimer,geom'
-  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
-  # - export dataset_name_list='afdb,mgnify,pdbcomplexmultimerk,geom'
   - export dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
-  # - export dataset_micro_batch_size='1,1,1,1,12'
-  - export dataset_micro_batch_size='6,6,6,6,12'
+  # - export dataset_micro_batch_size='6,6,6,6,12'
+  - export dataset_micro_batch_size='16,16,16,16,32'
   - export fp16=False
   - export clean_sample_ratio=0.0
   - export diffusion_mode=edm
@@ -115,12 +113,12 @@ jobs:
   - export if_total_energy=False
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_p_stage2/checkpoints/global_step30000/mp_rank_00_model_states.pt
-  - export psm_finetune_mode=True
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2/checkpoints
+  - export psm_finetune_mode=False
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage1/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
-  # - bash ./scripts/psm/azcopydata.sh
+  - bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm_exp.sh
   submit_args:
     env:

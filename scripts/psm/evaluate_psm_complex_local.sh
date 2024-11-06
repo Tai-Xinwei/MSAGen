@@ -2,11 +2,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-num_sampling_time=20
+num_sampling_time=5
 MODEL_CONFIG=PSM1B_exp3
 
-global_step=global_step15000
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2_768_palisades01/checkpoints
+global_step=global_step5000
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2_768/checkpoints
 
 # global_step=global_step8848
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241105-lr2e-5-bsz2-steps400000-warm25000-holo
@@ -31,7 +31,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   val_batch_size=1 \
   val_batch_log_interval=1 \
   gradient_accumulation_steps=1 \
-  diffusion_sampling=dpm_edm \
+  diffusion_sampling=edm \
   num_timesteps_stepsize=-250 \
   num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
@@ -39,12 +39,13 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   crop_radius=10000 \
   max_residue_num=20480 \
   ligand_crop_size=10000 \
+  diffusion_mode=edm \
   # sample_ligand_only=true \
 
 
 pocket_boundary=-1
 result_path=$SMPL_PATH/../result.csv
 
-# python ./tools/protein_evaluation/EvaluateComplexAligned.py $SMPL_PATH /data/peiran/blob/sfmarca100/sfm/psm/PoseBusters/posebusters_benchmark_set $num_sampling_time $result_path $pocket_boundary
+python ./tools/protein_evaluation/EvaluateComplexAligned.py $SMPL_PATH /data/peiran/blob/sfmarca100/sfm/psm/PoseBusters/posebusters_benchmark_set $num_sampling_time $result_path $pocket_boundary
 
-# python ./tools/protein_evaluation/posebusters_stat.py $result_path $num_sampling_time
+python ./tools/protein_evaluation/posebusters_stat.py $result_path $num_sampling_time
