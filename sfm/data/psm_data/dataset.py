@@ -2476,11 +2476,11 @@ class PDBComplexDataset(AFDBLMDBDataset):
             data = self._crop_and_reconstruct_graph(ori_data)
         else:
             # crop and reconstruct the graph
-            # if np.random.rand() < 0.25:  # contiguous crop
-            # data = self.contiguous_crop(ori_data)
-            # else:  # spatial crop
-            #     # crop and reconstruct the graph
-            data = self._crop_and_reconstruct_graph(ori_data)
+            if np.random.rand() < 0.25:  # contiguous crop
+                data = self.contiguous_crop(ori_data)
+            else:  # spatial crop
+                #     # crop and reconstruct the graph
+                data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
         data["key"] = key
