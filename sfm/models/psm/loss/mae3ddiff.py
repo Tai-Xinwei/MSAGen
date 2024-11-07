@@ -308,7 +308,7 @@ class DiffMAE3dCriterions(nn.Module):
             model_output["padding_mask"]
             | model_output["protein_mask"].any(dim=-1)
             | atomic_numbers.eq(156)
-            | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
+            # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
             | atomic_numbers.eq(2),
         )
         # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
@@ -816,67 +816,93 @@ class DiffMAE3dCriterions(nn.Module):
             else:
                 raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
 
-            noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask) & (~is_seq_only.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                molecule_noise_loss,
-                num_molecule_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask) & is_molecule.unsqueeze(-1) & (~is_complex.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                periodic_noise_loss,
-                num_periodic_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_periodic_noise_loss,  # unreduced_periodic_noise_loss,
-                (~clean_mask) & is_periodic.unsqueeze(-1),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                protein_noise_loss,
-                num_protein_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask)
-                & is_protein
-                & (~is_seq_only.unsqueeze(-1))
-                & (~is_complex.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                complex_noise_loss,
-                num_complex_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask) & is_complex.unsqueeze(-1) & (~is_seq_only.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1) & atomic_numbers.ne(2),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-                is_protein=is_protein,
-            )
+            if not is_seq_only.all():
+                noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask) & (~is_seq_only.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    molecule_noise_loss,
+                    num_molecule_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask)
+                    & is_molecule.unsqueeze(-1)
+                    & (~is_complex.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    periodic_noise_loss,
+                    num_periodic_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_periodic_noise_loss,  # unreduced_periodic_noise_loss,
+                    (~clean_mask) & is_periodic.unsqueeze(-1),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    protein_noise_loss,
+                    num_protein_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask)
+                    & is_protein
+                    & (~is_seq_only.unsqueeze(-1))
+                    & (~is_complex.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    complex_noise_loss,
+                    num_complex_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask)
+                    & is_complex.unsqueeze(-1)
+                    & (~is_seq_only.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1) & atomic_numbers.ne(2),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                    is_protein=is_protein,
+                )
+            else:
+                noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                molecule_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                periodic_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                protein_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                complex_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                num_noise_sample = 0
+                num_molecule_noise_sample = 0
+                num_periodic_noise_sample = 0
+                num_protein_noise_sample = 0
+                num_complex_noise_sample = 0
 
             if self.args.diffusion_training_loss == DiffusionTrainingLoss.L2:
                 molecule_noise_loss = torch.sqrt(molecule_noise_loss + self.epsilon)

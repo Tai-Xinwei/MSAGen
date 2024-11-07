@@ -324,9 +324,9 @@ class PSMModel(Model):
 
         # fileter low plddt residues
         if "confidence" in batched_data:
-            confidence_mask = (batched_data["confidence"] < 70) & (
-                batched_data["confidence"] >= 0.0
-            )
+            confidence_mask = (
+                batched_data["confidence"] < self.psm_config.plddt_threshold
+            ) & (batched_data["confidence"] >= 0.0)
 
             mask = mask | confidence_mask.unsqueeze(-1)
 

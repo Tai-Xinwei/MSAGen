@@ -1332,7 +1332,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
         confidence = data["confidence"]
 
         indices = np.arange(coords.shape[0])
-        nonNan_indices = indices[confidence > 70]
+        nonNan_indices = indices[confidence > self.args.plddt_threshold]
         if nonNan_indices.shape[0] <= self.args.max_length:
             return nonNan_indices
 
@@ -1547,20 +1547,31 @@ class ESMDataset(AFDBLMDBDataset):
 
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
+            # if np.random.rand() < 0.25:
+            #     confidence = data["confidence"]
+            #     indices = np.arange(confidence.shape[0])
+            #     nonNan_indices = indices[confidence > 60]
+
+            #     # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            #     random_center = np.random.choice(nonNan_indices)
+            #     random_start = random_center - self.args.max_length // 2
+            #     if random_start > len(data["aa"]) - self.args.max_length:
+            #         random_start = len(data["aa"]) - self.args.max_length
+            #     elif random_start < 0:
+            #         random_start = 0
+
+            #     data["aa"] = data["aa"][
+            #         random_start : random_start + self.args.max_length
+            #     ]
+            #     coords = data["pos"][
+            #         random_start : random_start + self.args.max_length, :
+            #     ]
+            #     confidence = data["confidence"][
+            #         random_start : random_start + self.args.max_length
+            #     ]
+            #     position_ids = range(random_start, random_start + self.args.max_length)
             if np.random.rand() < 0.25:
-                confidence = data["confidence"]
-                indices = np.arange(confidence.shape[0])
-                nonNan_indices = indices[confidence > 70]
-
-                # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-                random_center = np.random.choice(nonNan_indices)
-                random_start = random_center - self.args.max_length // 2
-                if random_start > len(data["aa"]) - self.args.max_length:
-                    random_start = len(data["aa"]) - self.args.max_length
-
-                if random_start < 0:
-                    random_start = 0
-
+                random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
                 ]
@@ -2119,7 +2130,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs_rmfarlig_complexonly.lmdb"
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
-        # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.rmfarligfull.lmdb"
         version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
         testflag = "ComplexTest"
 

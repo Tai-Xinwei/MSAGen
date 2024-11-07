@@ -16,7 +16,7 @@ def pad_1d_unsqueeze(x, padlen):
 
 
 def pad_1d_chain_ids_unsqueeze(x, padlen):
-    x = x + 1
+    # x = x + 1
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros([padlen], dtype=x.dtype)
