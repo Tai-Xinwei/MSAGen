@@ -16,7 +16,6 @@ def pad_1d_unsqueeze(x, padlen):
 
 
 def pad_1d_chain_ids_unsqueeze(x, padlen):
-    # x = x + 1
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros([padlen], dtype=x.dtype)
@@ -146,7 +145,7 @@ def collate_fn(
                 0, item["token_type"].shape[0], dtype=torch.long
             )
         if "confidence" not in item:
-            item["confidence"] = -2 * torch.ones(item["token_type"].shape[0])
+            item["confidence"] = -100 * torch.ones(item["token_type"].shape[0])
         if "chain_ids" not in item:
             item["chain_ids"] = torch.ones(
                 item["token_type"].shape[0], dtype=torch.long

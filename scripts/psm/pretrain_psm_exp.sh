@@ -140,14 +140,14 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='2,8,8'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -157,23 +157,22 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path_list}" ] && data_path_list='MGnify'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mgnify'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='AFDB90-plddt60to70-reduce.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='esm'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+# [ -z "${data_path_list}" ] && data_path_list='AFDB90-plddt60to70-reduce.lmdb'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='esm'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,4,4,4,48'
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,4,4,4,32'
 
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,MGnify'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,mgnify'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.6,0.4'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,4'
-
+# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.3,0.2'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,4,4'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${group_optimizer}" ] && group_optimizer=True
@@ -196,7 +195,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2_768/checkpoints/global_step5000/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage1/checkpoints/global_step5000/mp_rank_00_model_states.pt"
 # [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/output/dit300m/global_step16000/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 

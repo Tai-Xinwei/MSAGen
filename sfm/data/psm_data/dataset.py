@@ -2286,11 +2286,11 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 range(start_position_ids, start_position_ids + len(crop_chain))
             )
             start_position_ids = start_position_ids + len(crop_chain) + 1000
-            chain_ids.extend([idx + 1] * len(crop_chain))  # + [0])
+            chain_ids.extend([idx + 1] * len(crop_chain))
             polymer_len += len(crop_chain)
 
-            # if idx == 299:
-            #     break
+            if idx == 299:
+                break
 
         if polymer_len > 0:
             x = [VOCAB[tok] - 1 for tok in token_type]
@@ -2303,8 +2303,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
             random.shuffle(candidate_ligand_idx_list)
             cum_ligand_len = 0
             for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
-                # if len(cropped_chain_idxes_list) + idx + 1 == 299:
-                #     break
+                # if len(cropped_chain_idxes_list) + idx + 1 == 399:
+                # break
 
                 ligand = non_polymers[center_ligand_idx]
 
@@ -2345,7 +2345,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
                         ],
                         axis=1,
                     )
-                cum_ligand_len += len(atom_ids)  # + 1
+                cum_ligand_len += len(atom_ids)
                 # edge_attr = ligand["edge_feat"]
                 if self.sample_mode:
                     break
@@ -2476,11 +2476,11 @@ class PDBComplexDataset(AFDBLMDBDataset):
             data = self._crop_and_reconstruct_graph(ori_data)
         else:
             # crop and reconstruct the graph
-            if np.random.rand() < 0.25:  # contiguous crop
-                data = self.contiguous_crop(ori_data)
-            else:  # spatial crop
-                # crop and reconstruct the graph
-                data = self._crop_and_reconstruct_graph(ori_data)
+            # if np.random.rand() < 0.25:  # contiguous crop
+            # data = self.contiguous_crop(ori_data)
+            # else:  # spatial crop
+            #     # crop and reconstruct the graph
+            data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
         data["key"] = key
@@ -2523,7 +2523,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         data["adj"] = adj
 
-        data["confidence"] = -1.0 * torch.ones(N, dtype=torch.float64)
+        data["confidence"] = -100.0 * torch.ones(N, dtype=torch.float64)
         # redundant, but for compatibility
         attn_edge_type = torch.zeros(
             [N, N, data["edge_attr"].size(-1)], dtype=torch.long
