@@ -600,7 +600,12 @@ class SampledStructureConverter:
             raise ValueError(f"Program 'lddt' not installed, {output}.")
         self.psm_config = psm_config
         self.model = model
-        self.relaxers = {"protein": None, "periodic": None, "molecule": None}
+        self.relaxers = {
+            "protein": None,
+            "periodic": None,
+            "molecule": None,
+            "complex": None,
+        }
         if self.psm_config.relax_after_sampling_structure:
             for key in self.relaxers:
                 if key in RELAXER_REGISTER:

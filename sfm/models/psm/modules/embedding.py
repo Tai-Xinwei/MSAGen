@@ -91,9 +91,7 @@ class PSMMixEmbedding(nn.Module):
             )
             x += atom_feature_embedding
 
-        is_protein = (
-            (~batched_data["is_periodic"].unsqueeze(-1)) & (token_id > 129)
-        ).all()
+        is_protein = batched_data["is_protein"].any(dim=-1).all()
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
@@ -112,17 +110,25 @@ class PSMMixEmbedding(nn.Module):
         x += pos_embedding
 
         batch_size, _, max_num_nodes, max_num_expanded_nodes = pos_attn_bias.size()
-        pos_attn_bias = (
-            pos_attn_bias.reshape(
+        if self.psm_config.share_attention_bias:
+            pos_attn_bias = pos_attn_bias.reshape(
                 batch_size,
-                self.psm_config.num_encoder_layers + 1,
                 self.psm_config.num_attention_heads,
                 max_num_nodes,
                 max_num_expanded_nodes,
+            ).contiguous()
+        else:
+            pos_attn_bias = (
+                pos_attn_bias.reshape(
+                    batch_size,
+                    self.psm_config.num_encoder_layers + 1,
+                    self.psm_config.num_attention_heads,
+                    max_num_nodes,
+                    max_num_expanded_nodes,
+                )
+                .permute(1, 0, 2, 3, 4)
+                .contiguous()
             )
-            .permute(1, 0, 2, 3, 4)
-            .contiguous()
-        )
 
         if "init_pos" in batched_data and (batched_data["init_pos"] != 0.0).any():
             init_pos = batched_data["init_pos"]
@@ -137,28 +143,41 @@ class PSMMixEmbedding(nn.Module):
             init_pos_attn_bias = init_pos_attn_bias.masked_fill(
                 ~init_pos_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
             )
-            init_pos_attn_bias = (
-                init_pos_attn_bias.reshape(
+            if self.psm_config.share_attention_bias:
+                init_pos_attn_bias = init_pos_attn_bias.reshape(
                     batch_size,
-                    self.psm_config.num_encoder_layers + 1,
                     self.psm_config.num_attention_heads,
                     max_num_nodes,
                     max_num_expanded_nodes,
+                ).contiguous()
+            else:
+                init_pos_attn_bias = (
+                    init_pos_attn_bias.reshape(
+                        batch_size,
+                        self.psm_config.num_encoder_layers + 1,
+                        self.psm_config.num_attention_heads,
+                        max_num_nodes,
+                        max_num_expanded_nodes,
+                    )
+                    .permute(1, 0, 2, 3, 4)
+                    .contiguous()
                 )
-                .permute(1, 0, 2, 3, 4)
-                .contiguous()
-            )
             pos_attn_bias += init_pos_attn_bias
 
-        if self.psm_config.use_2d_bond_features:
+        if self.psm_config.use_2d_bond_features and is_molecule.any():
             graph_2d_attention_bias = self.graph_2d_attention_bias(batched_data)
             graph_2d_attention_bias = graph_2d_attention_bias.masked_fill(
                 ~is_molecule.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
             )
 
             # TODO:(shiyu) need extra handling if considering catalyst systems
-            pos_attn_bias[
-                :, :, :, :max_num_nodes, :max_num_nodes
-            ] += graph_2d_attention_bias[:, :, :, 1:, 1:]
+            if self.psm_config.share_attention_bias:
+                pos_attn_bias[
+                    :, :, :max_num_nodes, :max_num_nodes
+                ] += graph_2d_attention_bias[:, :, 1:, 1:]
+            else:
+                pos_attn_bias[
+                    :, :, :, :max_num_nodes, :max_num_nodes
+                ] += graph_2d_attention_bias[:, :, :, 1:, 1:]
 
         return x, padding_mask, time_embed, pos_attn_bias

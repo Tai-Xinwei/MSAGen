@@ -372,7 +372,7 @@ class DiffMAE3dCriterions(nn.Module):
         )
         lddt = error.mean()
 
-        dist_map = model_output["dist_map"]
+        dist_map = model_output["dist_map"] if "dist_map" in model_output else None
         if dist_map is not None:
             mask_temp = torch.ones(L, L, dtype=torch.bool, device=delta.device)
 
@@ -568,7 +568,6 @@ class DiffMAE3dCriterions(nn.Module):
         energy_per_atom_pred = model_output["energy_per_atom"]
         total_energy_pred = model_output["total_energy"]
         noise_pred = model_output["noise_pred"]
-        noise_pred_periodic = model_output["noise_pred_periodic"]
         non_atom_mask = model_output["non_atom_mask"]
         clean_mask = model_output["clean_mask"]
         aa_mask = model_output["aa_mask"]
@@ -583,7 +582,7 @@ class DiffMAE3dCriterions(nn.Module):
             "sqrt_one_minus_alphas_cumprod_t"
         ]
         sqrt_alphas_cumprod_t = model_output["sqrt_alphas_cumprod_t"]
-        dist_map = model_output["dist_map"]
+        dist_map = model_output["dist_map"] if "dist_map" in model_output else None
 
         n_graphs = energy_per_atom_label.size()[0]
         if clean_mask is None:
@@ -681,23 +680,9 @@ class DiffMAE3dCriterions(nn.Module):
                             )
                             * self.diffusion_rescale_coeff
                         )
-
-                    unreduced_periodic_noise_loss = (
-                        self.noise_loss(
-                            noise_pred_periodic.to(noise_label.dtype), noise_label
-                        )
-                        * self.diffusion_rescale_coeff
-                    )
-
                 else:
                     unreduced_noise_loss = (
                         self.noise_loss(noise_pred.to(noise_label.dtype), noise_label)
-                        * self.diffusion_rescale_coeff
-                    )
-                    unreduced_periodic_noise_loss = (
-                        self.noise_loss(
-                            noise_pred_periodic.to(noise_label.dtype), noise_label
-                        )
                         * self.diffusion_rescale_coeff
                     )
                     smooth_lddt_loss = torch.tensor(
@@ -711,12 +696,20 @@ class DiffMAE3dCriterions(nn.Module):
                     )
                     num_pddt_loss = 0
                     num_inter_dist_loss = 0
+                contact_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                num_contact_losss = 0
 
             elif self.diffusion_mode == "x0":
                 # x0 pred loss, noise pred is x0 pred here
                 unreduced_noise_loss = self.noise_loss(
                     noise_pred.to(noise_label.dtype), pos_label
                 )
+                contact_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                num_contact_losss = 0
             elif self.diffusion_mode == "edm":
                 weight_pos_edm = model_output["weight_edm"]
                 if not is_seq_only.all():
@@ -784,12 +777,6 @@ class DiffMAE3dCriterions(nn.Module):
                                     noise_pred.to(pos_label.dtype), pos_label
                                 )
                             )
-                            unreduced_periodic_noise_loss = (
-                                weight_pos_edm.sqrt()
-                                * self.noise_loss(
-                                    noise_pred_periodic.to(pos_label.dtype), pos_label
-                                )
-                            )
                         elif (
                             self.args.diffusion_training_loss
                             == DiffusionTrainingLoss.MSE
@@ -797,25 +784,13 @@ class DiffMAE3dCriterions(nn.Module):
                             unreduced_noise_loss = weight_pos_edm * self.noise_loss(
                                 noise_pred.to(pos_label.dtype), pos_label
                             )
-                            unreduced_periodic_noise_loss = (
-                                weight_pos_edm
-                                * self.noise_loss(
-                                    noise_pred_periodic.to(pos_label.dtype), pos_label
-                                )
-                            )
                     else:
                         unreduced_noise_loss = self.noise_loss(
                             noise_pred.to(pos_label.dtype), pos_label
                         )
-                        unreduced_periodic_noise_loss = self.noise_loss(
-                            noise_pred_periodic.to(pos_label.dtype), pos_label
-                        )
                 else:
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(pos_label.dtype), pos_label
-                    )
-                    unreduced_periodic_noise_loss = self.noise_loss(
-                        noise_pred_periodic.to(pos_label.dtype), pos_label
                     )
                     smooth_lddt_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True
@@ -826,8 +801,12 @@ class DiffMAE3dCriterions(nn.Module):
                     inter_dist_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True
                     )
+                    contact_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
                     num_pddt_loss = 0
                     num_inter_dist_loss = 0
+                    num_contact_losss = 0
             else:
                 raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
 
@@ -856,7 +835,7 @@ class DiffMAE3dCriterions(nn.Module):
                 periodic_noise_loss,
                 num_periodic_noise_sample,
             ) = self._reduce_force_or_noise_loss(
-                unreduced_periodic_noise_loss,  # unreduced_periodic_noise_loss,
+                unreduced_noise_loss,
                 (~clean_mask) & is_periodic.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
@@ -1563,7 +1542,6 @@ class DiffProteaCriterions(DiffMAE3dCriterions):
         model_output["energy_per_atom"]
         model_output["total_energy"]
         noise_pred = model_output["noise_pred"]
-        noise_pred_periodic = model_output["noise_pred_periodic"]
         model_output["non_atom_mask"]
         clean_mask = model_output["clean_mask"]
         aa_mask = model_output["aa_mask"]
@@ -1657,11 +1635,6 @@ class DiffProteaCriterions(DiffMAE3dCriterions):
                         unreduced_noise_loss = self.noise_loss(
                             noise_pred.to(noise_label.dtype), noise_label
                         )
-
-                    unreduced_periodic_noise_loss = self.noise_loss(
-                        noise_pred_periodic.to(noise_label.dtype), noise_label
-                    )
-
                     unreduced_aa_diff_loss = self.aa_diff_loss(
                         model_output["aa_logits"], batched_data["noise_1d"]
                     )
@@ -1669,9 +1642,6 @@ class DiffProteaCriterions(DiffMAE3dCriterions):
                 else:
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label
-                    )
-                    unreduced_periodic_noise_loss = self.noise_loss(
-                        noise_pred_periodic.to(noise_label.dtype), noise_label
                     )
                     smooth_lddt_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True
@@ -1712,7 +1682,7 @@ class DiffProteaCriterions(DiffMAE3dCriterions):
                 periodic_noise_loss,
                 num_periodic_noise_sample,
             ) = self._reduce_force_or_noise_loss(
-                unreduced_periodic_noise_loss,  # unreduced_periodic_noise_loss,
+                unreduced_noise_loss,
                 (~clean_mask) & is_periodic.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,

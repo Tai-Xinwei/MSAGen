@@ -28,9 +28,9 @@ class GraphAttnBias(nn.Module):
         psm_config: PSMConfig,
     ):
         super(GraphAttnBias, self).__init__()
-        self.num_heads = psm_config.num_attention_heads * (
-            psm_config.num_encoder_layers + 1
-        )
+        self.num_heads = psm_config.num_attention_heads
+        if not psm_config.share_attention_bias:
+            self.num_heads *= psm_config.num_encoder_layers + 1
         self.multi_hop_max_dist = psm_config.multi_hop_max_dist
         self.edge_hidden_dim = (
             psm_config.encoder_embed_dim // psm_config.num_attention_heads

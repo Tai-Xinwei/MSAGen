@@ -155,7 +155,7 @@ class DiffNoise(nn.Module):
             self.alphas_cumprod,
             self.beta_list,
         ) = self._beta_schedule(
-            psm_config.num_timesteps,  # + 1,
+            psm_config.num_timesteps,
             psm_config.ddpm_beta_start,
             psm_config.ddpm_beta_end,
             psm_config.ddpm_schedule,
@@ -219,6 +219,12 @@ class DiffNoise(nn.Module):
     def _noise_lattice_vectors(self, pos, non_atom_mask, noise, is_stable_periodic):
         n_graphs = pos[is_stable_periodic].size()[0]
         device = pos.device
+        if self.psm_config.use_fixed_init_lattice_size:
+            lattice_corner_noise_scale = self.unit_noise_scale
+        else:
+            lattice_corner_noise_scale = (
+                self.psm_config.periodic_lattice_diffusion_noise_std
+            )
         lattice_corner_noise = (
             torch.randn(
                 [n_graphs, 8, 3],
@@ -226,7 +232,7 @@ class DiffNoise(nn.Module):
                 dtype=pos.dtype,
                 generator=self.torch_generator,
             )
-            * self.unit_noise_scale
+            * lattice_corner_noise_scale
         )
         corner_noise = lattice_corner_noise[:, 0, :]
         gather_index = (
@@ -291,6 +297,21 @@ class DiffNoise(nn.Module):
         noise = self._noise_lattice_vectors(
             pos, non_atom_mask, noise, is_stable_periodic
         )
+
+        if (
+            self.psm_config.use_adaptive_noise_std_for_periodic
+            and is_stable_periodic.any()
+        ):
+            num_atoms = torch.sum(~non_atom_mask, dim=-1).long()
+            # periodic noise scale for atoms is fitting from training set of material structures, following the formula of $k \times N^{1 / 3.0}$
+            periodic_noise = (
+                torch.randn_like(pos)
+                * self.psm_config.periodic_diffusion_noise_std_factor
+                * (num_atoms.unsqueeze(-1).unsqueeze(-1) ** (1 / 3.0))
+            )
+            mask = is_stable_periodic[:, None] & (~non_atom_mask)
+            noise = torch.where(mask.unsqueeze(-1), periodic_noise, noise)
+
         return noise
 
     def get_sampling_start(self, init_pos, non_atom_mask, is_stable_periodic):

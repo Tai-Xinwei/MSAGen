@@ -245,6 +245,15 @@ class PSMModel(Model):
         ori_pos = batched_data["pos"][is_stable_periodic]
         n_periodic_graphs = ori_pos.size()[0]
         init_cell_pos = torch.zeros_like(ori_pos)
+        num_atoms_cube_root = batched_data["num_atoms"][is_stable_periodic] ** (
+            1.0 / 3.0
+        )
+        lattice_size_factor = (
+            self.psm_config.diff_init_lattice_size
+            if self.psm_config.use_fixed_init_lattice_size
+            else self.psm_config.diff_init_lattice_size_factor
+            * num_atoms_cube_root[:, None, None]
+        )
         init_cell_pos_input = torch.tensor(
             [
                 [
@@ -260,8 +269,8 @@ class PSMModel(Model):
             ],
             dtype=ori_pos.dtype,
             device=ori_pos.device,
-        ).repeat([n_periodic_graphs, 1, 1]) * self.psm_config.diff_init_lattice_size - (
-            self.psm_config.diff_init_lattice_size / 2.0
+        ).repeat([n_periodic_graphs, 1, 1]) * lattice_size_factor - (
+            lattice_size_factor / 2.0
         )  # centering
         scatter_index = torch.arange(8, device=ori_pos.device).unsqueeze(0).unsqueeze(
             -1
@@ -1044,10 +1053,6 @@ class PSMModel(Model):
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
         result_dict["ori_pos"] = batched_data["ori_pos"]
-        # result_dict["sqrt_alphas_cumprod_t"] = batched_data["sqrt_alphas_cumprod_t"]
-        # result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
-        #     "sqrt_one_minus_alphas_cumprod_t"
-        # ]
         result_dict["force_label"] = batched_data["forces"]
         result_dict["padding_mask"] = padding_mask
 
@@ -1727,9 +1732,6 @@ class PSM(nn.Module):
                 "vanillatransformer",
                 "vanillatransformer_equiv",
                 "vectorvanillatransformer",
-                # "dit",
-                # "e2dit",
-                # "ditgeom",
                 "exp",
                 "exp2",
                 "exp3",
@@ -1737,9 +1739,6 @@ class PSM(nn.Module):
                 self.energy_head.update(
                     {
                         key: nn.Sequential(
-                            # AdaNorm(psm_config.embedding_dim)
-                            # if self.psm_config.decoder_feat4energy
-                            # else nn.Identity(),
                             nn.Linear(
                                 psm_config.embedding_dim,
                                 psm_config.embedding_dim,
@@ -1790,8 +1789,13 @@ class PSM(nn.Module):
                 "vanillatransformer_equiv",
                 "vectorvanillatransformer",
             ]:
-                self.noise_head = VectorOutput(psm_config.embedding_dim)
-                self.periodic_noise_head = VectorOutput(psm_config.embedding_dim)
+                if self.psm_config.separate_noise_head:
+                    self.molecule_noise_head = VectorOutput(psm_config.embedding_dim)
+                    self.periodic_noise_head = VectorOutput(psm_config.embedding_dim)
+                    self.protein_noise_head = VectorOutput(psm_config.embedding_dim)
+                else:
+                    self.noise_head = VectorOutput(psm_config.embedding_dim)
+                    self.periodic_noise_head = VectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -1801,17 +1805,19 @@ class PSM(nn.Module):
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
             elif args.backbone in ["exp", "exp2", "exp3"]:
-                if self.psm_config.encoderfeat4noise:
-                    self.noise_head = VectorProjOutput(psm_config.embedding_dim)
+                if self.psm_config.separate_noise_head:
+                    self.molecule_noise_head = VectorProjOutput(
+                        psm_config.embedding_dim
+                    )
                     self.periodic_noise_head = VectorProjOutput(
                         psm_config.embedding_dim
                     )
+                    self.protein_noise_head = VectorProjOutput(psm_config.embedding_dim)
                 else:
                     self.noise_head = VectorProjOutput(psm_config.embedding_dim)
                     self.periodic_noise_head = VectorProjOutput(
                         psm_config.embedding_dim
                     )
-
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -1822,19 +1828,39 @@ class PSM(nn.Module):
                     )
             elif args.backbone in ["dit", "e2dit", "ditgeom", "ditp"]:
                 if self.psm_config.encoderfeat4noise:
-                    self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-                    self.periodic_noise_head = VectorGatedOutput(
-                        psm_config.embedding_dim
-                    )
-                    # self.noise_head = VectorProjOutput(psm_config.embedding_dim)
-                    # self.periodic_noise_head = VectorProjOutput(
-                    #     psm_config.embedding_dim
-                    # )
+                    if self.psm_config.separate_noise_head:
+                        self.molecule_noise_head = VectorGatedOutput(
+                            psm_config.embedding_dim
+                        )
+                        self.periodic_noise_head = VectorGatedOutput(
+                            psm_config.embedding_dim
+                        )
+                        self.protein_noise_head = VectorGatedOutput(
+                            psm_config.embedding_dim
+                        )
+                    else:
+                        self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+                        self.periodic_noise_head = VectorGatedOutput(
+                            psm_config.embedding_dim
+                        )
                 else:
-                    self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
-                    self.periodic_noise_head = EquivariantVectorOutput(
-                        psm_config.embedding_dim
-                    )
+                    if self.psm_config.separate_noise_head:
+                        self.molecule_noise_head = EquivariantVectorOutput(
+                            psm_config.embedding_dim
+                        )
+                        self.periodic_noise_head = EquivariantVectorOutput(
+                            psm_config.embedding_dim
+                        )
+                        self.protein_noise_head = EquivariantVectorOutput(
+                            psm_config.embedding_dim
+                        )
+                    else:
+                        self.noise_head = EquivariantVectorOutput(
+                            psm_config.embedding_dim
+                        )
+                        self.periodic_noise_head = EquivariantVectorOutput(
+                            psm_config.embedding_dim
+                        )
 
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
@@ -1842,14 +1868,21 @@ class PSM(nn.Module):
                     )
                 else:
                     self.forces_head.update(
-                        # {key: EquivariantVectorOutput(psm_config.embedding_dim)}
                         {key: VectorGatedOutput(psm_config.embedding_dim)}
                     )
             else:
-                self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
-                self.periodic_noise_head = EquivariantVectorOutput(
-                    psm_config.embedding_dim
-                )
+                if self.psm_config.separate_noise_head:
+                    self.molecule_noise_head = EquivariantVectorOutput(
+                        psm_config.embedding_dim
+                    )
+                    self.periodic_noise_head = EquivariantVectorOutput(
+                        psm_config.embedding_dim
+                    )
+                    self.protein_noise_head = EquivariantVectorOutput(
+                        psm_config.embedding_dim
+                    )
+                else:
+                    self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -1858,41 +1891,6 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: EquivariantVectorOutput(psm_config.embedding_dim)}
                     )
-
-                if args.backbone in [
-                    "vanillatransformer",
-                    "vanillatransformer_equiv",
-                    "vectorvanillatransformer",
-                ]:
-                    self.noise_head = VectorOutput(psm_config.embedding_dim)
-                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                        self.forces_head.update(
-                            {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-                        )
-                    else:
-                        self.forces_head.update(
-                            {key: ForceVecOutput(psm_config.embedding_dim)}
-                        )
-                # elif args.backbone in ["dit"]:
-                #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-                #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                #         self.forces_head.update(
-                #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-                #         )
-                #     else:
-                #         self.forces_head.update(
-                #             {key: ForceGatedOutput(psm_config.embedding_dim)}
-                #         )
-                else:
-                    self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
-                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                        self.forces_head.update(
-                            {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-                        )
-                    else:
-                        self.forces_head.update(
-                            {key: EquivariantVectorOutput(psm_config.embedding_dim)}
-                        )
 
             # aa mask predict head
             self.aa_mask_head = nn.Sequential(
@@ -2289,10 +2287,14 @@ class PSM(nn.Module):
             )
 
             if not skip_decoder:
+                if self.psm_config.share_attention_bias:
+                    decoder_attn_bias = mixed_attn_bias
+                else:
+                    decoder_attn_bias = mixed_attn_bias[-1]
                 decoder_x_output, decoder_vec_output = self.decoder(
                     batched_data,
                     encoder_output,
-                    mixed_attn_bias,
+                    decoder_attn_bias,
                     padding_mask,
                     pbc_expand_batched,
                     time_embed=time_embed,
@@ -2307,10 +2309,14 @@ class PSM(nn.Module):
             )
 
             if not skip_decoder:
+                if self.psm_config.share_attention_bias:
+                    decoder_attn_bias = mixed_attn_bias
+                else:
+                    decoder_attn_bias = mixed_attn_bias[-1]
                 decoder_x_output, decoder_vec_output = self.decoder(
                     batched_data,
                     encoder_output,
-                    mixed_attn_bias[-1] if mixed_attn_bias is not None else None,
+                    decoder_attn_bias,
                     padding_mask,
                     pbc_expand_batched,
                     time_embed=time_embed,
@@ -2344,15 +2350,41 @@ class PSM(nn.Module):
         ):
             if not self.args.seq_only:
                 if self.args.encoderfeat4noise:
-                    noise_pred = self.noise_head(encoder_output, decoder_vec_output)
-                    noise_pred_periodic = self.periodic_noise_head(
-                        encoder_output, decoder_vec_output
+                    assert self.args.backbone not in [
+                        "graphormer",
+                        "graphormer-e2",
+                    ], "encoderfeat4noise=True is not compatible with graphormer and graphormer-e2"
+                    invariant_output = encoder_output
+                else:
+                    invariant_output = decoder_x_output
+                if self.psm_config.separate_noise_head:
+                    molecule_noise_pred = self.molecule_noise_head(
+                        invariant_output, decoder_vec_output
+                    )
+                    periodic_noise_pred = self.periodic_noise_head(
+                        invariant_output, decoder_vec_output
+                    )
+                    protein_noise_pred = self.protein_noise_head(
+                        invariant_output, decoder_vec_output
+                    )
+                    noise_pred = torch.where(
+                        is_periodic[:, None, None],
+                        periodic_noise_pred,
+                        molecule_noise_pred,
+                    )
+                    noise_pred = torch.where(
+                        is_protein[:, :, None], protein_noise_pred, noise_pred
+                    )
+                elif self.args.backbone not in ["graphormer", "graphormer-e2"]:
+                    noise_pred = self.noise_head(invariant_output, decoder_vec_output)
+                    periodic_noise_pred = self.periodic_noise_head(
+                        invariant_output, decoder_vec_output
+                    )
+                    noise_pred = torch.where(
+                        is_periodic[:, None, None], periodic_noise_pred, noise_pred
                     )
                 else:
-                    noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
-                    noise_pred_periodic = self.periodic_noise_head(
-                        decoder_x_output, decoder_vec_output
-                    )
+                    noise_pred = self.noise_head(invariant_output, decoder_vec_output)
 
                 if self.args.decoder_feat4energy:
                     energy_per_atom = torch.where(
@@ -2363,8 +2395,16 @@ class PSM(nn.Module):
                 else:
                     energy_per_atom = torch.where(
                         is_periodic.unsqueeze(-1),
-                        self.energy_head["periodic"](encoder_output).squeeze(-1),
-                        self.energy_head["molecule"](encoder_output).squeeze(-1),
+                        self.energy_head["periodic"](
+                            encoder_output
+                            if self.args.backbone not in ["graphormer", "graphormer-e2"]
+                            else encoder_output.transpose(0, 1)
+                        ).squeeze(-1),
+                        self.energy_head["molecule"](
+                            encoder_output
+                            if self.args.backbone not in ["graphormer", "graphormer-e2"]
+                            else encoder_output.transpose(0, 1)
+                        ).squeeze(-1),
                     )
 
                 if self.args.diffusion_mode == "edm":
@@ -2372,10 +2412,25 @@ class PSM(nn.Module):
                         batched_data["c_skip"] * pos_noised_no_c_in
                         + batched_data["c_out"] * noise_pred
                     )
-                    noise_pred_periodic = (
-                        batched_data["c_skip"] * pos_noised_no_c_in
-                        + batched_data["c_out"] * noise_pred_periodic
+                else:
+                    scale_shift = self.mlp_w(time_embed)
+                    logit_bias = torch.logit(
+                        batched_data["sqrt_one_minus_alphas_cumprod_t"]
                     )
+                    scale = torch.sigmoid(scale_shift + logit_bias)
+                    if self.psm_config.diffusion_mode == "epsilon":
+                        noise_pred = (
+                            scale * (batched_data["pos"] - batched_data["init_pos"])
+                            + (1 - scale) * noise_pred
+                        )
+                    elif self.psm_config.diffusion_mode == "x0":
+                        noise_pred = (
+                            scale * noise_pred + (1 - scale) * batched_data["pos"]
+                        )
+                    else:
+                        raise ValueError(
+                            f"diffusion mode: {self.args.diffusion_mode} is not supported"
+                        )
 
                 if (
                     self.args.AutoGradForce
@@ -2443,7 +2498,6 @@ class PSM(nn.Module):
                 total_energy = torch.zeros_like(batched_data["num_atoms"])
                 forces = torch.zeros_like(batched_data["pos"])
                 noise_pred = torch.zeros_like(batched_data["pos"])
-                noise_pred_periodic = torch.zeros_like(batched_data["pos"])
 
             if not (
                 self.psm_config.psm_finetune_mode
@@ -2467,7 +2521,6 @@ class PSM(nn.Module):
             "aa_logits": aa_logits,
             "time_step": time_step,
             "noise_pred": noise_pred,
-            "noise_pred_periodic": noise_pred_periodic,
             "non_atom_mask": non_atom_mask,
             "protein_mask": batched_data["protein_mask"],
             "is_molecule": is_molecule,
@@ -2505,8 +2558,14 @@ class PSM(nn.Module):
 
         _reset_one_head(self.energy_head, "energy_head")
         _reset_one_head(self.forces_head, "forces_head")
-        _reset_one_head(self.noise_head, "noise_head")
-        _reset_one_head(self.periodic_noise_head, "periodic_noise_head")
+        if self.psm_config.separate_noise_head:
+            _reset_one_head(self.periodic_noise_head, "periodic_noise_head")
+            _reset_one_head(self.molecule_noise_head, "molecule_noise_head")
+            _reset_one_head(self.protein_noise_head, "protein_noise_head")
+        else:
+            if self.args.backbone not in ["graphormer", "graphormer-e2"]:
+                _reset_one_head(self.periodic_noise_head, "periodic_noise_head")
+            _reset_one_head(self.noise_head, "noise_head")
 
     def init_state_dict_weight(self, weight, bias):
         """
