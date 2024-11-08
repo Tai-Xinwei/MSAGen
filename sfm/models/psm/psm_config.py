@@ -95,9 +95,10 @@ class PSMConfig(GraphormerConfig):
     pbc_expanded_distance_cutoff: float = 20.0
     pbc_use_local_attention: bool = False
     pbc_multigraph_cutoff: float = 5.0
-    diff_init_lattice_size: float = 4.0
+    diff_init_lattice_size_factor: float = 2.859496852322873
+    diff_init_lattice_size: float = 10.0
+    use_fixed_init_lattice_size: bool = False
     add_unit_cell_virtual_node: bool = False
-    lattice_size: float = 4.0
 
     # for protein and complex
     crop_radius: float = 50.0
@@ -117,6 +118,9 @@ class PSMConfig(GraphormerConfig):
     num_timesteps_stepsize: int = -1
     diffusion_mode: str = "epsilon"
     diffusion_noise_std: float = 1.0
+    use_adaptive_noise_std_for_periodic: bool = False
+    periodic_diffusion_noise_std_factor: float = 1.0531306506190654
+    periodic_lattice_diffusion_noise_std: float = 0.5
     diffusion_rescale_coeff: float = 1.0
     ddim_eta: float = 0.0
     ddim_steps: int = 50
@@ -126,6 +130,8 @@ class PSMConfig(GraphormerConfig):
         DiffusionTimeStepEncoderType.POSITIONAL
     )
     align_x0_in_diffusion_loss: bool = True
+    separate_noise_head: bool = False
+
     # EDM
     edm_P_mean: float = -1.2
     edm_P_std: float = 1.5
@@ -195,6 +201,7 @@ class PSMConfig(GraphormerConfig):
     use_2d_atom_features: bool = False
     use_2d_bond_features: bool = False
     preprocess_2d_bond_features_with_cuda: bool = True
+    share_attention_bias: bool = False
 
     # memory efficient attention
     use_memory_efficient_attention: bool = False

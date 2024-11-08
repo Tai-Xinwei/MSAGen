@@ -1034,6 +1034,14 @@ class MatterSimDataset:
         cell = cell[best_permutation] * np.array(best_lattice_flip_sign)[:, None]
         return pbc, cell
 
+    def decompose_cell_into_symmetric_lattice_vectors(self, cell, pos):
+        cell = cell.T
+        U, S, Vh = np.linalg.svd(cell)
+        rot = np.matmul(U, Vh)
+        new_cell = np.matmul(np.matmul(Vh.T, np.diag(S)), Vh).T
+        new_pos = np.matmul(rot.T, pos.T).T
+        return new_cell, new_pos
+
     # energy and std calculated over training part of the dataset
     @property
     def energy_mean(self):
@@ -1092,17 +1100,24 @@ class MatterSimDataset:
         positions = data.pop("positions")
 
         data["sample_type"] = 1
-        data["coords"] = torch.tensor(positions, dtype=torch.float64)
         data["token_type"] = x
         data["idx"] = idx
 
         if is_stable_periodic:
+            (
+                data["cell"],
+                positions,
+            ) = self.decompose_cell_into_symmetric_lattice_vectors(
+                data["cell"], positions
+            )
             data["pbc"], data["cell"] = self.switch_lattice_vectors(
                 data["pbc"], data["cell"]
             )
 
         data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
         data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
+
+        data["coords"] = torch.tensor(positions, dtype=torch.float64)
 
         if is_stable_periodic:
             cell_corner_pos_matrix = torch.tensor(
@@ -1124,26 +1139,9 @@ class MatterSimDataset:
                 [data["coords"], cell_corner_pos], dim=0
             )  # expand pos with cell corners
 
-        if (
-            "forces" not in data
-            and "energy" not in data
-            and "stress" not in data
-            and "info" not in data
-            and "energy" not in data["info"]
-        ):
-            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
-            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
-            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
-            if is_stable_periodic:
-                data["forces"] = torch.zeros(
-                    [data["num_atoms"] + 8, 3], dtype=torch.float64
-                )
-            else:
-                data["forces"] = torch.zeros(
-                    [data["num_atoms"], 3], dtype=torch.float64
-                )
-        else:
-            if is_stable_periodic:
+        # get forces
+        if is_stable_periodic:
+            if "forces" in data:
                 data["forces"] = torch.cat(
                     [
                         (
@@ -1155,10 +1153,21 @@ class MatterSimDataset:
                     dim=0,
                 )  # expand forces for cell corners
             else:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"] + 8, 3], dtype=torch.float64
+                )
+        else:
+            if "forces" in data:
                 data["forces"] = torch.tensor(
                     data["forces"] - self.force_mean, dtype=torch.float64
                 )
+            else:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"], 3], dtype=torch.float64
+                )
 
+        # get energy
+        if "info" in data and "energy" in data["info"]:
             data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
             data["energy_per_atom"] = torch.tensor(
                 [
@@ -1168,7 +1177,15 @@ class MatterSimDataset:
                     )
                 ]
             )
+        else:
+            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+
+        # get stress
+        if "info" in data and "stress" in data["info"]:
             data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+        else:
+            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
 
         if self.args.rescale_loss_with_std:
             data["energy"] = data["energy"] / self.energy_std

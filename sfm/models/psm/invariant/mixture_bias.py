@@ -22,7 +22,9 @@ class PSMBias(nn.Module):
         """
         super(PSMBias, self).__init__()
 
-        rpe_heads = psm_config.num_attention_heads * (psm_config.num_encoder_layers + 1)
+        rpe_heads = psm_config.num_attention_heads
+        if not psm_config.share_attention_bias:
+            rpe_heads *= psm_config.num_encoder_layers + 1
 
         self.gbf = GaussianLayer(psm_config.num_3d_bias_kernel, psm_config.num_edges)
         self.gbf_proj = NonLinear(psm_config.num_3d_bias_kernel, rpe_heads)

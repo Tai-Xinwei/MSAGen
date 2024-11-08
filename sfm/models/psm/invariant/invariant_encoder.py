@@ -114,7 +114,11 @@ class PSMEncoder(nn.Module):
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
                 pbc_expand_batched=pbc_expand_batched,
-                mixed_attn_bias=mixed_attn_bias[layer_index]
+                mixed_attn_bias=(
+                    mixed_attn_bias
+                    if self.psm_config.share_attention_bias
+                    else mixed_attn_bias[layer_index]
+                )
                 if mixed_attn_bias is not None
                 else None,
             )

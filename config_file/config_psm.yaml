@@ -110,8 +110,8 @@ pbc_expanded_num_cell_per_direction: 5
 pbc_expanded_distance_cutoff: 20.0
 pbc_use_local_attention: True
 pbc_multigraph_cutoff: 5.0
-diff_init_lattice_size: 4.0
-lattice_size: 4.0
+diff_init_lattice_size: 10.0
+diff_init_lattice_size_factor: 2.859496852322873
 # for diffusion
 diffusion_sampling: "ode"
 diffusion_noise_std: 1.0
