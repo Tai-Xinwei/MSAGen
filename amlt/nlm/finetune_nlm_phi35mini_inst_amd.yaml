@@ -1,0 +1,70 @@
+description: nlm_phi35mini_inst_amd (from phi-3.5-mini-instruct, https://huggingface.co/microsoft/Phi-3.5-mini-instruct/tree/main)
+
+env_defaults:
+  NODES: 2
+  GPUS: 8
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+
+
+target:
+  service: sing
+  name: whitney02
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm/amd:20241022.151209
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+  setup:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+
+storage:
+  hai1:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: nlm # Container name
+    mount_dir: /nlm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: nlm_base1b_300B
+  sku: ${NODES}xG${GPUS}-MI300
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # Modified from finetune_nlm_llama3_inst_1b.yaml
+  - export HSA_ENABLE_SDMA=0
+  - export NCCL_IB_PCI_RELAXED_ORDERING=1
+  - export NCCL_NET_GDR_LEVEL=3
+  - export NCCL_DEBUG=INFO
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=nlm_phi35_guoqing
+  - export WANDB_TEAM=ai4s-sfm
+  - export WANDB_RUN_NAME=finetune_sfm_nlmllama3_inst_SFMMolInstruct.20240807_v2_dialogue_1vs1_bs2048
+  - export wandb_group=instruct
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - python setup_cython.py build_ext --inplace
+  - export train_batch_size=2048
+  - export val_batch_size=2048
+  - export gradient_accumulation_steps=32
+  - export max_lr=2e-5
+  - export total_num_steps=20000
+  - export warmup_num_steps=300
+  - export epochs=12
+  - export train_hf_data_path=/nlm/guoqing/SFM_inst_tune_dataset/dialogue/train.merged.filt.out.tsv.filt.phi35mini.lmdb
+  - export hf_sample_count=-1
+  - export train_data_path=/nlm/guoqing/SFM_inst_tune_dataset/science/train.all.v2.tsv.phi35mini.lmdb
+  - export valid_data_path=/nlm/guoqing/SFM_inst_tune_dataset/science/overall.val.tsv.phi35mini.lmdb
+  - export dict_path=/nlm/phi/Phi-3.5-mini-instruct
+  - export loadcheck_path=/nlm/phi/Phi-3.5-mini-instruct/pt/phi35mini_instruct.pt
+  - export save_dir=/nlm/guoqing/output/phi35mini/SFMMolInstruct.20241028_v2_dialogue_1vs1_test/
+  - bash scripts/nlm/finetune_nlm_phi35mini_inst_amd.sh
+
+  submit_args:
+    env:
+      AMLT_DOCKERFILE_TEMPLATE: "none"
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity

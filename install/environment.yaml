@@ -43,7 +43,7 @@ dependencies:
       - deepspeed==0.14.0
       - sacremoses==0.1.1
       - torch-tb-profiler==0.4.3
-      - flash-attn==2.5.7
+      - flash-attn==2.6.3
       - hydra-core
       - e3nn
       - fairchem-core

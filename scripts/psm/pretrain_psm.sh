@@ -8,12 +8,12 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=24
+[ -z "${layers}" ] && layers=22
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=6144
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
 [ -z "${num_head}" ] && num_head=32
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=1024
@@ -37,7 +37,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
-[ -z "${strategy}" ] && strategy=DDP
+[ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2500
 [ -z "${log_interval}" ] && log_interval=100
@@ -50,13 +50,13 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,2,4,2,2,2,4"
+[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0' # '0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050/checkpoint_E7_B109439.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/mattergen-debug-20241018-1304/global_step205053/mp_rank_00_model_states.pt'
 [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240927-1041'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -64,10 +64,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=psm_dev
+[ -z "${wandb_group}" ] && wandb_group=psm_dev_shiyu_mattergen_debug_20241017
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_dev
+[ -z "${wandb_project}" ] && wandb_project=psm_dev_shiyu_mattergen_debug_20241017
 [ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
+[ -z "${wandb_run_name}" ] && wandb_run_name=mattergen_adaptive_noise
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -75,7 +76,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
@@ -83,7 +84,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 
+# material diffusion settings
+[ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=False
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
+[ -z "${diff_init_lattice_size_factor}" ] && diff_init_lattice_size_factor=2.859496852322873
+[ -z "${periodic_lattice_diffusion_noise_std}" ] && periodic_lattice_diffusion_noise_std=0.5
+[ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=True
+[ -z "${periodic_diffusion_noise_std_factor}" ] && periodic_diffusion_noise_std_factor=1.0531306506190654
+
+[ -z "${share_attention_bias}" ] && share_attention_bias=True
+[ -z "${separate_noise_head}" ] && separate_noise_head=True
+
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
@@ -97,6 +108,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${fp16}" ] && fp16=False
+[ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${sample_in_validation}" ] && sample_in_validation=False
@@ -104,7 +116,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
-[ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
+[ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=False
 [ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=False
 [ -z "${psm_validate_for_train_set}" ] && psm_validate_for_train_set=False
 [ -z "${val_batch_log_interval}" ] && val_batch_log_interval=1
@@ -117,7 +129,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${psm_matbench_task_name}" ] && psm_matbench_task_name=matbench_dielectric
 [ -z "${psm_matbench_fold_id}" ] && psm_matbench_fold_id=0
-[ -z "${psm_finetune_valid_noise_mode}" ] && psm_finetune_valid_noise_mode="zero"
+[ -z "${psm_finetune_valid_noise_mode}" ] && psm_finetune_valid_noise_mode="diffusion"
 [ -z "${force_loss_type}" ] && force_loss_type="L1"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
@@ -125,8 +137,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_rotary_embedding_for_vector}" ] && no_rotary_embedding_for_vector=False
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
-[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
-[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
+[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=False
+[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 [ -z "${unified_data_num_workers}" ] && unified_data_num_workers=0
 [ -z "${use_fp32_in_decoder}" ] && use_fp32_in_decoder=False
@@ -281,7 +293,15 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           molecule_ref_energy_source=$molecule_ref_energy_source \
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms \
           supervise_force_from_head_when_autograd=$supervise_force_from_head_when_autograd \
+          num_timesteps_stepsize=$num_timesteps_stepsize \
+          use_fixed_init_lattice_size=$use_fixed_init_lattice_size \
+          use_adaptive_noise_std_for_periodic=$use_adaptive_noise_std_for_periodic \
+          periodic_diffusion_noise_std_factor=$periodic_diffusion_noise_std_factor \
+          diff_init_lattice_size_factor=$diff_init_lattice_size_factor \
+          periodic_lattice_diffusion_noise_std=$periodic_lattice_diffusion_noise_std \
+          share_attention_bias=$share_attention_bias \
+          mm_tensorcore=$mm_tensorcore \
+          separate_noise_head=$separate_noise_head \
           relax_after_sampling_structure=$relax_after_sampling_structure \
           structure_relax_step_size=$structure_relax_step_size \
           use_autograd_force_for_relaxation_and_md=$use_autograd_force_for_relaxation_and_md \
-          num_timesteps_stepsize=$num_timesteps_stepsize
