@@ -9,7 +9,6 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from typing_extensions import deprecated
-from zmq import device
 
 from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss, ForceLoss, PSMConfig
