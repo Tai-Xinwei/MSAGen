@@ -6,18 +6,18 @@ num_sampling_time=10
 
 # MODEL_CONFIG=PSM1B_DIT
 MODEL_CONFIG=PSM1B_exp3
-global_step=global_step50000
+global_step=global_step40000
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1/checkpoints2
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_pdbcomplex_2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb_stage2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_all/checkpoints
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1/checkpoints
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2/checkpoints
 
-global_step=global_step500
-ckpt_folder_path=/data/peiran/output/dit300m/
+# global_step=global_step500
+# ckpt_folder_path=/data/peiran/output/dit300m/
 
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
