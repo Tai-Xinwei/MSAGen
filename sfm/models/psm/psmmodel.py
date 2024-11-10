@@ -1556,6 +1556,16 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
             ),
             dim=1,
         ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+        # num_non_atoms = torch.sum(
+        #     protein_mask.any(dim=-1) | (~clean_mask), dim=-1
+        # )
+        # non_periodic_center = torch.sum(
+        #     batched_data["pos"].masked_fill(
+        #         padding_mask.unsqueeze(-1) | protein_mask | (~clean_mask.unsqueeze(-1)),
+        #         0.0,
+        #     ),
+        #     dim=1,
+        # ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
 
     center = non_periodic_center.unsqueeze(1)
     center[is_stable_periodic] = periodic_center

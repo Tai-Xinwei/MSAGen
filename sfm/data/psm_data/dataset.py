@@ -85,15 +85,22 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         #         max_sizes=self.args.max_length - 2,
         #     )
 
-        self.atomic_ref_energy_tensor = self.get_atomic_ref_energy_tensor(
-            args.molecule_ref_energy_source,
-            args.data_path,
-            args.molecule_outlier_energy_atoms,
-        )
+        try:
+            self.atomic_ref_energy_tensor = self.get_atomic_ref_energy_tensor(
+                args.molecule_ref_energy_source,
+                args.data_path,
+                args.molecule_outlier_energy_atoms,
+            )
 
-        self.energy_per_atom_scale = self.get_energy_per_atom_scale(
-            getattr(args, "energy_per_atom_label_scale", None)
-        )
+            self.energy_per_atom_scale = self.get_energy_per_atom_scale(
+                getattr(args, "energy_per_atom_label_scale", None)
+            )
+        except:
+            logger.warning(
+                "Failed to load atomic reference energy tensor and energy per atom scale"
+            )
+            self.atomic_ref_energy_tensor = None
+            self.energy_per_atom_scale = None
 
     def _ensure_init_db(self):
         if self._env is not None:

@@ -374,12 +374,12 @@ class DiffMAE3dCriterions(nn.Module):
             lddt = error.mean()
             num_pddt_loss = 1
         else:
-            lddt = torch.tensor(1.0, device=delta.device, requires_grad=True)
+            lddt = torch.tensor(1.0, device=pos_label.device, requires_grad=True)
             num_pddt_loss = 0
 
         dist_map = model_output["dist_map"] if "dist_map" in model_output else None
-        if dist_map is not None:
-            mask_temp = torch.ones(L, L, dtype=torch.bool, device=delta.device)
+        if dist_map is not None and dist_mask.any():
+            mask_temp = torch.ones(L, L, dtype=torch.bool, device=pos_label.device)
 
             # Create upper and lower triangular masks
             upper_mask = torch.triu(mask_temp, diagonal=6)
@@ -401,19 +401,21 @@ class DiffMAE3dCriterions(nn.Module):
                 num_contact_losss = 1
             else:
                 contact_loss = torch.tensor(
-                    0.0, device=delta.device, requires_grad=True
+                    0.0, device=pos_label.device, requires_grad=True
                 )
                 num_contact_losss = 0
 
             contact_acc = 0.0
         else:
-            contact_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            contact_loss = torch.tensor(
+                0.0, device=pos_label.device, requires_grad=True
+            )
             contact_acc = 0.0
             num_contact_losss = 0
 
         # # hard distance loss
         time_step = model_output["time_step"]
-        if time_step is not None:
+        if time_step is not None and dist_mask.any():
             time_coefficient = (
                 (1 - time_step) * torch.exp(-time_step / 0.1)
             ).unsqueeze(-1)
@@ -474,12 +476,14 @@ class DiffMAE3dCriterions(nn.Module):
                 num_inter_dist_loss = 1
             else:
                 inter_dist_loss = torch.tensor(
-                    0.0, device=delta.device, requires_grad=True
+                    0.0, device=pos_label.device, requires_grad=True
                 )
                 num_inter_dist_loss = 0
         else:
             hard_dist_loss = None
-            inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            inter_dist_loss = torch.tensor(
+                0.0, device=pos_label.device, requires_grad=True
+            )
             num_inter_dist_loss = 0
 
         return (
@@ -585,9 +589,17 @@ class DiffMAE3dCriterions(nn.Module):
                     if (
                         self.args.align_x0_in_diffusion_loss and not is_periodic.any()
                     ):  # and not is_periodic.any():
-                        R, T = self._alignment_x0(
-                            model_output, pos_pred, atomic_numbers
-                        )
+                        try:
+                            R, T = self._alignment_x0(
+                                model_output, pos_pred, atomic_numbers
+                            )
+                        except:
+                            logger.warning("error happens in calcualte R, T")
+                            R, T = torch.eye(
+                                3, device=pos_pred.device, dtype=pos_pred.dtype
+                            ).unsqueeze(0).repeat(n_graphs, 1, 1), torch.zeros_like(
+                                pos_pred, device=pos_pred.device, dtype=pos_pred.dtype
+                            )
                     else:
                         R, T = torch.eye(
                             3, device=pos_pred.device, dtype=pos_pred.dtype
@@ -696,9 +708,19 @@ class DiffMAE3dCriterions(nn.Module):
                 weight_pos_edm = model_output["weight_edm"]
                 if not is_seq_only.all():
                     if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
-                        R, T = self._alignment_x0(
-                            model_output, noise_pred, atomic_numbers
-                        )
+                        try:
+                            R, T = self._alignment_x0(
+                                model_output, noise_pred, atomic_numbers
+                            )
+                        except:
+                            logger.warning("error happens in calcualte R, T")
+                            R, T = torch.eye(
+                                3, device=noise_pred.device, dtype=noise_pred.dtype
+                            ).unsqueeze(0).repeat(n_graphs, 1, 1), torch.zeros_like(
+                                noise_pred,
+                                device=noise_pred.device,
+                                dtype=noise_pred.dtype,
+                            )
                     else:
                         R, T = torch.eye(
                             3, device=noise_pred.device, dtype=noise_pred.dtype
