@@ -151,7 +151,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 
 # [ -z "${data_path_list}" ] && data_path_list='MGnify'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mgnify'
@@ -238,7 +238,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False

@@ -1252,7 +1252,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         padding_mask: torch.Tensor,
         batched_data: torch.Tensor,
     ):
-        if molecule_mask.any() or batched_data["is_complex"].any():
+        if molecule_mask.any() and batched_data["is_complex"].any():
             edge_bond_feature = self.mol_bond_emb(
                 batched_data["node_type_edge"].squeeze(-1)
             )
@@ -1267,7 +1267,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
             graph_attn_bias = self.bias_proj(edge_bond_feature)
             graph_attn_bias = graph_attn_bias.masked_fill(
-                ~molecule_mask.unsqueeze(-1).unsqueeze(-1), 0.0
+                ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
             graph_attn_bias = graph_attn_bias.masked_fill(
                 ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
