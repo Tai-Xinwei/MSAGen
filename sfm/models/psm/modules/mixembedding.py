@@ -1267,7 +1267,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
             graph_attn_bias = self.bias_proj(edge_bond_feature)
             graph_attn_bias = graph_attn_bias.masked_fill(
-                padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0
+                ~molecule_mask.unsqueeze(-1).unsqueeze(-1), 0.0
             )
             graph_attn_bias = graph_attn_bias.masked_fill(
                 ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0

@@ -2529,13 +2529,17 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 data["edge_index"][1, :] + polymer_len,
             ] = True
             adj[torch.arange(N), torch.arange(N)] = True
-            # allow interaction between protein and ligand, and protein and protein
-            polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
-            polymer_ligand_adj[:polymer_len] = True
-            polymer_ligand_adj |= (
-                polymer_ligand_adj.clone().T
-            )  # torch disallow inplace operationS
-            adj |= polymer_ligand_adj
+
+            # allow interaction between protein and protein
+            adj[:polymer_len, :polymer_len] = True
+
+            # # allow interaction between protein and ligand, and protein and protein
+            # polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+            # polymer_ligand_adj[:polymer_len] = True
+            # polymer_ligand_adj |= (
+            #     polymer_ligand_adj.clone().T
+            # )  # torch disallow inplace operationS
+            # adj |= polymer_ligand_adj
         else:
             # multimers, sample type was 7 here, but we use 6 to avoid the allreduce error
             data["sample_type"] = 6
