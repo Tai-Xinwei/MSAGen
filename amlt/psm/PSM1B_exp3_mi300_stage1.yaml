@@ -112,7 +112,7 @@ jobs:
   - export ddpm_schedule=sigmoid
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
-  - export diffusion_training_loss=L1
+  - export diffusion_training_loss=L2
   - export molecule_energy_loss_ratio=0.5
   - export molecule_force_loss_ratio=0.5
   - export material_energy_loss_ratio=0.5
