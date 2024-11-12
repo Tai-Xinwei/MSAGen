@@ -5,14 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
-import token
 from contextlib import nullcontext
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
@@ -121,6 +119,13 @@ class PSMModel(Model):
         if self.psm_config.diffusion_mode == "edm":
             self.diffnoise = DiffNoiseEDM(self.psm_config)
             self.diffnoise.alphas_cumprod = None
+
+            if self.psm_config.diffusion_sampling == "dpm_edm":
+                self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
+                    self.psm_config.diffusion_sampling
+                ](self.diffnoise.alphas_cumprod, self.psm_config)
+            elif self.psm_config.diffusion_sampling == "edm":
+                self.diffusion_process = None
         else:
             self.diffnoise = DiffNoise(self.psm_config)
 
@@ -145,8 +150,8 @@ class PSMModel(Model):
             "exp3",
         ]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
-            if self.psm_config.psm_finetune_mode:
-                self.disable_data_aug = True
+            # if self.psm_config.psm_finetune_mode:
+            # self.disable_data_aug = True
             if self.disable_data_aug:
                 logger.warning(
                     f"=== N O T E === Data augmentation is disabled for {self.args.backbone}"
@@ -328,9 +333,9 @@ class PSMModel(Model):
 
         # fileter low plddt residues
         if "confidence" in batched_data:
-            confidence_mask = (batched_data["confidence"] < 70) & (
-                batched_data["confidence"] >= 0.0
-            )
+            confidence_mask = (
+                batched_data["confidence"] < self.psm_config.plddt_threshold
+            ) & (batched_data["confidence"] >= 0.0)
 
             mask = mask | confidence_mask.unsqueeze(-1)
 
@@ -465,17 +470,17 @@ class PSMModel(Model):
             )
 
         if noise_step is not None:
-            noise_step = noise_step.masked_fill(token_id == 156, 0.0)
+            noise_step = noise_step.masked_fill(token_id == 156, -4.42)
             # set T noise if protein is seq only
             noise_step = noise_step.masked_fill(
-                is_seq_only.unsqueeze(-1), 4.0
+                is_seq_only.unsqueeze(-1), 4.19
             )  # NOTE: 3σ is used as the maximum value
             # set 0 noise for padding
-            noise_step = noise_step.masked_fill(padding_mask, 0.0)
+            noise_step = noise_step.masked_fill(padding_mask, -4.42)
             # # TODO: found this may cause instability issue, need to check
             # # # set T noise for batched_data["protein_mask"] nan/inf coords
             noise_step = noise_step.masked_fill(
-                batched_data["protein_mask"].any(dim=-1), 4.0
+                batched_data["protein_mask"].any(dim=-1), 4.19
             )
 
         # make sure noise really replaces nan/inf coords
@@ -487,7 +492,7 @@ class PSMModel(Model):
             time_step = time_step.masked_fill(clean_mask, 0.0)
 
         if noise_step is not None:
-            noise_step = noise_step.masked_fill(clean_mask, 0.0)
+            noise_step = noise_step.masked_fill(clean_mask, -4.42)
 
         return clean_mask, aa_mask, time_step, noise_step
 
@@ -802,11 +807,15 @@ class PSMModel(Model):
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
             original_cell = batched_data["cell"].clone()
-            batched_data["pos"] = torch.zeros_like(
-                batched_data["pos"]
-            )  # zero position to avoid any potential leakage
+            if not self.psm_config.sample_ligand_only:
+                batched_data["pos"] = torch.zeros_like(
+                    batched_data["pos"]
+                )  # zero position to avoid any potential leakage
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
-            if self.psm_config.diffusion_mode == "edm":
+            if (
+                self.psm_config.diffusion_mode == "edm"
+                and self.psm_config.diffusion_sampling == "edm"
+            ):
                 # if self.psm_config.edm_sampling_method == "af3":
                 self.sample_AF3(batched_data=batched_data)
                 # elif self.psm_config.edm_sampling_method == "2nd":
@@ -1401,6 +1410,9 @@ class PSMModel(Model):
         for i, (t_prev, t_cur) in enumerate(
             zip(t_steps[:-1], t_steps[1:])
         ):  # 1, ..., N
+            # batched_data["pos"] = torch.where(
+            #     clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+            # )
             x_cur = batched_data["pos"].clone()
 
             gamma = gamma_0 if t_cur > gamma_min else 0.0
@@ -1409,10 +1421,10 @@ class PSMModel(Model):
             t_prev = t_prev.unsqueeze(-1).repeat(1, x_cur.shape[1])
             t_cur = t_cur.unsqueeze(-1).repeat(1, x_cur.shape[1])
             if clean_mask is not None:
-                t_prev = t_prev.masked_fill(clean_mask, 0.0)
-                t_cur = t_cur.masked_fill(clean_mask, 0.0)
+                t_prev = t_prev.masked_fill(clean_mask, 0.0064)
+                t_cur = t_cur.masked_fill(clean_mask, 0.0064)
 
-            # Data Augmentation
+            # # # Data Augmentation
             R = uniform_random_rotation(
                 x_cur.size(0), device=x_cur.device, dtype=x_cur.dtype
             )
@@ -1422,6 +1434,9 @@ class PSMModel(Model):
             t_prev = t_prev.unsqueeze(-1)
             t_cur = t_cur.unsqueeze(-1)
             t_hat = (1.0 + gamma) * t_prev
+
+            if clean_mask is not None:
+                t_hat = t_hat.masked_fill(clean_mask.unsqueeze(-1), 0.0064)
 
             # Euler step.
             ksi = (
@@ -1454,8 +1469,9 @@ class PSMModel(Model):
 
             if clean_mask is not None:
                 batched_data["pos"] = torch.where(
-                    clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+                    clean_mask.unsqueeze(-1), x_cur, batched_data["pos"]
                 )
+
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             if if_recenter:
                 batched_data["pos"] = center_pos(
@@ -1540,6 +1556,16 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
             ),
             dim=1,
         ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+        # num_non_atoms = torch.sum(
+        #     protein_mask.any(dim=-1) | (~clean_mask), dim=-1
+        # )
+        # non_periodic_center = torch.sum(
+        #     batched_data["pos"].masked_fill(
+        #         padding_mask.unsqueeze(-1) | protein_mask | (~clean_mask.unsqueeze(-1)),
+        #         0.0,
+        #     ),
+        #     dim=1,
+        # ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
 
     center = non_periodic_center.unsqueeze(1)
     center[is_stable_periodic] = periodic_center
@@ -1648,8 +1674,8 @@ class PSM(nn.Module):
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
         elif args.backbone in ["exp", "exp2", "exp3"]:
-            self.embedding = PSMSeqEmbedding(psm_config)
-            # self.embedding = PSMMixSeqEmbedding(psm_config)
+            # self.embedding = PSMSeqEmbedding(psm_config)
+            self.embedding = PSMMixSeqEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
 

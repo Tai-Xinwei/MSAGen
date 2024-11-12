@@ -308,7 +308,7 @@ class DiffMAE3dCriterions(nn.Module):
             model_output["padding_mask"]
             | model_output["protein_mask"].any(dim=-1)
             | atomic_numbers.eq(156)
-            | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
+            # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
             | atomic_numbers.eq(2),
         )
         # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
@@ -362,19 +362,24 @@ class DiffMAE3dCriterions(nn.Module):
         )
         dist_mask = dist_mask_protein  # | dist_mask_ligand
 
-        delta = torch.abs(delta_pos_label - delta_pos_pred)
-        delta1 = delta[dist_mask]
-        error = 0.25 * (
-            torch.sigmoid(0.5 - delta1)
-            + torch.sigmoid(1 - delta1)
-            + torch.sigmoid(2 - delta1)
-            + torch.sigmoid(4 - delta1)
-        )
-        lddt = error.mean()
+        if dist_mask.any():
+            delta = torch.abs(delta_pos_label - delta_pos_pred)
+            delta1 = delta[dist_mask]
+            error = 0.25 * (
+                torch.sigmoid(0.5 - delta1)
+                + torch.sigmoid(1 - delta1)
+                + torch.sigmoid(2 - delta1)
+                + torch.sigmoid(4 - delta1)
+            )
+            lddt = error.mean()
+            num_pddt_loss = 1
+        else:
+            lddt = torch.tensor(1.0, device=pos_label.device, requires_grad=True)
+            num_pddt_loss = 0
 
         dist_map = model_output["dist_map"] if "dist_map" in model_output else None
-        if dist_map is not None:
-            mask_temp = torch.ones(L, L, dtype=torch.bool, device=delta.device)
+        if dist_map is not None and dist_mask.any():
+            mask_temp = torch.ones(L, L, dtype=torch.bool, device=pos_label.device)
 
             # Create upper and lower triangular masks
             upper_mask = torch.triu(mask_temp, diagonal=6)
@@ -391,48 +396,26 @@ class DiffMAE3dCriterions(nn.Module):
             )
             protein_contact_mask = protein_contact_mask & dist_mask
             delta = dist_map.squeeze(-1) - delta_pos_label
-            contact_loss = torch.abs(delta[protein_contact_mask]).mean()
-            # contact_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            if protein_contact_mask.any():
+                contact_loss = torch.abs(delta[protein_contact_mask]).mean()
+                num_contact_losss = 1
+            else:
+                contact_loss = torch.tensor(
+                    0.0, device=pos_label.device, requires_grad=True
+                )
+                num_contact_losss = 0
 
-            # if L > 6 and dist_map is not None:
-            #     # filter out 3 lines around diagnal
-            #     mask_temp = torch.ones(L, L, dtype=torch.bool, device=delta.device)
-
-            #     # Create upper and lower triangular masks
-            #     upper_mask = torch.triu(mask_temp, diagonal=6)
-            #     lower_mask = torch.tril(mask_temp, diagonal=-6)
-
-            #     # Combine the masks
-            #     mask_temp = upper_mask | lower_mask
-
-            #     protein_contact_mask = (
-            #         (delta_pos_label >= 6) & pair_protein_mask & mask_temp
-            #     )
-            #     contact_label = (delta_pos_label <= 12).long()
-
-            #     contact_loss = self.contact_loss(
-            #         dist_map[protein_contact_mask],
-            #         contact_label[protein_contact_mask],
-            #     )
-
-            #     contact_acc = (
-            #         (
-            #             dist_map[protein_contact_mask].view(-1, dist_map.size(-1)).argmax(dim=-1)
-            #             == contact_label[protein_contact_mask]
-            #         )
-            #         .to(torch.float32)
-            #         .mean()
-            #     )
             contact_acc = 0.0
-            num_contact_losss = 1
         else:
-            contact_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            contact_loss = torch.tensor(
+                0.0, device=pos_label.device, requires_grad=True
+            )
             contact_acc = 0.0
             num_contact_losss = 0
 
         # # hard distance loss
         time_step = model_output["time_step"]
-        if time_step is not None:
+        if time_step is not None and dist_mask.any():
             time_coefficient = (
                 (1 - time_step) * torch.exp(-time_step / 0.1)
             ).unsqueeze(-1)
@@ -493,16 +476,19 @@ class DiffMAE3dCriterions(nn.Module):
                 num_inter_dist_loss = 1
             else:
                 inter_dist_loss = torch.tensor(
-                    0.0, device=delta.device, requires_grad=True
+                    0.0, device=pos_label.device, requires_grad=True
                 )
                 num_inter_dist_loss = 0
         else:
             hard_dist_loss = None
-            inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            inter_dist_loss = torch.tensor(
+                0.0, device=pos_label.device, requires_grad=True
+            )
             num_inter_dist_loss = 0
 
         return (
             1 - lddt,
+            num_pddt_loss,
             hard_dist_loss,
             inter_dist_loss,
             num_inter_dist_loss,
@@ -603,9 +589,17 @@ class DiffMAE3dCriterions(nn.Module):
                     if (
                         self.args.align_x0_in_diffusion_loss and not is_periodic.any()
                     ):  # and not is_periodic.any():
-                        R, T = self._alignment_x0(
-                            model_output, pos_pred, atomic_numbers
-                        )
+                        try:
+                            R, T = self._alignment_x0(
+                                model_output, pos_pred, atomic_numbers
+                            )
+                        except:
+                            logger.warning("error happens in calcualte R, T")
+                            R, T = torch.eye(
+                                3, device=pos_pred.device, dtype=pos_pred.dtype
+                            ).unsqueeze(0).repeat(n_graphs, 1, 1), torch.zeros_like(
+                                pos_pred, device=pos_pred.device, dtype=pos_pred.dtype
+                            )
                     else:
                         R, T = torch.eye(
                             3, device=pos_pred.device, dtype=pos_pred.dtype
@@ -617,6 +611,7 @@ class DiffMAE3dCriterions(nn.Module):
                         # align pred pos and calculate smooth lddt loss for protein
                         (
                             smooth_lddt_loss,
+                            num_pddt_loss,
                             hard_dist_loss,
                             inter_dist_loss,
                             num_inter_dist_loss,
@@ -624,7 +619,6 @@ class DiffMAE3dCriterions(nn.Module):
                             contact_acc,
                             num_contact_losss,
                         ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
-                        num_pddt_loss = 1
                         if hard_dist_loss is None:
                             hard_dist_loss = torch.tensor(
                                 0.0, device=smooth_lddt_loss.device, requires_grad=True
@@ -714,9 +708,19 @@ class DiffMAE3dCriterions(nn.Module):
                 weight_pos_edm = model_output["weight_edm"]
                 if not is_seq_only.all():
                     if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
-                        R, T = self._alignment_x0(
-                            model_output, noise_pred, atomic_numbers
-                        )
+                        try:
+                            R, T = self._alignment_x0(
+                                model_output, noise_pred, atomic_numbers
+                            )
+                        except:
+                            logger.warning("error happens in calcualte R, T")
+                            R, T = torch.eye(
+                                3, device=noise_pred.device, dtype=noise_pred.dtype
+                            ).unsqueeze(0).repeat(n_graphs, 1, 1), torch.zeros_like(
+                                noise_pred,
+                                device=noise_pred.device,
+                                dtype=noise_pred.dtype,
+                            )
                     else:
                         R, T = torch.eye(
                             3, device=noise_pred.device, dtype=noise_pred.dtype
@@ -728,6 +732,7 @@ class DiffMAE3dCriterions(nn.Module):
                         # align pred pos and calculate smooth lddt loss for protein
                         (
                             smooth_lddt_loss,
+                            num_pddt_loss,
                             hard_dist_loss,
                             inter_dist_loss,
                             num_inter_dist_loss,
@@ -737,8 +742,6 @@ class DiffMAE3dCriterions(nn.Module):
                         ) = self.dist_loss(
                             model_output, R, T, noise_pred, atomic_numbers
                         )
-                        num_pddt_loss = 1
-
                         if hard_dist_loss is None:
                             hard_dist_loss = torch.tensor(
                                 0.0, device=smooth_lddt_loss.device, requires_grad=True
@@ -810,67 +813,93 @@ class DiffMAE3dCriterions(nn.Module):
             else:
                 raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
 
-            noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask) & (~is_seq_only.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                molecule_noise_loss,
-                num_molecule_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask) & is_molecule.unsqueeze(-1) & (~is_complex.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                periodic_noise_loss,
-                num_periodic_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask) & is_periodic.unsqueeze(-1),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                protein_noise_loss,
-                num_protein_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask)
-                & is_protein
-                & (~is_seq_only.unsqueeze(-1))
-                & (~is_complex.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-            )
-            (
-                complex_noise_loss,
-                num_complex_noise_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,
-                (~clean_mask) & is_complex.unsqueeze(-1) & (~is_seq_only.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1) & atomic_numbers.ne(2),
-                is_molecule,
-                is_periodic,
-                1.0,
-                1.0,
-                is_protein=is_protein,
-            )
+            if not is_seq_only.all():
+                noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask) & (~is_seq_only.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    molecule_noise_loss,
+                    num_molecule_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask)
+                    & is_molecule.unsqueeze(-1)
+                    & (~is_complex.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    periodic_noise_loss,
+                    num_periodic_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,  # unreduced_periodic_noise_loss,
+                    (~clean_mask) & is_periodic.unsqueeze(-1),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    protein_noise_loss,
+                    num_protein_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask)
+                    & is_protein
+                    & (~is_seq_only.unsqueeze(-1))
+                    & (~is_complex.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                )
+                (
+                    complex_noise_loss,
+                    num_complex_noise_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_noise_loss,
+                    (~clean_mask)
+                    & is_complex.unsqueeze(-1)
+                    & (~is_seq_only.unsqueeze(-1)),
+                    diff_loss_mask & ~protein_mask.any(dim=-1) & atomic_numbers.ne(2),
+                    is_molecule,
+                    is_periodic,
+                    1.0,
+                    1.0,
+                    is_protein=is_protein,
+                )
+            else:
+                noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                molecule_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                periodic_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                protein_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                complex_noise_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
+                num_noise_sample = 0
+                num_molecule_noise_sample = 0
+                num_periodic_noise_sample = 0
+                num_protein_noise_sample = 0
+                num_complex_noise_sample = 0
 
             if self.args.diffusion_training_loss == DiffusionTrainingLoss.L2:
                 molecule_noise_loss = torch.sqrt(molecule_noise_loss + self.epsilon)

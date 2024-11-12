@@ -85,6 +85,7 @@ class BaseConverter(ABC, metaclass=ABCMeta):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         # if matched successfully, return RMSD.
         # otherwise, return nan
@@ -152,6 +153,7 @@ class MoleculeConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -237,6 +239,7 @@ class PeriodicConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if sampled_structure is None or original_structure is None:
             return {"rmsd": np.nan}
@@ -350,6 +353,7 @@ class ProteinConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -471,6 +475,7 @@ class ComplexConverter(BaseConverter):
         idx: int,
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
+        given_protein: bool = False,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -502,83 +507,87 @@ class ComplexConverter(BaseConverter):
             return rmsd
 
         pocket_aligned_rmsd, tm_score = np.nan, np.nan
-        try:
-            assert (
-                sampled_structure and sampled_structure[0][:6] == "HEADER"
-            ), f"Wrong sample structure {sampled_structure[0]}"
-            assert (
-                original_structure and original_structure[0][:6] == "HEADER"
-            ), f"Wrong original structure {original_structure[0]}"
-            assert (
-                sampled_structure[0] == original_structure[0]
-            ), f"Wrong name for sample {sampled_structure[0]}"
-            key = sampled_structure[0].split()[1]
-            sampled_path = os.path.join(
-                sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
-            )
-            with open(sampled_path, "w") as out_file:
-                out_file.writelines(sampled_structure)
-            original_path = os.path.join(
-                sampled_structure_output_path, f"{key}-native.pdb"
-            )
-            with open(original_path, "w") as out_file:
-                out_file.writelines(original_structure)
+        # try:
+        assert (
+            sampled_structure and sampled_structure[0][:6] == "HEADER"
+        ), f"Wrong sample structure {sampled_structure[0]}"
+        assert (
+            original_structure and original_structure[0][:6] == "HEADER"
+        ), f"Wrong original structure {original_structure[0]}"
+        assert (
+            sampled_structure[0] == original_structure[0]
+        ), f"Wrong name for sample {sampled_structure[0]}"
+        key = sampled_structure[0].split()[1]
+        sampled_path = os.path.join(
+            sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
+        )
+        with open(sampled_path, "w") as out_file:
+            out_file.writelines(sampled_structure)
+        original_path = os.path.join(sampled_structure_output_path, f"{key}-native.pdb")
+        with open(original_path, "w") as out_file:
+            out_file.writelines(original_structure)
 
-            # extract positions for common protein residues and ligand atoms
-            sampled_protein, sampled_ligand = _get_xyz(sampled_structure)
-            original_protein, original_ligand = _get_xyz(original_structure)
-            commprt = set([_[0] for _ in sampled_protein]) & set(
-                [_[0] for _ in original_protein]
-            )
-            commlig = set([_[0] for _ in sampled_ligand]) & set(
-                [_[0] for _ in original_ligand]
-            )
-            smplprt = np.array([_[1] for _ in sampled_protein if _[0] in commprt])
-            smpllig = np.array([_[1] for _ in sampled_ligand if _[0] in commlig])
-            origprt = np.array([_[1] for _ in original_protein if _[0] in commprt])
-            origlig = np.array([_[1] for _ in original_ligand if _[0] in commlig])
+        # extract positions for common protein residues and ligand atoms
+        sampled_protein, sampled_ligand = _get_xyz(sampled_structure)
+        original_protein, original_ligand = _get_xyz(original_structure)
 
-            # calculate Kabsch RMSD between sampled ligand and original ligand
-            kabsch_rmsd = _calc_rmsd(smpllig, origlig)
-            # calculate pocket aligned RMSD
-            dist = np.linalg.norm(smplprt[:, None, :] - smpllig[None, :, :], axis=-1)
+        commprt = set([_[0] for _ in sampled_protein]) & set(
+            [_[0] for _ in original_protein]
+        )
+        commlig = set([_[0] for _ in sampled_ligand]) & set(
+            [_[0] for _ in original_ligand]
+        )
+        smplprt = np.array([_[1] for _ in sampled_protein if _[0] in commprt])
+        smpllig = np.array([_[1] for _ in sampled_ligand if _[0] in commlig])
+        origprt = np.array([_[1] for _ in original_protein if _[0] in commprt])
+        origlig = np.array([_[1] for _ in original_ligand if _[0] in commlig])
+
+        # calculate Kabsch RMSD between sampled ligand and original ligand
+        kabsch_rmsd = _calc_rmsd(smpllig, origlig)
+        # calculate pocket aligned RMSD
+        dist = np.linalg.norm(smplprt[:, None, :] - smpllig[None, :, :], axis=-1)
+
+        if given_protein:
+            mask = np.min(dist, axis=-1) < 1000  # 1000 Angstrom
+        else:
             mask = np.min(dist, axis=-1) < 10  # 10 Angstrom
-            smpl_pocket, orig_pocket = smplprt[mask], origprt[mask]
-            assert len(smpl_pocket) >= 1, f"Cannot find pocket atoms for {key}."
-            pocket_aligned_rmsd = _calc_rmsd(smpllig, origlig, smpl_pocket, orig_pocket)
-            pocket_ref_rmsd = _calc_rmsd(smpl_pocket, orig_pocket)
-            # calculate TM-score on protein
-            with (
-                tempfile.NamedTemporaryFile() as predpdb,
-                tempfile.NamedTemporaryFile() as natipdb,
-            ):
-                with open(predpdb.name, "w") as fp:
-                    fp.writelines([_ for _ in sampled_structure if _[:6] != "HETATM"])
-                with open(natipdb.name, "w") as fp:
-                    fp.writelines([_ for _ in original_structure if _[:6] != "HETATM"])
-                lines = []
-                lines.extend(
-                    subprocess.run(
-                        f"TMscore {predpdb.name} {natipdb.name}",
-                        shell=True,
-                        capture_output=True,
-                        text=True,
-                    ).stdout.split("\n")
-                )
-                for line in lines:
-                    cols = line.split()
-                    if line.startswith("TM-score") and len(cols) > 2:
-                        tm_score = float(cols[2])
 
-            logger.success(
-                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
-                f"TM-score={tm_score:6.4f}, "
-                f"Kabsch-RMSD={kabsch_rmsd:6.3f}, "
-                f"Pocket-RMSD={pocket_ref_rmsd:6.3f}, "
-                f"Pocket-aligned-RMSD={pocket_aligned_rmsd:6.3f}."
+        smpl_pocket, orig_pocket = smplprt[mask], origprt[mask]
+        assert len(smpl_pocket) >= 1, f"Cannot find pocket atoms for {key}."
+        pocket_aligned_rmsd = _calc_rmsd(smpllig, origlig, smpl_pocket, orig_pocket)
+        pocket_ref_rmsd = _calc_rmsd(smpl_pocket, orig_pocket)
+        # calculate TM-score on protein
+        with (
+            tempfile.NamedTemporaryFile() as predpdb,
+            tempfile.NamedTemporaryFile() as natipdb,
+        ):
+            with open(predpdb.name, "w") as fp:
+                fp.writelines([_ for _ in sampled_structure if _[:6] != "HETATM"])
+            with open(natipdb.name, "w") as fp:
+                fp.writelines([_ for _ in original_structure if _[:6] != "HETATM"])
+            lines = []
+            lines.extend(
+                subprocess.run(
+                    f"TMscore {predpdb.name} {natipdb.name}",
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout.split("\n")
             )
-        except Exception as e:
-            logger.warning(f"Failed to evaluate sample {idx}, {e}.")
+            for line in lines:
+                cols = line.split()
+                if line.startswith("TM-score") and len(cols) > 2:
+                    tm_score = float(cols[2])
+
+        logger.success(
+            f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+            f"TM-score={tm_score:6.4f}, "
+            f"Kabsch-RMSD={kabsch_rmsd:6.3f}, "
+            f"Pocket-RMSD={pocket_ref_rmsd:6.3f}, "
+            f"Pocket-aligned-RMSD={pocket_aligned_rmsd:6.3f}."
+        )
+        # except Exception as e:
+        #     logger.warning(f"Failed to evaluate sample {idx}, {e}.")
         return {"rmsd": pocket_aligned_rmsd, "tm_score": tm_score}
 
 
@@ -599,6 +608,7 @@ class SampledStructureConverter:
         if exitcode != 0:
             raise ValueError(f"Program 'lddt' not installed, {output}.")
         self.psm_config = psm_config
+        self.given_protein = self.psm_config.sample_ligand_only
         self.model = model
         self.relaxers = {
             "protein": None,
@@ -668,5 +678,6 @@ class SampledStructureConverter:
                         int(index),
                         self.sampled_structure_output_path,
                         sample_index,
+                        self.given_protein,
                     )
         return all_results

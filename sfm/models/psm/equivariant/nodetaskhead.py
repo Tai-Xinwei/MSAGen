@@ -539,13 +539,14 @@ class DiffusionModule3(nn.Module):
                 padding_mask.unsqueeze(-1).unsqueeze(2), 0.0
             )
 
-            feat2nodeindex = torch.topk(pair_feat_bias.mean(dim=1), 20, dim=1)[1]
-            feat2node = torch.gather(
-                pair_feat,
-                1,
-                feat2nodeindex.unsqueeze(-1).expand(-1, -1, -1, pair_feat.size(-1)),
-            ).mean(dim=1)
-            feat2node = self.pair2node(feat2node)
+            # feat2nodeindex = torch.topk(pair_feat_bias.mean(dim=1), 20, dim=1)[1]
+            # feat2node = torch.gather(
+            #     pair_feat,
+            #     1,
+            #     feat2nodeindex.unsqueeze(-1).expand(-1, -1, -1, pair_feat.size(-1)),
+            # ).mean(dim=1)
+            # feat2node = self.pair2node(feat2node)
+            feat2node = None
         else:
             pair_feat_bias = None
             feat2node = None

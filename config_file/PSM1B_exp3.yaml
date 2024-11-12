@@ -86,7 +86,7 @@ pbc_use_local_attention: true
 pbc_multigraph_cutoff: 10.0
 diff_init_lattice_size: 10.0
 add_unit_cell_virtual_node: false
-lattice_size: 4.0
+# lattice_size: 4.0
 crop_radius: 50.0
 max_residue_num: 768
 complex_mode_prob: 0.4,0.4,0.2
