@@ -15,6 +15,15 @@ def pad_1d_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
+def pad_1d_chain_ids_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen], dtype=x.dtype)
+        new_x[:xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
 def pad_1d_confidence_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
@@ -136,7 +145,7 @@ def collate_fn(
                 0, item["token_type"].shape[0], dtype=torch.long
             )
         if "confidence" not in item:
-            item["confidence"] = -2 * torch.ones(item["token_type"].shape[0])
+            item["confidence"] = -100 * torch.ones(item["token_type"].shape[0])
         if "chain_ids" not in item:
             item["chain_ids"] = torch.ones(
                 item["token_type"].shape[0], dtype=torch.long
@@ -157,7 +166,7 @@ def collate_fn(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
     )
     chain_ids = torch.cat(
-        [pad_1d_unsqueeze(i["chain_ids"], max_node_num) for i in items]
+        [pad_1d_chain_ids_unsqueeze(i["chain_ids"], max_node_num) for i in items]
     )
 
     confidence = torch.cat(
@@ -205,6 +214,7 @@ def collate_fn(
         sample_in_validation
         and "edge_attr" in items[0]
         and items[0]["edge_attr"] is not None
+        and items[0]["sample_type"] != 6
     ):
         # add original edge information to recover the molecule
         max_num_edges = max(i["edge_attr"].size()[0] for i in items)
@@ -281,11 +291,15 @@ def collate_fn(
         and "edge_attr" in items[0]
         and items[0]["edge_attr"] is not None
     ):
-        batched_data.update(
-            dict(
-                edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
+        if items[0]["sample_type"] != 6:
+            batched_data.update(
+                dict(
+                    edge_attr=edge_attr,
+                    edge_index=edge_index,
+                    num_edges=num_edges,
+                    idx=idx,
+                )
             )
-        )
         if "key" in items[0]:
             batched_data["key"] = [i["key"] for i in items]
 

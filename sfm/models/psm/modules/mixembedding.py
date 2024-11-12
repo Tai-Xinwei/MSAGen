@@ -1214,8 +1214,9 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             psm_config.num_atom_features, psm_config.encoder_embed_dim
         )
 
-        # maximum 300 chains
-        self.chain_id_embed = nn.Embedding(300, psm_config.encoder_embed_dim)
+        # maximum 1000 chains
+        # self.chain_id_embed = nn.Embedding(300, psm_config.encoder_embed_dim)
+        self.chain_id_proj = nn.Embedding(1000, psm_config.encoder_embed_dim)
 
         self.time_step_encoder = TimeStepEncoder(
             psm_config.num_timesteps,
@@ -1251,11 +1252,12 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         padding_mask: torch.Tensor,
         batched_data: torch.Tensor,
     ):
-        if molecule_mask.any():
+        if molecule_mask.any() or batched_data["is_complex"].any():
             edge_bond_feature = self.mol_bond_emb(
                 batched_data["node_type_edge"].squeeze(-1)
             )
             edge_bond_feature = edge_bond_feature.masked_fill(~adj.unsqueeze(-1), 0.0)
+
             edge_bond_feature = edge_bond_feature.masked_fill(
                 ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
@@ -1264,6 +1266,12 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             )
 
             graph_attn_bias = self.bias_proj(edge_bond_feature)
+            graph_attn_bias = graph_attn_bias.masked_fill(
+                ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            graph_attn_bias = graph_attn_bias.masked_fill(
+                ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
+            )
 
             graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
         else:
@@ -1329,7 +1337,9 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
             x += atom_feature_embedding
 
-        chain_embed = self.chain_id_embed(chain_id)
+        # chain_embed = self.chain_id_embed(chain_id)
+        chain_embed = self.chain_id_proj(chain_id)
+
         x = x + chain_embed
 
         graph_attn_bias = self._2dedge_emb(
