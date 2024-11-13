@@ -2241,6 +2241,11 @@ class PSM(nn.Module):
                 else nullcontext()
             ):
                 encoder_output = self.layer_norm(encoder_output)
+
+                q, k = self.pair_proj(encoder_output).chunk(2, dim=-1)
+                pair_feat = torch.einsum("bld,bkd->blkd", q, k)
+                dist_map = self.dist_head(pair_feat)
+
                 decoder_x_output, decoder_vec_output = encoder_output, None
 
         elif self.args.backbone in ["ditgeom"]:
