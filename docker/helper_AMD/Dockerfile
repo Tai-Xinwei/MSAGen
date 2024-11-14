@@ -3,13 +3,15 @@ FROM rocm/dev-ubuntu-22.04:5.7 AS rocm5
 FROM singularitybase.azurecr.io/installer/base/singularity-installer:20240723T094352909 AS installer
 FROM singularitybase.azurecr.io/validations/base/singularity-tests:20240916T145736532 AS validator
 
+FROM base
+
 ENV SINGULARITY_IMAGE_ACCELERATOR=AMD
 ENV SINGULARITY_IMAGE_FRAMEWORK=PYTORCH
 ENV SINGULARITY_IMAGE_ACCELERATOR_SKU=
 ENV GPU_ARCHS=gfx942
 ENV PYTORCH_ROCM_ARCH=gfx942
 
-FROM base
+USER root
 
 RUN apt update && \
     apt install --no-install-recommends --no-install-suggests -yq \
@@ -18,9 +20,9 @@ RUN apt update && \
         build-essential zlib1g-dev libncurses5-dev libgdbm-dev ccache tmux \
         ca-certificates sudo bzip2 libx11-6 rocthrust
 
-ENV CONDA_DIR /opt/conda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-        -O ~/miniconda.sh && /bin/bash ~/miniconda.sh -b -p /opt/conda
+ENV CONDA_DIR=/opt/conda
+RUN wget --no-hsts -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O ~/miniforge.sh && \
+    /bin/bash ~/miniforge.sh -b -p /opt/conda && rm -f ~/miniforge.sh
 ENV PATH=$CONDA_DIR/bin:$PATH
 
 RUN --mount=type=bind,source=install,target=/tmp/install \
@@ -29,19 +31,18 @@ RUN --mount=type=bind,source=install,target=/tmp/install \
     conda activate sfm && \
     pip install /opt/rocm/share/amd_smi
 
-# stable PyT
+# default PyT
 RUN --mount=type=bind,source=install,target=/tmp/install \
-    eval "$(conda shell.bash hook)" && \
-    conda activate sfm && \
+    eval "$(conda shell.bash hook)" && conda activate sfm && \
     bash /tmp/install/helper_AMD/torch_geo_rocm.sh torch-2.3 && \
     bash /tmp/install/helper_AMD/fast_attn_rocm.sh $GPU_ARCHS && \
     bash /tmp/install/helper_AMD/kdb.sh $GPU_ARCHS
 
 # nightly PyT -- performance boost for MI300x
-# RUN eval "$(conda shell.bash hook)" && \
-#     conda activate sfm && \
-#     pip install --pre torch==2.6.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.2 && \
-#     pip install deepspeed==0.15.2 && \
+# RUN --mount=type=bind,source=install,target=/tmp/install \
+#     eval "$(conda shell.bash hook)" && conda activate sfm && \
+#     pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.2 && \
+#     pip install deepspeed==0.15.4 && \
 #     bash /tmp/install/helper_AMD/torch_geo_rocm.sh torch-2.6 && \
 #     bash /tmp/install/helper_AMD/fast_attn_rocm.sh $GPU_ARCHS && \
 #     bash /tmp/install/helper_AMD/kdb.sh $GPU_ARCHS
