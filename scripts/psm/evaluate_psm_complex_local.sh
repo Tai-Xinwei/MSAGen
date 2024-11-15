@@ -5,8 +5,12 @@
 num_sampling_time=20
 MODEL_CONFIG=PSM1B_exp3
 
-global_step=global_step10000
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2_2/checkpoints
+# global_step=global_step70000
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2_2/checkpoints
+
+global_step=global_step80000
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241112-lr2e-5-bsz2-steps400000-warm25000-holo/
+
 
 # global_step=global_step8848
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241105-lr2e-5-bsz2-steps400000-warm25000-holo
@@ -43,7 +47,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   max_residue_num=20480 \
   ligand_crop_size=10000 \
   diffusion_mode=edm \
-  # sample_ligand_only=true \
+  sample_ligand_only=true \
 
 
 pocket_boundary=-1

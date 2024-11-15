@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 1
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -15,19 +15,19 @@ target:
   service: aml
   name: alta4
 
-# environment:
-#   # image: ai4s-sfm:20240531.170731
-#   image: ai4s-sfm:20241112.142059-cu124
-#   registry: msrmoldyn.azurecr.io
-#   username: msrmoldyn
-
 environment:
-  registry: nvcr.io
-  image: nvidia/pytorch:24.07
-  setup:
-  # - pip install pytorch_pretrained_bert
-  - pip install wandb
-  - pip install torch
+  # image: ai4s-sfm:20240531.170731
+  image: ai4s-sfm:20241112.142059-cu124
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+# environment:
+#   registry: nvcr.io
+#   image: nvidia/pytorch:24.07
+#   setup:
+#   # - pip install pytorch_pretrained_bert
+#   - pip install wandb
+#   - pip install torch
 
 storage:
   blob:
@@ -117,10 +117,10 @@ jobs:
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_p_stage2/checkpoints/global_step25000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_p_stage2_h100/checkpoints
-  # - export LD_LIBRARY_PATH=/root/nccl-2.18.6-1/build/lib:/usr/local/cuda-12.4/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
-  # - export PATH=/usr/local/cuda-12.4/bin:/opt/conda/envs/sfm/bin:/opt/conda/condabin:/opt/conda/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  # - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_p_stage2_h100/checkpoints
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install nvidia-dali-cuda120
   - bash ./scripts/psm/pretrain_psm_exp.sh
   submit_args:
     env:

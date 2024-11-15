@@ -653,18 +653,27 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
     def __init__(self, psm_config: PSMConfig, use_unified_batch_sampler: bool = False):
         super(PSMLightEmbedding, self).__init__(psm_config, use_unified_batch_sampler)
 
-        self.embed = nn.Embedding(160, psm_config.encoder_embed_dim // 2)
+        self.embed = nn.Embedding(160, psm_config.encoder_embed_dim)
+        self.chain_id_proj = nn.Embedding(1000, psm_config.encoder_embed_dim)
 
-        self.pos_emb = nn.Linear(3, psm_config.embedding_dim // 2, bias=False)
+        self.pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
 
         self.atom_feature_embed = nn.Embedding(
-            psm_config.num_atom_features, psm_config.encoder_embed_dim // 2
+            psm_config.num_atom_features, psm_config.encoder_embed_dim
         )
 
         self.time_step_encoder = TimeStepEncoder(
             psm_config.num_timesteps,
             psm_config.embedding_dim,
             psm_config.diffusion_time_step_encoder_type,
+        )
+
+        self.mol_bond_emb = nn.Embedding(
+            psm_config.num_edges, psm_config.num_3d_bias_kernel, padding_idx=0
+        )
+
+        self.bias_proj = NonLinear(
+            psm_config.num_3d_bias_kernel, psm_config.num_attention_heads
         )
 
     @torch.compiler.disable(recursive=False)
@@ -762,6 +771,41 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
 
         return graph_attn_bias
 
+    @torch.compiler.disable(recursive=False)
+    def _2dedge_emb(
+        self,
+        adj: torch.Tensor,
+        molecule_mask: torch.Tensor,
+        padding_mask: torch.Tensor,
+        batched_data: torch.Tensor,
+    ):
+        if molecule_mask.any() or batched_data["is_complex"].any():
+            edge_bond_feature = self.mol_bond_emb(
+                batched_data["node_type_edge"].squeeze(-1)
+            )
+            edge_bond_feature = edge_bond_feature.masked_fill(~adj.unsqueeze(-1), 0.0)
+
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
+            )
+
+            graph_attn_bias = self.bias_proj(edge_bond_feature)
+            graph_attn_bias = graph_attn_bias.masked_fill(
+                ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            graph_attn_bias = graph_attn_bias.masked_fill(
+                ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
+            )
+
+            graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
+        else:
+            graph_attn_bias = None
+
+        return graph_attn_bias
+
     def forward(
         self,
         batched_data: Dict,
@@ -782,6 +826,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
         is_periodic = batched_data["is_periodic"]
+        chain_id = batched_data["chain_ids"]
         molecule_mask = (
             (token_id <= 129) & (token_id > 1) & (~is_periodic.unsqueeze(-1))
         )
@@ -818,6 +863,13 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
         #     pbc_expand_batched=pbc_expand_batched,
         # )
 
+        graph_attn_bias = self._2dedge_emb(
+            batched_data["adj"],
+            molecule_mask,
+            padding_mask,
+            batched_data,
+        )
+
         if self.psm_config.diffusion_mode == "edm":
             noise_embed_edm = self.noise_cond_embed_edm(
                 batched_data["c_noise"].flatten()
@@ -852,23 +904,26 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
             # else:
             condition_embedding += atom_feature_embedding
 
-        x = torch.cat([pos_embedding, condition_embedding], dim=-1)
+        # x = torch.cat([pos_embedding, condition_embedding], dim=-1)
 
-        return (
-            x,
-            padding_mask,
-            time_embed.to(x.dtype),
-            None,
-            time_embed.to(x.dtype),
-        )
+        chain_embed = self.chain_id_proj(chain_id)
+        condition_embedding += chain_embed
 
         # return (
-        #     x + time_embed.to(x.dtype),
+        #     x,
         #     padding_mask,
         #     time_embed.to(x.dtype),
-        #     None,
-        #     x,
+        #     graph_attn_bias,
+        #     time_embed.to(x.dtype),
         # )
+
+        return (
+            pos_embedding,
+            padding_mask,
+            time_embed.to(pos_embedding.dtype),
+            graph_attn_bias,
+            condition_embedding + time_embed.to(pos_embedding.dtype),
+        )
 
         # return (
         #     x + time_embed,

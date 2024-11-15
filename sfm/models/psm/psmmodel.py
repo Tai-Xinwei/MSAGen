@@ -1373,7 +1373,8 @@ class PSMModel(Model):
 
         if if_recenter:
             batched_data["pos"] = center_pos(
-                batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                batched_data,
+                padding_mask=padding_mask,  # clean_mask=clean_mask
             )  # centering to remove noise translation
 
         # AF3 Sampling
@@ -1475,7 +1476,8 @@ class PSMModel(Model):
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             if if_recenter:
                 batched_data["pos"] = center_pos(
-                    batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                    batched_data,
+                    padding_mask=padding_mask,  # clean_mask=clean_mask
                 )  # centering to remove noise translation
 
             batched_data["pos"] = batched_data["pos"].detach()
