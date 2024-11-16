@@ -1158,7 +1158,6 @@ class PSMModel(Model):
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
-        orig_pos = center_pos(batched_data, padding_mask)
 
         self._create_initial_pos_for_diffusion(batched_data)
 
@@ -1166,11 +1165,14 @@ class PSMModel(Model):
         if self.psm_config.sample_ligand_only:
             clean_mask = batched_data["is_protein"]
 
-        clean_mask = clean_mask.masked_fill(token_id == 156, True)
-        clean_mask = clean_mask.masked_fill(padding_mask, True)
         clean_mask = clean_mask.masked_fill(
             batched_data["protein_mask"].any(dim=-1), False
         )
+
+        orig_pos = center_pos(batched_data, padding_mask)  # , clean_mask=clean_mask)
+
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        clean_mask = clean_mask.masked_fill(padding_mask, True)
 
         batched_data["pos"] = self.diffnoise.get_sampling_start(
             batched_data["init_pos"],
@@ -1220,6 +1222,8 @@ class PSMModel(Model):
                 # Reshape sigma to (B, L, 1)
                 t_hat = t_hat.unsqueeze(-1).repeat(1, x_t.shape[1]).unsqueeze(-1)
                 t_hat = t_hat.double()
+                t_hat = t_hat.masked_fill(clean_mask.unsqueeze(-1), 0.0064)
+
                 c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
                 batched_data["edm_sigma"] = t_hat
                 batched_data["c_skip"] = c_skip
@@ -1548,26 +1552,24 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
         ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
     else:
         # leave out padding tokens when calculating non-atom/non-residue tokens
-        num_non_atoms = torch.sum(
-            protein_mask.any(dim=-1) | (clean_mask & ~padding_mask), dim=-1
-        )
-        non_periodic_center = torch.sum(
-            batched_data["pos"].masked_fill(
-                padding_mask.unsqueeze(-1) | protein_mask | clean_mask.unsqueeze(-1),
-                0.0,
-            ),
-            dim=1,
-        ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
         # num_non_atoms = torch.sum(
-        #     protein_mask.any(dim=-1) | (~clean_mask), dim=-1
+        #     protein_mask.any(dim=-1) | (clean_mask & ~padding_mask), dim=-1
         # )
         # non_periodic_center = torch.sum(
         #     batched_data["pos"].masked_fill(
-        #         padding_mask.unsqueeze(-1) | protein_mask | (~clean_mask.unsqueeze(-1)),
+        #         padding_mask.unsqueeze(-1) | protein_mask | clean_mask.unsqueeze(-1),
         #         0.0,
         #     ),
         #     dim=1,
         # ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+        num_non_atoms = torch.sum(protein_mask.any(dim=-1) | (~clean_mask), dim=-1)
+        non_periodic_center = torch.sum(
+            batched_data["pos"].masked_fill(
+                padding_mask.unsqueeze(-1) | protein_mask | (~clean_mask.unsqueeze(-1)),
+                0.0,
+            ),
+            dim=1,
+        ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
 
     center = non_periodic_center.unsqueeze(1)
     center[is_stable_periodic] = periodic_center

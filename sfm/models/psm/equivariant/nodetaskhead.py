@@ -311,6 +311,11 @@ class DiffusionModule(nn.Module):
         self.pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
 
         self.pair_feat_bias = nn.Sequential(
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.encoder_pair_embed_dim,
+                bias=False,
+            ),
             nn.SiLU(),
             nn.Linear(
                 psm_config.encoder_pair_embed_dim,

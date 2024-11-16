@@ -2,7 +2,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-num_sampling_time=20
+num_sampling_time=10
 MODEL_CONFIG=PSM1B_exp3
 
 # global_step=global_step70000
@@ -10,7 +10,6 @@ MODEL_CONFIG=PSM1B_exp3
 
 global_step=global_step80000
 ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241112-lr2e-5-bsz2-steps400000-warm25000-holo/
-
 
 # global_step=global_step8848
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241105-lr2e-5-bsz2-steps400000-warm25000-holo
@@ -38,7 +37,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   val_batch_size=1 \
   val_batch_log_interval=1 \
   gradient_accumulation_steps=1 \
-  diffusion_sampling=dpm_edm \
+  diffusion_sampling=edm \
   num_timesteps_stepsize=-250 \
   num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
