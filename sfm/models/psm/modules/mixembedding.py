@@ -1270,7 +1270,6 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         )
 
         # maximum 1000 chains
-        # self.chain_id_embed = nn.Embedding(300, psm_config.encoder_embed_dim)
         self.chain_id_proj = nn.Embedding(1000, psm_config.encoder_embed_dim)
 
         self.time_step_encoder = TimeStepEncoder(
@@ -1392,7 +1391,6 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
             x += atom_feature_embedding
 
-        # chain_embed = self.chain_id_embed(chain_id)
         chain_embed = self.chain_id_proj(chain_id)
 
         x = x + chain_embed

@@ -15,12 +15,19 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
 
+# [ -z "${layers}" ] && layers=26
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+
 [ -z "${layers}" ] && layers=26
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${hidden_size}" ] && hidden_size=768
+[ -z "${ffn_size}" ] && ffn_size=3072
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=3072
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -43,12 +50,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=2e-5
+[ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=500
@@ -138,20 +145,20 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.05,0.75'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='2,8,8'
 
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 
 # [ -z "${data_path_list}" ] && data_path_list='MGnify'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mgnify'

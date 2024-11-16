@@ -16,9 +16,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=1024
+[ -z "${max_length}" ] && max_length=384
+[ -z "${max_residue_num}" ] && max_residue_num=384
+[ -z "${ligand_crop_size}" ] && ligand_crop_size=20.0
 [ -z "${max_tokens}" ] && max_tokens=2000
-# [ -z "${max_tokens}" ] && max_tokens=36000
+[ -z "${plddt_threshold}" ] && plddt_threshold=60.0
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -29,7 +31,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.0
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
@@ -44,21 +46,25 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=30000
 
-[ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0' #'0.2,0.7,0.1'
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
-# [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
-[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0' # '0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
+# [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+[ -z "${data_path_list}" ] && data_path_list='MGnify'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mgnify'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0' # '0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/mattergen-debug-20241018-1304/global_step205053/mp_rank_00_model_states.pt'
-[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240927-1041'
-# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
+# [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240927-1041'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -67,7 +73,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_shiyu_mattergen_debug_20241017
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev_shiyu_mattergen_debug_20241017
-[ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
+# [ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
 [ -z "${wandb_run_name}" ] && wandb_run_name=mattergen_adaptive_noise
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -227,7 +233,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
           seed=12345 \
-          ifresume=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
           num_pred_attn_layer=$num_pred_attn_layer \
@@ -305,3 +310,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           relax_after_sampling_structure=$relax_after_sampling_structure \
           structure_relax_step_size=$structure_relax_step_size \
           use_autograd_force_for_relaxation_and_md=$use_autograd_force_for_relaxation_and_md \
+          ifresume=True \
+          max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size plddt_threshold=$plddt_threshold \

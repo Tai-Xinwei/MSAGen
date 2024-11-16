@@ -50,7 +50,7 @@ jobs:
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm_DiT_1b_v15
+  - export wandb_group=psm_exp_v22
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - export HSA_ENABLE_SDMA=0
@@ -84,8 +84,8 @@ jobs:
   - export train_batch_size=2048
   - export val_batch_size=512
   - export max_tokens=16000
-  - export max_length=768
-  - export max_residue_num=768
+  - export max_length=384
+  - export max_residue_num=384
   - export ligand_crop_size=20.0
   - export plddt_threshold=60.0
   - export gradient_accumulation_steps=4
@@ -97,10 +97,10 @@ jobs:
   # - export dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
   # # - export dataset_micro_batch_size='6,6,6,6,64'
   # - export dataset_micro_batch_size='32,32,32,32,64'
-  - export data_path_list='MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
-  - export dataset_name_list='mgnify,pdbcomplexmultimer,geom'
-  - export dataset_split_raito='0.6,0.2,0.2'
-  - export dataset_micro_batch_size='6,6,64'
+  - export data_path_list='MGnify,20240630_PDB_Training_Data'
+  - export dataset_name_list='mgnify,pdbcomplexmultimer'
+  - export dataset_split_raito='0.8,0.2'
+  - export dataset_micro_batch_size='32,32'
   # - export data_path_list='MGnify'
   # - export dataset_name_list='mgnify'
   # - export dataset_split_raito='1.0'
