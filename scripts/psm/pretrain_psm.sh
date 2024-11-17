@@ -102,6 +102,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${separate_noise_head}" ] && separate_noise_head=True
 
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
+[ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm, protea
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
@@ -310,5 +311,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           relax_after_sampling_structure=$relax_after_sampling_structure \
           structure_relax_step_size=$structure_relax_step_size \
           use_autograd_force_for_relaxation_and_md=$use_autograd_force_for_relaxation_and_md \
-          ifresume=True \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size plddt_threshold=$plddt_threshold \
+          diffusion_mode=$diffusion_mode \
+          # ifresume=True \

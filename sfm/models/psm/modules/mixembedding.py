@@ -1292,8 +1292,32 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             psm_config.num_edges, psm_config.num_3d_bias_kernel, padding_idx=0
         )
 
-        self.bias_proj = NonLinear(
-            psm_config.num_3d_bias_kernel, psm_config.num_attention_heads
+        self.bias_proj = nn.Sequential(
+            nn.Linear(
+                psm_config.num_3d_bias_kernel,
+                psm_config.num_3d_bias_kernel * 4,
+                bias=False,
+            ),
+            nn.LayerNorm(psm_config.num_3d_bias_kernel * 4, bias=False),
+            nn.ReLU(),
+            nn.Linear(
+                psm_config.num_3d_bias_kernel * 4,
+                psm_config.num_attention_heads,
+                bias=False,
+            ),
+        )
+
+        self.pair_proj = nn.Sequential(
+            nn.LayerNorm(psm_config.embedding_dim),
+            nn.Linear(
+                psm_config.embedding_dim, psm_config.encoder_pair_embed_dim, bias=False
+            ),
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.encoder_pair_embed_dim,
+                bias=False,
+            ),
         )
 
         self.psm_config = psm_config
@@ -1320,6 +1344,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             )
 
             graph_attn_bias = self.bias_proj(edge_bond_feature)
+
             graph_attn_bias = graph_attn_bias.masked_fill(
                 ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
@@ -1402,10 +1427,21 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             batched_data,
         )
 
+        x_p_i = self.pair_proj(x)
+        x_pair = torch.einsum("blh,bkh->blkh", x_p_i, x_p_i)
+
+        if graph_attn_bias is not None:
+            x_pair = x_pair + graph_attn_bias.permute(0, 2, 3, 1).mean(
+                dim=-1
+            ).unsqueeze(-1)
+
+        x_pair = x_pair.permute(1, 2, 0, 3)
+
         return (
             x,
             padding_mask,
             time_embed.to(x.dtype),
             graph_attn_bias,
             x,
+            x_pair,
         )

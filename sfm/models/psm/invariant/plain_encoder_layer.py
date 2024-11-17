@@ -179,12 +179,14 @@ class PSMPairPlainEncoderLayer(nn.Module):
         self.pair_proj = nn.Sequential(
             nn.LayerNorm(psm_config.embedding_dim),
             nn.Linear(
-                psm_config.embedding_dim, psm_config.encoder_pair_embed_dim, bias=False
+                psm_config.embedding_dim,
+                psm_config.encoder_pair_embed_dim * 2,
+                bias=False,
             ),
             nn.SiLU(),
             nn.Linear(
-                psm_config.encoder_pair_embed_dim,
                 psm_config.encoder_pair_embed_dim * 2,
+                psm_config.encoder_pair_embed_dim,
                 bias=False,
             ),
         )
@@ -287,16 +289,10 @@ class PSMPairPlainEncoderLayer(nn.Module):
         x = self.fc2(x)
         x = residual + x
 
-        x_p_i, x_p_j = self.pair_proj(x).chunk(2, dim=-1)
+        x_p_i = self.pair_proj(x)
         if x_pair is not None:
-            x_pair = x_pair + torch.einsum("lbh,kbh->lkbh", x_p_i, x_p_j)
+            x_pair = x_pair + torch.einsum("lbh,kbh->lkbh", x_p_i, x_p_i)
         else:
-            x_pair = torch.einsum("lbh,kbh->lkbh", x_p_i, x_p_j)
-
-        # x_pair = x_pair.masked_fill(padding_mask.transpose(0, 1).unsqueeze(1).unsqueeze(-1), -1e5)
-        # x_pair = x_pair.masked_fill(padding_mask.transpose(0, 1).unsqueeze(0).unsqueeze(-1), -1e5)
-        # x_pair2node = self.pair2node(F.softmax(x_pair * self.pair_scale, dim=1).sum(dim=1))
-
-        # x = x + x_pair2node
+            x_pair = torch.einsum("lbh,kbh->lkbh", x_p_i, x_p_i)
 
         return x, x_pair

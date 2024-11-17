@@ -2038,12 +2038,12 @@ class PSM(nn.Module):
 
         pos = batched_data["pos"]
 
+        if self.args.AutoGradForce:
+            pos.requires_grad_(True)
+
         if self.psm_config.diffusion_mode == "edm":
             pos_noised_no_c_in = batched_data["pos"].clone()
             batched_data["pos"] = pos * batched_data["c_in"]
-
-        if self.args.AutoGradForce:
-            pos.requires_grad_(True)
 
         n_graphs, n_nodes = pos.size()[:2]
         is_periodic = batched_data["is_periodic"]
@@ -2103,8 +2103,6 @@ class PSM(nn.Module):
                 "e2dit",
                 "ditp",
                 "exp",
-                "exp2",
-                "exp3",
             ]:
                 (
                     token_embedding,
@@ -2112,6 +2110,22 @@ class PSM(nn.Module):
                     time_embed,
                     mixed_attn_bias,
                     pos_embedding,
+                ) = self.embedding(
+                    batched_data,
+                    time_step,
+                    time_step_1d,
+                    clean_mask,
+                    aa_mask,
+                    pbc_expand_batched=pbc_expand_batched,
+                )
+            elif self.args.backbone in ["exp2", "exp3"]:
+                (
+                    token_embedding,
+                    padding_mask,
+                    time_embed,
+                    mixed_attn_bias,
+                    pos_embedding,
+                    x_pair,
                 ) = self.embedding(
                     batched_data,
                     time_step,
@@ -2188,9 +2202,9 @@ class PSM(nn.Module):
                         batched_data,
                         encoder_output,
                         time_embed,
-                        mixed_attn_bias,
                         padding_mask,
-                        pbc_expand_batched,
+                        mixed_attn_bias=mixed_attn_bias,
+                        pbc_expand_batched=pbc_expand_batched,
                         pair_feat=pair_feat,
                     )
 
@@ -2204,6 +2218,7 @@ class PSM(nn.Module):
                 pbc_expand_batched,
                 mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=self.args.AutoGradForce,
+                x_pair=x_pair,
             )
 
             with (
@@ -2219,10 +2234,12 @@ class PSM(nn.Module):
                         batched_data,
                         encoder_output,
                         time_embed,
-                        mixed_attn_bias,
                         padding_mask,
-                        pbc_expand_batched,
+                        mixed_attn_bias=mixed_attn_bias,
+                        pbc_expand_batched=pbc_expand_batched,
                         pair_feat=x_pair,
+                        dist_map=dist_map,
+                        ifbackprop=self.args.AutoGradForce,
                     )
 
                 decoder_vec_output = None

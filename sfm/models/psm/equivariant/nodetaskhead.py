@@ -332,7 +332,6 @@ class DiffusionModule(nn.Module):
         batched_data: Dict,
         x,
         time_emb,
-        attn_bias,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
@@ -410,12 +409,12 @@ class DiffusionModule2(nn.Module):
         batched_data: Dict,
         x,
         time_emb,
-        attn_bias,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
         ifbackprop: bool = False,
         pair_feat: Optional[Tensor] = None,
+        dist_map: Optional[Tensor] = None,
     ) -> Tensor:
         x = x.transpose(0, 1)
 
@@ -492,18 +491,6 @@ class DiffusionModule3(nn.Module):
             ),
         )
 
-        self.pair2node = nn.Sequential(
-            nn.Linear(
-                psm_config.encoder_pair_embed_dim,
-                psm_config.encoder_pair_embed_dim,
-                bias=False,
-            ),
-            nn.SiLU(),
-            nn.Linear(
-                psm_config.encoder_pair_embed_dim, psm_config.embedding_dim, bias=False
-            ),
-        )
-
         for nl in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
                 [
@@ -521,12 +508,12 @@ class DiffusionModule3(nn.Module):
         batched_data: Dict,
         x,
         time_emb,
-        attn_bias,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
         ifbackprop: bool = False,
         pair_feat: Optional[Tensor] = None,
+        dist_map: Optional[Tensor] = None,
     ) -> Tensor:
         x = x.transpose(0, 1)
 
@@ -544,13 +531,6 @@ class DiffusionModule3(nn.Module):
                 padding_mask.unsqueeze(-1).unsqueeze(2), 0.0
             )
 
-            # feat2nodeindex = torch.topk(pair_feat_bias.mean(dim=1), 20, dim=1)[1]
-            # feat2node = torch.gather(
-            #     pair_feat,
-            #     1,
-            #     feat2nodeindex.unsqueeze(-1).expand(-1, -1, -1, pair_feat.size(-1)),
-            # ).mean(dim=1)
-            # feat2node = self.pair2node(feat2node)
             feat2node = None
         else:
             pair_feat_bias = None

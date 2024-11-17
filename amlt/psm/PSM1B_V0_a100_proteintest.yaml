@@ -26,7 +26,7 @@ storage:
     container_name: sfm # Container name
     mount_dir: /sfm
   eastus2:
-    storage_account_name: sfmdataeastus2prem # Storage account
+    storage_account_name: sfmdatawestus # Storage account
     container_name: psm # Container name
     mount_dir: /psm
 
@@ -93,13 +93,13 @@ jobs:
   - export wandb_project=psm_VT
   - export wandb_group=psm_v0_1b_v22
   - export WANDB_RUN_NAME=wrap_noise
-  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export wandb_key=${WANDB_API_KEY}
 
   - export total_num_steps=4000000
   - export warmup_num_steps=24000
   - export max_lr=2e-4
 
-  - export diffusion_noise_std=10.0
+  - export diffusion_noise_std=1.0
   - export equivar_vec_init=RELATIVE_POS
   - export strategy=Zero1
   - export fp16=False
@@ -116,6 +116,8 @@ jobs:
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
   - export ddpm_schedule=sigmoid
+  - export diffusion_mode=edm
+  - export diffusion_training_loss=L2
   - export loadcheck_path='/sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20241028-1652/global_step555092/mp_rank_00_model_states.pt'
   - export psm_finetune_mode=False
   - export psm_validation_mode=False

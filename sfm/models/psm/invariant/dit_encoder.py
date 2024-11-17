@@ -85,7 +85,7 @@ class DiTBlock(nn.Module):
         mixed_attn_bias=None,
         ifbackprop=False,
     ):
-        math_kernel = ifbackprop and pbc_expand_batched is not None
+        math_kernel = ifbackprop  # and pbc_expand_batched is not None
 
         (
             shift_msa,

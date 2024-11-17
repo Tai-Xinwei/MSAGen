@@ -308,7 +308,7 @@ class DiffMAE3dCriterions(nn.Module):
             model_output["padding_mask"]
             | model_output["protein_mask"].any(dim=-1)
             | atomic_numbers.eq(156)
-            | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
+            # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
             | atomic_numbers.eq(2),
         )
         # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
