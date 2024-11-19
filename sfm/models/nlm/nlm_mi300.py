@@ -118,8 +118,70 @@ class NLMBaseCausalLM(LlamaPreTrainedModel):
             checkpoint_path: Path to the pretrained weights.
         """
         logger.info(f"Loading pretrained weights from {checkpoint_path}")
-        if os.path.isfile(checkpoint_path):
-            checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+        if os.path.isfile(checkpoint_path) or os.path.exists(
+            os.path.join(checkpoint_path, "mp_rank_00_model_states.pt")
+        ):
+            if os.path.isfile(checkpoint_path):
+                all_ckpt_dict = torch.load(checkpoint_path, map_location="cpu")
+            else:
+                all_ckpt_dict = torch.load(
+                    os.path.join(checkpoint_path, "mp_rank_00_model_states.pt"),
+                    map_location="cpu",
+                )
+            model_dict = self.state_dict()
+            ckpt_dict = {}
+            for k, v in all_ckpt_dict["module"].items():
+                ckpt_dict[k.replace("net.", "")] = v
+            embedding_weight = ckpt_dict.pop("word_embeddings.weight")
+            if (
+                model_dict["word_embeddings.weight"].shape[0]
+                > embedding_weight.shape[0]
+            ):
+                logger.info(
+                    "Size of embedding weight in checkpoint is smaller than the model's embedding weight, padding"
+                )
+                padding_size = (
+                    model_dict["word_embeddings.weight"].shape[0]
+                    - embedding_weight.shape[0]
+                )
+                padding_tensor = torch.randn(
+                    padding_size, model_dict["word_embeddings.weight"].shape[1]
+                )
+                ckpt_dict["word_embeddings.weight"] = torch.cat(
+                    [embedding_weight, padding_tensor], dim=0
+                )
+            elif (
+                model_dict["word_embeddings.weight"].shape[0]
+                < embedding_weight.shape[0]
+            ):
+                logger.info(
+                    "Size of embedding weight in checkpoint is larger than the model's embedding weight, truncating"
+                )
+                ckpt_dict["word_embeddings.weight"] = embedding_weight[
+                    : model_dict["word_embeddings.weight"].shape[0]
+                ]
+            lm_head_weight = ckpt_dict.pop("lm_head.weight")
+            if model_dict["lm_head.weight"].shape[0] > lm_head_weight.shape[0]:
+                logger.info(
+                    "Size of lm_head weight in checkpoint is smaller than the model's lm_head weight, padding"
+                )
+                padding_size = (
+                    model_dict["lm_head.weight"].shape[0] - lm_head_weight.shape[0]
+                )
+                padding_tensor = torch.randn(
+                    padding_size, model_dict["word_embeddings.weight"].shape[1]
+                )
+                ckpt_dict["lm_head.weight"] = torch.cat(
+                    [lm_head_weight, padding_tensor], dim=0
+                )
+            elif model_dict["lm_head.weight"].shape[0] < lm_head_weight.shape[0]:
+                logger.info(
+                    "Size of lm_head weight in checkpoint is larger than the model's lm_head weight, truncating"
+                )
+                ckpt_dict["lm_head.weight"] = lm_head_weight[
+                    : model_dict["lm_head.weight"].shape[0]
+                ]
+            model_dict.update(ckpt_dict)
         elif os.path.isdir(checkpoint_path):
             if os.path.exists(
                 os.path.join(checkpoint_path, "layer_00-model_00-model_states.pt")
@@ -235,20 +297,12 @@ class NLMBaseCausalLM(LlamaPreTrainedModel):
                     ckpt_dict["lm_head.weight"] = layer["lm_head.weight"]
 
                 model_dict.update(ckpt_dict)
-                checkpoints_state = model_dict
-            elif os.path.exists(
-                os.path.join(checkpoint_path, "mp_rank_00_model_states.pt")
-            ):
-                checkpoints_state = torch.load(
-                    os.path.join(checkpoint_path, "mp_rank_00_model_states.pt"),
-                    map_location="cpu",
-                )
             else:
                 raise ValueError(f"Invalid checkpoint path: {checkpoint_path}")
         else:
             raise ValueError(f"Invalid checkpoint path: {checkpoint_path}")
 
-        IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = self.load_state_dict(model_dict, strict=False)
         IncompatibleKeys = IncompatibleKeys._asdict()
         print("IncompatibleKeys[missing_keys]: ", IncompatibleKeys["missing_keys"])
         print(
