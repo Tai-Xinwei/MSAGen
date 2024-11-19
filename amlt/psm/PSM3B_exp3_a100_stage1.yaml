@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 8
+  NODES: 16
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -16,10 +16,6 @@ target:
   name: palisades01
   workspace_name: sfm-ws
 
-# target:
-#   service: sing
-#   name: palisades01
-#   workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -32,7 +28,7 @@ storage:
     container_name: sfm # Container name
     mount_dir: /sfm
   eastus2:
-    storage_account_name: sfmdataeastus2 # Storage account
+    storage_account_name: sfmdataeastus2prem # Storage account
     container_name: psm # Container name
     mount_dir: /psm
 
@@ -40,7 +36,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_dit_v20_1b_stage1
+- name: psmv1_dit_v22_3b_stage1
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
@@ -70,7 +66,7 @@ jobs:
   - export droppath_prob=0.0
   - export mask_ratio=0.0
   - export d_tilde=1.0
-  - export max_lr=2e-4
+  - export max_lr=1e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=400000
@@ -81,7 +77,7 @@ jobs:
   - export max_length=384
   - export max_residue_num=384
   - export ligand_crop_size=20.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/psm/data
   # - export data_path=/nfs6/psmdata/
@@ -101,26 +97,12 @@ jobs:
   # - export dataset_name_list='afdb,mgnify,pdb'
   # - export dataset_split_raito='0.5,0.3,0.2'
   # - export dataset_micro_batch_size='12,12,12'
-  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240630_PDB_Training_Data'
-  - export dataset_name_list='esm,mgnify,pdbcomplexmultimer'
-  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240630_PDB_Training_Data'
-  # - export dataset_name_list='afdb,mgnify,pdbcomplexmultimer'
-  - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='1,1,1'
-  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
-  # - export dataset_name_list='afdb,mgnify'
-  # - export dataset_split_raito='0.7,0.3'
-  # - export dataset_micro_batch_size='16,16'
-  # - export data_path_list='AFDB70-plddt70.lmdb,20240101_PDB_Training_Data'
-  # - export dataset_name_list='afdb,pdb'
-  # - export dataset_split_raito='0.7,0.3'
-  # - export dataset_micro_batch_size='16,16'
-  # - export data_path_list='20240101_PDB_Training_Data,20240630_PDB_Training_Data'
-  # - export dataset_name_list='pdb,pdbcomplexmultimer'
-  # - export dataset_split_raito='0.2,0.8'
-  # - export dataset_micro_batch_size='16,2'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,mgnify4to10,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,mgnify,esm,pdbcomplexmultimer' #,geom'
+  - export dataset_split_raito='0.4,0.1,0.1,0.2,0.2' #,0.2'
+  - export dataset_micro_batch_size='1,1,1,1,1'
   - export fp16=False
-  - export clean_sample_ratio=0.7
+  - export clean_sample_ratio=0.0
   - export diffusion_mode=edm
   - export diffusion_noise_std=1.0
   - export diffusion_rescale_coeff=1.0
