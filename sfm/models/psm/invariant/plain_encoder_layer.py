@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
+    MultiheadAttentionWithProteinRotaryEmbedding,
 )
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.droppath import DropPath
@@ -191,15 +192,6 @@ class PSMPairPlainEncoderLayer(nn.Module):
             ),
         )
 
-        # self.pair2node = nn.Sequential(
-        #     nn.LayerNorm(psm_config.encoder_pair_embed_dim),
-        #     nn.Linear(psm_config.encoder_pair_embed_dim, psm_config.encoder_pair_embed_dim, bias=False),
-        #     nn.SiLU(),
-        #     nn.Linear(psm_config.encoder_pair_embed_dim, psm_config.embedding_dim, bias=False),
-        # )
-
-        # self.pair_scale = psm_config.encoder_pair_embed_dim ** (-0.5)
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -222,7 +214,9 @@ class PSMPairPlainEncoderLayer(nn.Module):
         d_tilde=1,
         add_rope=False,
     ):
-        if self.psm_config.only_use_rotary_embedding_for_protein:
+        if not self.psm_config.use_memory_efficient_attention:
+            attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
+        elif self.psm_config.only_use_rotary_embedding_for_protein:
             attn_cls = MemEffAttnWithProteinRotaryEmbedding
         else:
             attn_cls = MemEffAttn

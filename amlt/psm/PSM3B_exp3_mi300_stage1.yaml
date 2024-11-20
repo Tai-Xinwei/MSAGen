@@ -123,6 +123,7 @@ jobs:
   - export decoder_feat4energy=False
   - export encoderfeat4noise=False
   - export only_use_rotary_embedding_for_protein=True
+  - export use_memory_efficient_attention=False
   - export if_total_energy=False
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt

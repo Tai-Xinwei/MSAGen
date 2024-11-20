@@ -13,7 +13,6 @@ env_defaults:
 
 # target:
 #   service: aml
-# #   name: townsend1
 #   name: sfm-psm-pretrain
 
 target:

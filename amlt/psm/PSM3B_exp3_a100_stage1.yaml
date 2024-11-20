@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 16
+  NODES: 15
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
