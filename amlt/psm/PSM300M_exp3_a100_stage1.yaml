@@ -7,19 +7,19 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 2
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-# target:
-#   service: aml
-# #   name: townsend1
-#   name: sfm-psm-pretrain
-
 target:
-  service: sing
-  name: palisades01
-  workspace_name: sfm-ws
+  service: aml
+#   name: townsend1
+  name: sfm-psm-pretrain
+
+# target:
+#   service: sing
+#   name: palisades01
+#   workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -55,10 +55,10 @@ jobs:
   - export path=run.sh
   - export num_pred_attn_layer=8
   - export layers=26
-  - export hidden_size=1536
-  - export ffn_size=6144
-  - export decoder_hidden_dim=1536
-  - export decoder_ffn_dim=1536
+  - export hidden_size=768
+  - export ffn_size=3072
+  - export decoder_hidden_dim=768
+  - export decoder_ffn_dim=3072
   - export num_head=32
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
@@ -85,17 +85,12 @@ jobs:
   - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/psm/data
-  # - export data_path=/tmp/data_copy
-  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,mgnify4to10,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
-  - export dataset_name_list='esm,esm,mgnify,esm,pdbcomplexmultimer' #,geom'
-  - export dataset_split_raito='0.4,0.1,0.1,0.2,0.2' #,0.2'
-  - export dataset_micro_batch_size='6,6,6,6,6' #,12'
-  # - export data_path_list='PubChemQC-B3LYP-PM6' #,geom_drugs_full.lmdb'
-  # - export dataset_name_list='pm6-wb97xd3' #,geom'
-  # - export dataset_split_raito='1.0' #,0.2'
-  # - export dataset_micro_batch_size='32' #,12'
+  - export data_path_list='PubChemQC-B3LYP-PM6' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='pm6-wb97xd3' #,geom'
+  - export dataset_split_raito='1.0' #,0.2'
+  - export dataset_micro_batch_size='32' #,12'
   - export fp16=False
-  - export clean_sample_ratio=0.0
+  - export clean_sample_ratio=0.5
   - export diffusion_mode=edm
   - export diffusion_noise_std=1.0
   - export diffusion_rescale_coeff=1.0
@@ -107,18 +102,18 @@ jobs:
   - export molecule_force_loss_ratio=0.5
   - export material_energy_loss_ratio=0.5
   - export material_force_loss_ratio=0.5
-  - export AutoGradForce=False
+  - export AutoGradForce=True
   - export use_hard_dist_loss=False
   - export use_unified_batch_sampler=True
   - export align_x0_in_diffusion_loss=True
-  - export decoder_feat4energy=False
+  - export decoder_feat4energy=True
   - export encoderfeat4noise=False
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2/checkpoints/global_step60000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_p/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_300m_stage1_s/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
