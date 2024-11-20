@@ -160,6 +160,8 @@ class NLMBaseCausalLM(LlamaPreTrainedModel):
                 ckpt_dict["word_embeddings.weight"] = embedding_weight[
                     : model_dict["word_embeddings.weight"].shape[0]
                 ]
+            else:
+                model_dict["word_embeddings.weight"] = embedding_weight
             lm_head_weight = ckpt_dict.pop("lm_head.weight")
             if model_dict["lm_head.weight"].shape[0] > lm_head_weight.shape[0]:
                 logger.info(
@@ -181,6 +183,8 @@ class NLMBaseCausalLM(LlamaPreTrainedModel):
                 ckpt_dict["lm_head.weight"] = lm_head_weight[
                     : model_dict["lm_head.weight"].shape[0]
                 ]
+            else:
+                model_dict["lm_head.weight"] = lm_head_weight
             model_dict.update(ckpt_dict)
         elif os.path.isdir(checkpoint_path):
             if os.path.exists(
