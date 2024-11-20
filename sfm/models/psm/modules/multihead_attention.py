@@ -24,6 +24,7 @@ class MultiheadAttentionWithProteinRotaryEmbedding(MultiheadAttention):
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
         position_ids: Optional[torch.Tensor] = None,
         is_protein: Optional[torch.Tensor] = None,
+        math_kernel: bool = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
