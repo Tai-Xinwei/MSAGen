@@ -119,7 +119,7 @@ use_fp32_in_decoder: false
 use_2d_atom_features: true
 use_2d_bond_features: false
 preprocess_2d_bond_features_with_cuda: true
-use_memory_efficient_attention: false
+use_memory_efficient_attention: true
 rescale_loss_with_std: true
 material_force_loss_ratio: 1.0
 material_energy_loss_ratio: 1.0
