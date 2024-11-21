@@ -83,10 +83,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8'
 
-# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='2'
+[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64'
 
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered,matter-sim-15M-merged'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim,mattersim'
@@ -145,10 +145,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.05,0.75'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='2,8,8'
 
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
@@ -183,7 +183,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${group_optimizer}" ] && group_optimizer=True
 [ -z "${group_lr_ratio}" ] && group_lr_ratio=1.0
-[ -z "${AutoGradForce}" ] && AutoGradForce=True
+[ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
 [ -z "${force_loss_type}" ] && force_loss_type=L1
@@ -219,7 +219,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=1024
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 

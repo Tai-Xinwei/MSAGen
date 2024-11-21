@@ -284,8 +284,22 @@ class PSMPairPlainEncoderLayer(nn.Module):
         x = residual + x
 
         x_p_i = self.pair_proj(x)
+
+        if pbc_expand_batched is not None:
+            outcell_index = pbc_expand_batched["outcell_index"]
+            _, _, embed_dim = x_p_i.size()
+
+            outcell_index = (
+                outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
+            )
+            expand_x_p_i = torch.gather(x_p_i, dim=0, index=outcell_index)
+
+            x_p_j = torch.cat([x_p_i, expand_x_p_i], dim=0)
+        else:
+            x_p_j = x_p_i
+
         if x_pair is not None:
-            x_pair = x_pair + torch.einsum("lbh,kbh->lkbh", x_p_i, x_p_i)
+            x_pair = x_pair + torch.einsum("lbh,kbh->lkbh", x_p_i, x_p_j)
         else:
             x_pair = torch.einsum("lbh,kbh->lkbh", x_p_i, x_p_i)
 

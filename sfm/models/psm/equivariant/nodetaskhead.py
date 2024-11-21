@@ -522,10 +522,17 @@ class DiffusionModule3(nn.Module):
         ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         if pair_feat is not None:
+            if pbc_expand_batched is not None:
+                expand_mask = torch.cat(
+                    [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+                )
+            else:
+                expand_mask = padding_mask
+
             pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
 
             pair_feat = pair_feat.masked_fill(
-                padding_mask.unsqueeze(-1).unsqueeze(1), 0.0
+                expand_mask.unsqueeze(-1).unsqueeze(1), 0.0
             )
             pair_feat = pair_feat.masked_fill(
                 padding_mask.unsqueeze(-1).unsqueeze(2), 0.0

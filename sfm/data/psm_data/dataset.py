@@ -1374,6 +1374,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             if np.random.rand() < 0.25:
@@ -1387,20 +1389,23 @@ class AFDBLMDBDataset(FoundationModelDataset):
                 confidence = data["confidence"][
                     random_start : random_start + self.args.max_length
                 ]
-                position_ids = range(random_start, random_start + self.args.max_length)
+                position_ids = range(
+                    random_start_pos_id + random_start,
+                    random_start_pos_id + random_start + self.args.max_length,
+                )
             else:
                 selected_idx = self.crop_spatial(data)
                 data["aa"] = data["aa"][selected_idx]
                 coords = data["pos"][selected_idx, 1, :]
                 confidence = data["confidence"][selected_idx]
-                position_ids = selected_idx
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"][:, 1, :]
             confidence = data["confidence"]
-            position_ids = range(0, len(data["aa"]))
-
-        position_ids = position_ids + [np.random.randint(0, 2000)] * len(position_ids)
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1571,6 +1576,8 @@ class ESMDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             # if np.random.rand() < 0.25:
@@ -1607,20 +1614,23 @@ class ESMDataset(AFDBLMDBDataset):
                 confidence = data["confidence"][
                     random_start : random_start + self.args.max_length
                 ]
-                position_ids = range(random_start, random_start + self.args.max_length)
+                position_ids = range(
+                    random_start + random_start_pos_id,
+                    random_start + random_start_pos_id + self.args.max_length,
+                )
             else:
                 selected_idx = self.crop_spatial(data)
                 data["aa"] = data["aa"][selected_idx]
                 coords = data["pos"][selected_idx, :]
                 confidence = data["confidence"][selected_idx]
-                position_ids = selected_idx
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"]
             confidence = data["confidence"]
-            position_ids = range(0, len(data["aa"]))
-
-        position_ids = position_ids + [np.random.randint(0, 2000)] * len(position_ids)
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1695,6 +1705,8 @@ class MGnifyDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             if np.random.rand() < 0.25:
@@ -1708,20 +1720,23 @@ class MGnifyDataset(AFDBLMDBDataset):
                 confidence = data["confidence"][
                     random_start : random_start + self.args.max_length
                 ]
-                position_ids = range(random_start, random_start + self.args.max_length)
+                position_ids = range(
+                    random_start + random_start_pos_id,
+                    random_start + random_start_pos_id + self.args.max_length,
+                )
             else:
                 selected_idx = self.crop_spatial(data)
                 data["aa"] = data["aa"][selected_idx]
                 coords = data["pos"][selected_idx, :]
                 confidence = data["confidence"][selected_idx]
-                position_ids = selected_idx
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"]
             confidence = data["confidence"]
-            position_ids = range(0, len(data["aa"]))
-
-        position_ids = position_ids + [np.random.randint(0, 2000)] * len(position_ids)
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)

@@ -1329,30 +1329,36 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         molecule_mask: torch.Tensor,
         padding_mask: torch.Tensor,
         batched_data: torch.Tensor,
+        pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ):
         # if molecule_mask.any() or batched_data["is_complex"].any():
-        edge_bond_feature = self.mol_bond_emb(
-            batched_data["node_type_edge"].squeeze(-1)
-        )
-        edge_bond_feature = edge_bond_feature.masked_fill(~adj.unsqueeze(-1), 0.0)
+        if pbc_expand_batched is not None:
+            # node_type_edge = pbc_expand_batched["expand_node_type_edge"]
+            graph_attn_bias = None
+        else:
+            node_type_edge = batched_data["node_type_edge"]
 
-        edge_bond_feature = edge_bond_feature.masked_fill(
-            ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
-        )
-        edge_bond_feature = edge_bond_feature.masked_fill(
-            ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
-        )
+            edge_bond_feature = self.mol_bond_emb(node_type_edge.squeeze(-1))
 
-        graph_attn_bias = self.bias_proj(edge_bond_feature)
+            edge_bond_feature = edge_bond_feature.masked_fill(~adj.unsqueeze(-1), 0.0)
 
-        graph_attn_bias = graph_attn_bias.masked_fill(
-            ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
-        )
-        graph_attn_bias = graph_attn_bias.masked_fill(
-            ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
-        )
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
+            )
 
-        graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
+            graph_attn_bias = self.bias_proj(edge_bond_feature)
+
+            graph_attn_bias = graph_attn_bias.masked_fill(
+                ~molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            graph_attn_bias = graph_attn_bias.masked_fill(
+                ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
+            )
+
+            graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
         # else:
         #     graph_attn_bias = None
 
@@ -1425,10 +1431,23 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             molecule_mask,
             padding_mask,
             batched_data,
+            pbc_expand_batched,
         )
 
         x_p_i = self.pair_proj(x)
-        x_pair = torch.einsum("blh,bkh->blkh", x_p_i, x_p_i)
+
+        if pbc_expand_batched is not None:
+            outcell_index = pbc_expand_batched["outcell_index"]
+            _, _, embed_dim = x_p_i.size()
+
+            outcell_index = outcell_index.unsqueeze(-1).expand(-1, -1, embed_dim)
+            expand_x_p_i = torch.gather(x_p_i, dim=1, index=outcell_index)
+
+            x_p_j = torch.cat([x_p_i, expand_x_p_i], dim=1)
+        else:
+            x_p_j = x_p_i
+
+        x_pair = torch.einsum("blh,bkh->blkh", x_p_i, x_p_j)
 
         if graph_attn_bias is not None:
             x_pair = x_pair + graph_attn_bias.permute(0, 2, 3, 1).mean(
