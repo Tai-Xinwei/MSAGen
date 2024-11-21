@@ -1354,7 +1354,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
         # else:
-        # graph_attn_bias = None
+        #     graph_attn_bias = None
 
         return graph_attn_bias
 

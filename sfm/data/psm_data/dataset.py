@@ -1400,6 +1400,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
             confidence = data["confidence"]
             position_ids = range(0, len(data["aa"]))
 
+        position_ids = position_ids + [np.random.randint(0, 2000)] * len(position_ids)
+
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
 
@@ -1618,6 +1620,8 @@ class ESMDataset(AFDBLMDBDataset):
             confidence = data["confidence"]
             position_ids = range(0, len(data["aa"]))
 
+        position_ids = position_ids + [np.random.randint(0, 2000)] * len(position_ids)
+
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
 
@@ -1716,6 +1720,8 @@ class MGnifyDataset(AFDBLMDBDataset):
             coords = data["pos"]
             confidence = data["confidence"]
             position_ids = range(0, len(data["aa"]))
+
+        position_ids = position_ids + [np.random.randint(0, 2000)] * len(position_ids)
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -2286,7 +2292,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         coords = []
         position_ids = []
         chain_ids = []
-        start_position_ids = 0
+
+        start_position_ids = np.random.randint(0, 2000)
         polymer_len = 0
 
         # reconstruct the polymer chains
@@ -2426,7 +2433,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         coords = []
         position_ids = []
         chain_ids = []
-        start_position_ids = 0
+        start_position_ids = np.random.randint(0, 2000)
         polymer_len = 0
 
         for idx, polymer_chains_idx in enumerate(polymer_chains_idxes):
