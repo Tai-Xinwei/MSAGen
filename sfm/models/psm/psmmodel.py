@@ -945,6 +945,7 @@ class PSMModel(Model):
                 # batched_data["pos"] = torch.zeros_like(batched_data["pos"])
             elif noise_mode == "zero":
                 time_step = torch.zeros_like(time_step)
+                noise_step = torch.ones_like(noise_step) * -4.42
                 clean_mask = torch.ones_like(clean_mask)
             elif noise_mode == "T_zero":
                 # 50% zero, 50% T, set clean_mask=True to 0

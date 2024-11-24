@@ -90,19 +90,13 @@ jobs:
   - export plddt_threshold=60.0
   - export gradient_accumulation_steps=4
   - export log_interval=100
+
   - export data_path=/psm/data_copy/
-  # - export data_path_list='MGnify,20240630_PDB_Training_Data'
-  # - export dataset_name_list='mgnify,pdbcomplexmultimer'
-  # - export dataset_split_raito='0.8,0.2'
-  # - export dataset_micro_batch_size='32,32'
-  - export data_path_list='AFDB70-plddt70-reduce.lmdb,20240630_PDB_Training_Data,MGnify'
-  - export dataset_name_list='esm,pdbcomplexmultimer,mgnify'
-  - export dataset_split_raito='0.6,0.2,0.2'
-  - export dataset_micro_batch_size='32,32,32'
-  # - export data_path_list='MGnify'
-  # - export dataset_name_list='mgnify'
-  # - export dataset_split_raito='1.0'
-  # - export dataset_micro_batch_size='32'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,mgnify4to10,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,mgnify,esm,pdbcomplexmultimer' #,geom'
+  - export dataset_split_raito='0.4,0.1,0.1,0.2,0.2' #,0.2'
+  - export dataset_micro_batch_size='32,32,32,32,32'
+
   - export fp16=False
   - export clean_sample_ratio=0.0
   - export diffusion_mode=edm
@@ -125,9 +119,9 @@ jobs:
   - export use_memory_efficient_attention=False
   - export if_total_energy=False
   - export save_batch_interval=5000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt
-  - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v21_1b_p_stage1/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage2_h100_2/checkpoints/global_step75000/mp_rank_00_model_states.pt
+  - export psm_finetune_mode=True
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1_mi300/checkpoints
   # - bash ./scripts/psm/azcopydata.sh
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
