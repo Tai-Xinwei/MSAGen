@@ -32,7 +32,7 @@ ft: false
 infer: false
 use_pbc: false
 transformer_m_pretrain: true
-mode_prob: 0.2,0.6,0.2
+mode_prob: 0.0,1.0,0.0
 num_timesteps: 5000
 num_timesteps_stepsize: -1
 ddpm_beta_start: 1.0e-07
@@ -85,7 +85,6 @@ pbc_use_local_attention: true
 pbc_multigraph_cutoff: 10.0
 diff_init_lattice_size: 10.0
 add_unit_cell_virtual_node: false
-lattice_size: 4.0
 crop_radius: 50.0
 max_residue_num: 768
 complex_mode_prob: 0.4,0.4,0.2
@@ -93,7 +92,7 @@ sample_ligand_only: false
 molecule_ref_energy_source: null
 molecule_outlier_energy_atoms: DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST
 diffusion_sampling: ddpm
-diffusion_mode: epsilon
+diffusion_mode: edm
 diffusion_noise_std: 1.0
 diffusion_rescale_coeff: 1.0
 ddim_eta: 0.0

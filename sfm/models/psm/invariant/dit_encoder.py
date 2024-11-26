@@ -7,6 +7,7 @@ from sympy import ff
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
+    MultiheadAttentionWithProteinRotaryEmbedding,
 )
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.mem_eff_attn import MemEffAttn
@@ -44,7 +45,9 @@ class DiTBlock(nn.Module):
         )
         self.psm_config = psm_config
 
-        if psm_config.only_use_rotary_embedding_for_protein:
+        if not self.psm_config.use_memory_efficient_attention:
+            attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
+        elif psm_config.only_use_rotary_embedding_for_protein:
             attn_cls = MemEffAttnWithProteinRotaryEmbedding
         else:
             attn_cls = MemEffAttn
@@ -85,7 +88,7 @@ class DiTBlock(nn.Module):
         mixed_attn_bias=None,
         ifbackprop=False,
     ):
-        math_kernel = ifbackprop and pbc_expand_batched is not None
+        math_kernel = ifbackprop  # and pbc_expand_batched is not None
 
         (
             shift_msa,

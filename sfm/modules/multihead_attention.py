@@ -39,7 +39,7 @@ class MultiheadAttention(nn.Module):
         v_bias=True,
         o_bias=True,
         add_rope=False,
-        layer_norm=True,
+        layer_norm=False,
         use_smooth_softmax=False,
         smooth_factor=0.0,
     ):
@@ -227,7 +227,7 @@ class MultiheadAttention(nn.Module):
 
         # add rope
         if self.rot_emb:
-            q, k = self.rot_emb(q, k, position_ids=position_ids, nhead=self.num_heads)
+            q, k = self.rot_emb(q, k, v, position_ids, self.num_heads)
 
         if key_padding_mask is not None:
             if outcell_index is not None:

@@ -945,6 +945,7 @@ class PSMModel(Model):
                 # batched_data["pos"] = torch.zeros_like(batched_data["pos"])
             elif noise_mode == "zero":
                 time_step = torch.zeros_like(time_step)
+                noise_step = torch.ones_like(noise_step) * -4.42
                 clean_mask = torch.ones_like(clean_mask)
             elif noise_mode == "T_zero":
                 # 50% zero, 50% T, set clean_mask=True to 0
@@ -1158,7 +1159,6 @@ class PSMModel(Model):
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
-        orig_pos = center_pos(batched_data, padding_mask)
 
         self._create_initial_pos_for_diffusion(batched_data)
 
@@ -1166,11 +1166,14 @@ class PSMModel(Model):
         if self.psm_config.sample_ligand_only:
             clean_mask = batched_data["is_protein"]
 
-        clean_mask = clean_mask.masked_fill(token_id == 156, True)
-        clean_mask = clean_mask.masked_fill(padding_mask, True)
         clean_mask = clean_mask.masked_fill(
             batched_data["protein_mask"].any(dim=-1), False
         )
+
+        orig_pos = center_pos(batched_data, padding_mask)  # , clean_mask=clean_mask)
+
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        clean_mask = clean_mask.masked_fill(padding_mask, True)
 
         batched_data["pos"] = self.diffnoise.get_sampling_start(
             batched_data["init_pos"],
@@ -1220,6 +1223,8 @@ class PSMModel(Model):
                 # Reshape sigma to (B, L, 1)
                 t_hat = t_hat.unsqueeze(-1).repeat(1, x_t.shape[1]).unsqueeze(-1)
                 t_hat = t_hat.double()
+                t_hat = t_hat.masked_fill(clean_mask.unsqueeze(-1), 0.0064)
+
                 c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
                 batched_data["edm_sigma"] = t_hat
                 batched_data["c_skip"] = c_skip
@@ -1373,7 +1378,8 @@ class PSMModel(Model):
 
         if if_recenter:
             batched_data["pos"] = center_pos(
-                batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                batched_data,
+                padding_mask=padding_mask,  # clean_mask=clean_mask
             )  # centering to remove noise translation
 
         # AF3 Sampling
@@ -1475,7 +1481,8 @@ class PSMModel(Model):
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             if if_recenter:
                 batched_data["pos"] = center_pos(
-                    batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                    batched_data,
+                    padding_mask=padding_mask,  # clean_mask=clean_mask
                 )  # centering to remove noise translation
 
             batched_data["pos"] = batched_data["pos"].detach()
@@ -1546,26 +1553,24 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
         ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
     else:
         # leave out padding tokens when calculating non-atom/non-residue tokens
-        num_non_atoms = torch.sum(
-            protein_mask.any(dim=-1) | (clean_mask & ~padding_mask), dim=-1
-        )
-        non_periodic_center = torch.sum(
-            batched_data["pos"].masked_fill(
-                padding_mask.unsqueeze(-1) | protein_mask | clean_mask.unsqueeze(-1),
-                0.0,
-            ),
-            dim=1,
-        ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
         # num_non_atoms = torch.sum(
-        #     protein_mask.any(dim=-1) | (~clean_mask), dim=-1
+        #     protein_mask.any(dim=-1) | (clean_mask & ~padding_mask), dim=-1
         # )
         # non_periodic_center = torch.sum(
         #     batched_data["pos"].masked_fill(
-        #         padding_mask.unsqueeze(-1) | protein_mask | (~clean_mask.unsqueeze(-1)),
+        #         padding_mask.unsqueeze(-1) | protein_mask | clean_mask.unsqueeze(-1),
         #         0.0,
         #     ),
         #     dim=1,
         # ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+        num_non_atoms = torch.sum(protein_mask.any(dim=-1) | (~clean_mask), dim=-1)
+        non_periodic_center = torch.sum(
+            batched_data["pos"].masked_fill(
+                padding_mask.unsqueeze(-1) | protein_mask | (~clean_mask.unsqueeze(-1)),
+                0.0,
+            ),
+            dim=1,
+        ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
 
     center = non_periodic_center.unsqueeze(1)
     center[is_stable_periodic] = periodic_center
@@ -2034,12 +2039,12 @@ class PSM(nn.Module):
 
         pos = batched_data["pos"]
 
+        if self.args.AutoGradForce:
+            pos.requires_grad_(True)
+
         if self.psm_config.diffusion_mode == "edm":
             pos_noised_no_c_in = batched_data["pos"].clone()
             batched_data["pos"] = pos * batched_data["c_in"]
-
-        if self.args.AutoGradForce:
-            pos.requires_grad_(True)
 
         n_graphs, n_nodes = pos.size()[:2]
         is_periodic = batched_data["is_periodic"]
@@ -2099,8 +2104,6 @@ class PSM(nn.Module):
                 "e2dit",
                 "ditp",
                 "exp",
-                "exp2",
-                "exp3",
             ]:
                 (
                     token_embedding,
@@ -2108,6 +2111,22 @@ class PSM(nn.Module):
                     time_embed,
                     mixed_attn_bias,
                     pos_embedding,
+                ) = self.embedding(
+                    batched_data,
+                    time_step,
+                    time_step_1d,
+                    clean_mask,
+                    aa_mask,
+                    pbc_expand_batched=pbc_expand_batched,
+                )
+            elif self.args.backbone in ["exp2", "exp3"]:
+                (
+                    token_embedding,
+                    padding_mask,
+                    time_embed,
+                    mixed_attn_bias,
+                    pos_embedding,
+                    x_pair,
                 ) = self.embedding(
                     batched_data,
                     time_step,
@@ -2184,9 +2203,9 @@ class PSM(nn.Module):
                         batched_data,
                         encoder_output,
                         time_embed,
-                        mixed_attn_bias,
                         padding_mask,
-                        pbc_expand_batched,
+                        mixed_attn_bias=mixed_attn_bias,
+                        pbc_expand_batched=pbc_expand_batched,
                         pair_feat=pair_feat,
                     )
 
@@ -2200,6 +2219,7 @@ class PSM(nn.Module):
                 pbc_expand_batched,
                 mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=self.args.AutoGradForce,
+                x_pair=x_pair,
             )
 
             with (
@@ -2215,10 +2235,12 @@ class PSM(nn.Module):
                         batched_data,
                         encoder_output,
                         time_embed,
-                        mixed_attn_bias,
                         padding_mask,
-                        pbc_expand_batched,
+                        mixed_attn_bias=mixed_attn_bias,
+                        pbc_expand_batched=pbc_expand_batched,
                         pair_feat=x_pair,
+                        dist_map=dist_map,
+                        ifbackprop=self.args.AutoGradForce,
                     )
 
                 decoder_vec_output = None
@@ -2241,6 +2263,11 @@ class PSM(nn.Module):
                 else nullcontext()
             ):
                 encoder_output = self.layer_norm(encoder_output)
+
+                q, k = self.pair_proj(encoder_output).chunk(2, dim=-1)
+                pair_feat = torch.einsum("bld,bkd->blkd", q, k)
+                dist_map = self.dist_head(pair_feat)
+
                 decoder_x_output, decoder_vec_output = encoder_output, None
 
         elif self.args.backbone in ["ditgeom"]:

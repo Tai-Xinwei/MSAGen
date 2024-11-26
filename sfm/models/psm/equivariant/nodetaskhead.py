@@ -311,6 +311,11 @@ class DiffusionModule(nn.Module):
         self.pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
 
         self.pair_feat_bias = nn.Sequential(
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.encoder_pair_embed_dim,
+                bias=False,
+            ),
             nn.SiLU(),
             nn.Linear(
                 psm_config.encoder_pair_embed_dim,
@@ -327,7 +332,6 @@ class DiffusionModule(nn.Module):
         batched_data: Dict,
         x,
         time_emb,
-        attn_bias,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
@@ -405,12 +409,12 @@ class DiffusionModule2(nn.Module):
         batched_data: Dict,
         x,
         time_emb,
-        attn_bias,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
         ifbackprop: bool = False,
         pair_feat: Optional[Tensor] = None,
+        dist_map: Optional[Tensor] = None,
     ) -> Tensor:
         x = x.transpose(0, 1)
 
@@ -487,18 +491,6 @@ class DiffusionModule3(nn.Module):
             ),
         )
 
-        self.pair2node = nn.Sequential(
-            nn.Linear(
-                psm_config.encoder_pair_embed_dim,
-                psm_config.encoder_pair_embed_dim,
-                bias=False,
-            ),
-            nn.SiLU(),
-            nn.Linear(
-                psm_config.encoder_pair_embed_dim, psm_config.embedding_dim, bias=False
-            ),
-        )
-
         for nl in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
                 [
@@ -516,12 +508,12 @@ class DiffusionModule3(nn.Module):
         batched_data: Dict,
         x,
         time_emb,
-        attn_bias,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
         ifbackprop: bool = False,
         pair_feat: Optional[Tensor] = None,
+        dist_map: Optional[Tensor] = None,
     ) -> Tensor:
         x = x.transpose(0, 1)
 
@@ -530,22 +522,22 @@ class DiffusionModule3(nn.Module):
         ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         if pair_feat is not None:
+            if pbc_expand_batched is not None:
+                expand_mask = torch.cat(
+                    [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+                )
+            else:
+                expand_mask = padding_mask
+
             pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
 
             pair_feat = pair_feat.masked_fill(
-                padding_mask.unsqueeze(-1).unsqueeze(1), 0.0
+                expand_mask.unsqueeze(-1).unsqueeze(1), 0.0
             )
             pair_feat = pair_feat.masked_fill(
                 padding_mask.unsqueeze(-1).unsqueeze(2), 0.0
             )
 
-            # feat2nodeindex = torch.topk(pair_feat_bias.mean(dim=1), 20, dim=1)[1]
-            # feat2node = torch.gather(
-            #     pair_feat,
-            #     1,
-            #     feat2nodeindex.unsqueeze(-1).expand(-1, -1, -1, pair_feat.size(-1)),
-            # ).mean(dim=1)
-            # feat2node = self.pair2node(feat2node)
             feat2node = None
         else:
             pair_feat_bias = None

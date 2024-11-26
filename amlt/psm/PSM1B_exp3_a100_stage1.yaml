@@ -11,15 +11,14 @@ env_defaults:
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-# target:
-#   service: aml
-# #   name: townsend1
-#   name: sfm-psm-pretrain
-
 target:
-  service: sing
-  name: palisades01
-  workspace_name: sfm-ws
+  service: aml
+  name: sfm-psm-pretrain
+
+# target:
+#   service: sing
+#   name: palisades01
+#   workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -48,7 +47,7 @@ jobs:
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm_DiT_1b_v15
+  - export wandb_group=psm_exp_v22
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir ./output
@@ -70,7 +69,7 @@ jobs:
   - export droppath_prob=0.0
   - export mask_ratio=0.0
   - export d_tilde=1.0
-  - export max_lr=2e-5
+  - export max_lr=1e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=400000
@@ -82,15 +81,18 @@ jobs:
   - export max_residue_num=384
   - export ligand_crop_size=20.0
   - export plddt_threshold=60.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/psm/data
   # - export data_path=/tmp/data_copy
-  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
-  - export dataset_name_list='esm,esm,mgnify,pdbcomplexmultimer,geom'
-  - export dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
-  - export dataset_micro_batch_size='6,6,6,6,12'
-  # - export dataset_micro_batch_size='1,1,1,1,12'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,mgnify4to10,20240630_PDB_Training_Data,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,mgnify,esm,pdbcomplexmultimer,geom'
+  - export dataset_split_raito='0.3,0.05,0.1,0.15,0.2,0.2'
+  - export dataset_micro_batch_size='16,16,16,16,16,32'
+  # - export data_path_list='PubChemQC-B3LYP-PM6' #,geom_drugs_full.lmdb'
+  # - export dataset_name_list='pm6-wb97xd3' #,geom'
+  # - export dataset_split_raito='1.0' #,0.2'
+  # - export dataset_micro_batch_size='32' #,12'
   - export fp16=False
   - export clean_sample_ratio=0.0
   - export diffusion_mode=edm
@@ -111,11 +113,13 @@ jobs:
   - export decoder_feat4energy=False
   - export encoderfeat4noise=False
   - export only_use_rotary_embedding_for_protein=True
+  - export use_memory_efficient_attention=False
+
   - export if_total_energy=False
   - export save_batch_interval=5000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2/checkpoints/global_step60000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1_2/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
