@@ -1,0 +1,172 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# train a chemical generalist
+
+description: psm
+
+env_defaults:
+  NODES: 8
+  GPUS_PER_NODE: 8
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+
+target:
+  service: sing
+  name: palisades01
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  blob:
+    storage_account_name: sfmarca100 # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
+  eastus2:
+    storage_account_name: sfmdatawestus # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: psm-periodic-fp32-ddp-test-diffnoise10-fastpreprocess-20241105-1635
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS_PER_NODE}-IB
+  mpi: true
+  identity: user
+  process_count_per_node: 1
+  command:
+  - mkdir -p /sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20241105-1635
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_v0_v22_1b_stage1_p_test/checkpoints
+  - export sampled_structure_output_path=/sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20241105-1635
+  - export pbc_cutoff=40.0
+  - export pbc_expanded_num_cell_per_direction=5
+  - export pbc_expanded_token_cutoff=512
+  - export pbc_multigraph_cutoff=7.0
+  - export pbc_use_local_attention=True
+
+  - export layers=30
+  - export hidden_size=1536
+  - export ffn_size=6144
+  - export decoder_ffn_dim=1536
+  - export num_head=32
+  - export num_pred_attn_layer=2
+
+  - export max_length=384
+  - export max_residue_num=384
+  - export ligand_crop_size=20.0
+  - export plddt_threshold=60.0
+
+  - export data_path=/psm/data_copy
+
+  # - export data_path_list='PubChemQC-B3LYP-PM6,AFDB70-plddt70-reduce.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data,matter-gen-force-filtered,ESM_ATLAS_reduce.lmdb'
+  # - export dataset_name_list='pm6-wb97xd3,esm,mattersim,pdb,mattersim,esm'
+  # - export dataset_split_raito='0.2,0.25,0.3,0.05,0.1,0.1'
+  # - export dataset_micro_batch_size="12,8,4,8,12,8"
+
+  # - export data_path_list='AFDB70-plddt70-reduce.lmdb'
+  # - export dataset_name_list='esm'
+  # - export dataset_split_raito='1.0'
+  # - export dataset_micro_batch_size="8"
+
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,mgnify,pdbcomplexmultimer' #,geom'
+  - export dataset_split_raito='0.5,0.1,0.2,0.2' #,0.2'
+  - export dataset_micro_batch_size='6,6,6,6' #,12'
+
+  # - export data_path_list='matter-gen-force-filtered'
+  # - export dataset_name_list='mattersim'
+  # - export dataset_split_raito='1.0'
+  # - export dataset_micro_batch_size="16"
+
+  - export save_batch_interval=2500
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=4
+  - export val_batch_interval=0
+
+  - export wandb_project=psm_VT
+  - export wandb_group=psm_v0_1b_v22
+  - export WANDB_RUN_NAME=wrap_noise
+  - export wandb_key=${WANDB_API_KEY}
+
+  - export total_num_steps=4000000
+  - export warmup_num_steps=24000
+  - export max_lr=2e-4
+
+  - export diffusion_noise_std=1.0
+  - export equivar_vec_init=RELATIVE_POS
+  - export strategy=Zero1
+  - export fp16=False
+  - export clean_sample_ratio=0.5
+  - export mode_prob='0.0,1.0,0.0'
+  - export complex_mode_prob='1,0,0.0,0.0,0.0'
+
+  - export diff_init_lattice_size=10.0
+  - export wrap_in_periodic_diffusion=False
+  - export recompute_noise_after_wrap=False
+  - export periodic_lattice_diffusion_noise_std=0.5
+  - export diffusion_sampling="ddpm"
+  - export num_timesteps=5000
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=2e-3
+  - export ddpm_schedule=sigmoid
+  - export diffusion_mode=edm
+  - export diffusion_training_loss=L2
+  - export loadcheck_path='/sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20241028-1652/global_step555092/mp_rank_00_model_states.pt'
+  - export psm_finetune_mode=False
+  - export psm_validation_mode=False
+  - export sample_in_validation=False
+
+  - export equivar_use_linear_bias=True
+  - export equivar_use_attention_bias=True
+
+  - export use_unified_batch_sampler=True
+  - export rescale_loss_with_std=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export use_memory_efficient_attention=False
+  - export unified_data_num_workers=4
+  - export use_fp32_in_decoder=False
+  - export material_force_loss_ratio=1.0
+  - export material_energy_loss_ratio=1.0
+  - export molecule_energy_loss_ratio=1.0
+  - export energy_per_atom_label_scale=1.0
+  - export mlm_from_decoder_feature=False
+  - export num_3d_bias_kernel=32
+
+  - export use_protein_relative_pos=True
+  - export use_protein_rotary_embedding=True
+  - export num_protein_relative_pos_bin=32
+  - export share_attention_bias=True
+  - export attention_bias_in_decoder=True
+
+  - export molecule_ref_energy_source='PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train'
+  - export molecule_outlier_energy_atoms=''
+
+  - export AutoGradForce=True
+  - export supervise_force_from_head_when_autograd=True
+
+  - export wandb_run_name="fix_bug_continue"
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install nvidia-dali-cuda120
+  # - bash ./scripts/psm/get_azcopy.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/PubChemQC-B3LYP-PM6/?sv=2023-01-03&st=2024-10-23T02%3A00%3A15Z&se=2024-10-30T02%3A00%3A00Z&skoid=48860c85-702c-48ac-bb22-1f502f55c9c0&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-10-23T02%3A00%3A15Z&ske=2024-10-30T02%3A00%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=rl&sig=ejymZ%2B1eHyg4md2TuFgwaH%2Bt1zcaivXbysGZ4R72Z4c%3D" bash ./scripts/psm/azcopydata.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/AFDB70-plddt70-reduce.lmdb/?sv=2023-01-03&st=2024-10-23T02%3A00%3A15Z&se=2024-10-30T02%3A00%3A00Z&skoid=48860c85-702c-48ac-bb22-1f502f55c9c0&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-10-23T02%3A00%3A15Z&ske=2024-10-30T02%3A00%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=rl&sig=ejymZ%2B1eHyg4md2TuFgwaH%2Bt1zcaivXbysGZ4R72Z4c%3D" bash ./scripts/psm/azcopydata.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-sim-15M-merged/?sv=2023-01-03&st=2024-10-23T02%3A00%3A15Z&se=2024-10-30T02%3A00%3A00Z&skoid=48860c85-702c-48ac-bb22-1f502f55c9c0&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-10-23T02%3A00%3A15Z&ske=2024-10-30T02%3A00%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=rl&sig=ejymZ%2B1eHyg4md2TuFgwaH%2Bt1zcaivXbysGZ4R72Z4c%3D" bash ./scripts/psm/azcopydata.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/20240630_PDB_Training_Data/?sv=2023-01-03&st=2024-10-23T02%3A00%3A15Z&se=2024-10-30T02%3A00%3A00Z&skoid=48860c85-702c-48ac-bb22-1f502f55c9c0&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-10-23T02%3A00%3A15Z&ske=2024-10-30T02%3A00%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=rl&sig=ejymZ%2B1eHyg4md2TuFgwaH%2Bt1zcaivXbysGZ4R72Z4c%3D" bash ./scripts/psm/azcopydata.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-gen-force-filtered/?sv=2023-01-03&st=2024-10-30T10%3A06%3A04Z&se=2024-11-06T10%3A06%3A00Z&skoid=48860c85-702c-48ac-bb22-1f502f55c9c0&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-10-30T10%3A06%3A04Z&ske=2024-11-06T10%3A06%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=rl&sig=irAm1Wa0dbaiSY205woBp8oFXFzr8FC6FnGTu2Dvji0%3D" bash ./scripts/psm/azcopydata.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/ESM_ATLAS_reduce.lmdb/?sv=2023-01-03&st=2024-10-23T02%3A00%3A15Z&se=2024-10-30T02%3A00%3A00Z&skoid=48860c85-702c-48ac-bb22-1f502f55c9c0&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-10-23T02%3A00%3A15Z&ske=2024-10-30T02%3A00%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=rl&sig=ejymZ%2B1eHyg4md2TuFgwaH%2Bt1zcaivXbysGZ4R72Z4c%3D" bash ./scripts/psm/azcopydata.sh
+  - bash ./scripts/psm/pretrain_psm.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
+    env:
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+  preemptible: false

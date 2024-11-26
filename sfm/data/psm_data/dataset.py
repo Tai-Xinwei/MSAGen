@@ -1374,6 +1374,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             if np.random.rand() < 0.25:
@@ -1387,18 +1389,23 @@ class AFDBLMDBDataset(FoundationModelDataset):
                 confidence = data["confidence"][
                     random_start : random_start + self.args.max_length
                 ]
-                position_ids = range(random_start, random_start + self.args.max_length)
+                position_ids = range(
+                    random_start_pos_id + random_start,
+                    random_start_pos_id + random_start + self.args.max_length,
+                )
             else:
                 selected_idx = self.crop_spatial(data)
                 data["aa"] = data["aa"][selected_idx]
                 coords = data["pos"][selected_idx, 1, :]
                 confidence = data["confidence"][selected_idx]
-                position_ids = selected_idx
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"][:, 1, :]
             confidence = data["confidence"]
-            position_ids = range(0, len(data["aa"]))
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1569,6 +1576,8 @@ class ESMDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             # if np.random.rand() < 0.25:
@@ -1605,18 +1614,23 @@ class ESMDataset(AFDBLMDBDataset):
                 confidence = data["confidence"][
                     random_start : random_start + self.args.max_length
                 ]
-                position_ids = range(random_start, random_start + self.args.max_length)
+                position_ids = range(
+                    random_start + random_start_pos_id,
+                    random_start + random_start_pos_id + self.args.max_length,
+                )
             else:
                 selected_idx = self.crop_spatial(data)
                 data["aa"] = data["aa"][selected_idx]
                 coords = data["pos"][selected_idx, :]
                 confidence = data["confidence"][selected_idx]
-                position_ids = selected_idx
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"]
             confidence = data["confidence"]
-            position_ids = range(0, len(data["aa"]))
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1691,6 +1705,8 @@ class MGnifyDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             if np.random.rand() < 0.25:
@@ -1704,18 +1720,23 @@ class MGnifyDataset(AFDBLMDBDataset):
                 confidence = data["confidence"][
                     random_start : random_start + self.args.max_length
                 ]
-                position_ids = range(random_start, random_start + self.args.max_length)
+                position_ids = range(
+                    random_start + random_start_pos_id,
+                    random_start + random_start_pos_id + self.args.max_length,
+                )
             else:
                 selected_idx = self.crop_spatial(data)
                 data["aa"] = data["aa"][selected_idx]
                 coords = data["pos"][selected_idx, :]
                 confidence = data["confidence"][selected_idx]
-                position_ids = selected_idx
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"]
             confidence = data["confidence"]
-            position_ids = range(0, len(data["aa"]))
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -2155,7 +2176,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs_rmfarlig_complexonly.lmdb"
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.rmfarligfull.lmdb"
-        version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
+        # version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
+        version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
         testflag = "ComplexTest"
 
         self.crop_radius = args.crop_radius
@@ -2285,7 +2307,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         coords = []
         position_ids = []
         chain_ids = []
-        start_position_ids = 0
+
+        start_position_ids = np.random.randint(0, 2000)
         polymer_len = 0
 
         # reconstruct the polymer chains
@@ -2425,7 +2448,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         coords = []
         position_ids = []
         chain_ids = []
-        start_position_ids = 0
+        start_position_ids = np.random.randint(0, 2000)
         polymer_len = 0
 
         for idx, polymer_chains_idx in enumerate(polymer_chains_idxes):
@@ -2533,13 +2556,13 @@ class PDBComplexDataset(AFDBLMDBDataset):
             # allow interaction between protein and protein
             adj[:polymer_len, :polymer_len] = True
 
-            # # allow interaction between protein and ligand, and protein and protein
-            # polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
-            # polymer_ligand_adj[:polymer_len] = True
-            # polymer_ligand_adj |= (
-            #     polymer_ligand_adj.clone().T
-            # )  # torch disallow inplace operationS
-            # adj |= polymer_ligand_adj
+            # allow interaction between protein and ligand, and protein and protein
+            polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+            polymer_ligand_adj[:polymer_len] = True
+            polymer_ligand_adj |= (
+                polymer_ligand_adj.clone().T
+            )  # torch disallow inplace operationS
+            adj |= polymer_ligand_adj
         else:
             # multimers, sample type was 7 here, but we use 6 to avoid the allreduce error
             data["sample_type"] = 6

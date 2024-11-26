@@ -85,12 +85,12 @@ class PSMPairPlainEncoder(nn.Module):
         pbc_expand_batched: Optional[Dict] = None,
         mixed_attn_bias: Optional[torch.Tensor] = None,
         ifbackprop: bool = False,
+        x_pair: Optional[torch.Tensor] = None,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
-        x_pair = None
         for _, layer in enumerate(self.layers):
             x, x_pair = layer(
                 x,

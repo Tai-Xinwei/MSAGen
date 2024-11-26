@@ -15,6 +15,9 @@ import sys
 import argparse
 from tqdm import tqdm
 
+from parallel_bust import do_parallel_bust
+from multiprocessing import cpu_count
+
 logger=logging.getLogger(__name__)
 
 
@@ -164,9 +167,8 @@ def main(sampled_folder, posebusters_folder, run_count, result_path, pocket_boun
         logging.info(f'Processed all {run_count} runs')
 
         # bust -t input.csv --full-report --outfmt csv > target.csv
-        logger.info(f'Running bust -t {busters_input.name} --full-report --outfmt csv > {result_path}')
-        with open(result_path, 'w') as f:
-            subprocess.run(['bust', '-t', busters_input.name, '--full-report', '--outfmt', 'csv'], stdout=f)
+        logger.info(f'Running posebuster csv {busters_input.name} to {result_path}')
+        do_parallel_bust(busters_input.name, result_path, cpu_count())
 
         # Append extra info
         with open(result_path, 'r') as f:

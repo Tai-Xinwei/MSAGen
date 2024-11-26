@@ -29,13 +29,6 @@ dependencies:
       - torch==2.3.1+rocm6.0
       - torchvision==0.18.1+rocm6.0
       - torchaudio==2.3.1+rocm6.0
-      # - --find-links https://data.pyg.org/whl/torch-2.3.0+cpu.html
-      # - torch_geometric
-      # - pyg_lib
-      # - torch_scatter
-      # - torch_sparse
-      # - torch_cluster
-      # - torch_spline_conv
       # others
       - deepspeed==0.14.4
       - sacremoses==0.1.1
