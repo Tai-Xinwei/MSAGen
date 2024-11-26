@@ -517,18 +517,21 @@ class DiffusionModule3(nn.Module):
     ) -> Tensor:
         x = x.transpose(0, 1)
 
+        if pbc_expand_batched is not None:
+            # use pbc and multi-graph
+            # expand_pos = torch.cat([batched_data["pos"], pbc_expand_batched["expand_pos"]], dim=1)
+            expand_mask = torch.cat(
+                [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+            )
+        else:
+            # expand_pos = batched_data["pos"]
+            expand_mask = padding_mask
+
         pos_embedding = self.pos_emb(
             batched_data["pos"].to(self.pos_emb.weight.dtype)
         ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         if pair_feat is not None:
-            if pbc_expand_batched is not None:
-                expand_mask = torch.cat(
-                    [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
-                )
-            else:
-                expand_mask = padding_mask
-
             pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
 
             pair_feat = pair_feat.masked_fill(

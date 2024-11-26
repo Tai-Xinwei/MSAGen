@@ -61,6 +61,7 @@ class DiTBlock(nn.Module):
             v_bias=False,
             o_bias=False,
             add_rope=True,
+            layer_norm=False,
             use_smooth_softmax=psm_config.use_smooth_softmax,
             smooth_factor=psm_config.smooth_factor,
         )

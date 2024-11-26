@@ -5,14 +5,14 @@
 num_sampling_time=10
 
 # MODEL_CONFIG=PSM1B_DIT
-# MODEL_CONFIG=PSM1B_exp3
-MODEL_CONFIG=PSM3B_exp3
-global_step=global_step20000
+MODEL_CONFIG=PSM1B_exp3
+# MODEL_CONFIG=PSM3B_exp3
+global_step=global_step30000
 
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1_2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v21_1b_stage1_ps_stage2_2/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1_mi300/checkpoints
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1/checkpoints
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1_mi300/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1/checkpoints
 
 
 # global_step=global_step500

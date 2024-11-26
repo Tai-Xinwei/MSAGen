@@ -2042,10 +2042,6 @@ class PSM(nn.Module):
         if self.args.AutoGradForce:
             pos.requires_grad_(True)
 
-        if self.psm_config.diffusion_mode == "edm":
-            pos_noised_no_c_in = batched_data["pos"].clone()
-            batched_data["pos"] = pos * batched_data["c_in"]
-
         n_graphs, n_nodes = pos.size()[:2]
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
@@ -2096,6 +2092,10 @@ class PSM(nn.Module):
                 )
             else:
                 pbc_expand_batched = None
+
+            if self.psm_config.diffusion_mode == "edm":
+                pos_noised_no_c_in = batched_data["pos"].clone()
+                batched_data["pos"] = pos * batched_data["c_in"]
 
             if self.args.backbone in [
                 "vanillatransformer",
