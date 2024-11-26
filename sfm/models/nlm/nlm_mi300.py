@@ -109,6 +109,158 @@ class NLMBaseCausalLM(LlamaPreTrainedModel):
         if args.pretrained_ckpt_path is not None and args.load_ckpt:
             self.load_pretrained_weights(args, args.pretrained_ckpt_path)
 
+    def __load_pretrained_weights_from_dict(self, ckpt_dict):
+        model_dict = self.state_dict()
+        embedding_weight = ckpt_dict["word_embeddings.weight"]
+        if model_dict["word_embeddings.weight"].shape[0] > embedding_weight.shape[0]:
+            logger.info(
+                "Size of embedding weight in checkpoint is smaller than the model's embedding weight, padding"
+            )
+            padding_size = (
+                model_dict["word_embeddings.weight"].shape[0]
+                - embedding_weight.shape[0]
+            )
+            padding_tensor = torch.randn(
+                padding_size, model_dict["word_embeddings.weight"].shape[1]
+            )
+            ckpt_dict["word_embeddings.weight"] = torch.cat(
+                [embedding_weight, padding_tensor], dim=0
+            )
+        elif model_dict["word_embeddings.weight"].shape[0] < embedding_weight.shape[0]:
+            logger.info(
+                "Size of embedding weight in checkpoint is larger than the model's embedding weight, truncating"
+            )
+            ckpt_dict["word_embeddings.weight"] = embedding_weight[
+                : model_dict["word_embeddings.weight"].shape[0]
+            ]
+        lm_head_weight = ckpt_dict["lm_head.weight"]
+        if model_dict["lm_head.weight"].shape[0] > lm_head_weight.shape[0]:
+            logger.info(
+                "Size of lm_head weight in checkpoint is smaller than the model's lm_head weight, padding"
+            )
+            padding_size = (
+                model_dict["lm_head.weight"].shape[0] - lm_head_weight.shape[0]
+            )
+            padding_tensor = torch.randn(
+                padding_size, model_dict["word_embeddings.weight"].shape[1]
+            )
+            ckpt_dict["lm_head.weight"] = torch.cat(
+                [lm_head_weight, padding_tensor], dim=0
+            )
+        elif model_dict["lm_head.weight"].shape[0] < lm_head_weight.shape[0]:
+            logger.info(
+                "Size of lm_head weight in checkpoint is larger than the model's lm_head weight, truncating"
+            )
+            ckpt_dict["lm_head.weight"] = lm_head_weight[
+                : model_dict["lm_head.weight"].shape[0]
+            ]
+        model_dict.update(ckpt_dict)
+        return model_dict
+
+    def __load_pretrained_weights_from_layers(self, checkpoint_path):
+        model_dict = self.state_dict()
+        ckpt_dict = {}
+        layer0 = torch.load(
+            os.path.join(checkpoint_path, "layer_00-model_00-model_states.pt"),
+            map_location=torch.device("cpu"),
+        )
+        if layer0["word_embeddings.weight"].size(0) > model_dict[
+            "word_embeddings.weight"
+        ].size(0):
+            logger.info(
+                "Size of embedding weight in checkpoint is larger than the model's embedding weight, truncating"
+            )
+            ckpt_dict["word_embeddings.weight"] = layer0["word_embeddings.weight"][
+                : model_dict["word_embeddings.weight"].size(0)
+            ]
+        elif layer0["word_embeddings.weight"].size(0) < model_dict[
+            "word_embeddings.weight"
+        ].size(0):
+            logger.info(
+                "Size of embedding weight in checkpoint is smaller than the model's embedding weight, padding"
+            )
+            ckpt_dict["word_embeddings.weight"] = torch.cat(
+                [
+                    layer0["word_embeddings.weight"],
+                    model_dict["word_embeddings.weight"][
+                        layer0["word_embeddings.weight"].size(0) :
+                    ],
+                ],
+                dim=0,
+            )
+        else:
+            ckpt_dict["word_embeddings.weight"] = layer0["word_embeddings.weight"]
+        for l in range(0, self.config.num_hidden_layers):
+            l_index = str(l + 1).zfill(2)
+            layer = torch.load(
+                os.path.join(
+                    checkpoint_path, f"layer_{l_index}-model_00-model_states.pt"
+                ),
+                map_location=torch.device("cpu"),
+            )
+            for k in layer:
+                if "dummy" in k or "rotary_emb" in k:
+                    continue
+                if k == "self_attention.layernorm_qkv.query_weight":
+                    ckpt_dict[f"layers.{l}.self_attn.q_proj.weight"] = layer[k]
+                elif k == "self_attention.layernorm_qkv.key_weight":
+                    ckpt_dict[f"layers.{l}.self_attn.k_proj.weight"] = layer[k]
+                elif k == "self_attention.layernorm_qkv.value_weight":
+                    ckpt_dict[f"layers.{l}.self_attn.v_proj.weight"] = layer[k]
+                elif k == "self_attention.proj.weight":
+                    ckpt_dict[f"layers.{l}.self_attn.o_proj.weight"] = layer[k]
+                elif k == "self_attention.layernorm_qkv.layer_norm_weight":
+                    ckpt_dict[f"layers.{l}.input_layernorm.weight"] = layer[k]
+                elif k == "layernorm_mlp.layer_norm_weight":
+                    ckpt_dict[f"layers.{l}.post_attention_layernorm.weight"] = layer[k]
+                elif k == "layernorm_mlp.fc2_weight":
+                    ckpt_dict[f"layers.{l}.mlp.down_proj.weight"] = layer[k]
+                elif k == "layernorm_mlp.fc1_weight":
+                    splits = torch.split(layer[k], int(layer[k].size(0) / 2))
+                    ckpt_dict[f"layers.{l}.mlp.gate_proj.weight"] = splits[0]
+                    ckpt_dict[f"layers.{l}.mlp.up_proj.weight"] = splits[1]
+                else:
+                    print(f"unexcept key {k}")
+        layer = torch.load(
+            os.path.join(
+                checkpoint_path,
+                f"layer_{self.config.num_hidden_layers+1}-model_00-model_states.pt",
+            ),
+            map_location=torch.device("cpu"),
+        )
+        ckpt_dict["norm.weight"] = layer["norm.weight"]
+
+        layer = torch.load(
+            os.path.join(
+                checkpoint_path,
+                f"layer_{self.config.num_hidden_layers+2}-model_00-model_states.pt",
+            ),
+            map_location=torch.device("cpu"),
+        )
+        if layer["lm_head.weight"].size(0) > model_dict["lm_head.weight"].size(0):
+            logger.info(
+                "Size of lm_head weight in checkpoint is larger than the model's lm_head weight, truncating"
+            )
+            ckpt_dict["lm_head.weight"] = layer["lm_head.weight"][
+                : model_dict["lm_head.weight"].size(0)
+            ]
+        elif layer["lm_head.weight"].size(0) < model_dict["lm_head.weight"].size(0):
+            logger.info(
+                "Size of lm_head weight in checkpoint is smaller than the model's lm_head weight, padding"
+            )
+            ckpt_dict["lm_head.weight"] = torch.cat(
+                [
+                    layer["lm_head.weight"],
+                    model_dict["lm_head.weight"][layer["lm_head.weight"].size(0) :],
+                ],
+                dim=0,
+            )
+        else:
+            ckpt_dict["lm_head.weight"] = layer["lm_head.weight"]
+
+        model_dict.update(ckpt_dict)
+        return model_dict
+
     def load_pretrained_weights(self, args, checkpoint_path):
         """
         Load pretrained weights from a given state_dict.
@@ -119,136 +271,33 @@ class NLMBaseCausalLM(LlamaPreTrainedModel):
         """
         logger.info(f"Loading pretrained weights from {checkpoint_path}")
         if os.path.isfile(checkpoint_path):
-            checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+            all_ckpt_dict = torch.load(checkpoint_path, map_location="cpu")
+            ckpt_dict = {}
+            for k, v in all_ckpt_dict["module"].items():
+                ckpt_dict[k.replace("net.", "")] = v
+            model_dict = self.__load_pretrained_weights_from_dict(ckpt_dict)
         elif os.path.isdir(checkpoint_path):
             if os.path.exists(
                 os.path.join(checkpoint_path, "layer_00-model_00-model_states.pt")
             ):
-                model_dict = self.state_dict()
-                ckpt_dict = {}
-                layer0 = torch.load(
-                    os.path.join(checkpoint_path, "layer_00-model_00-model_states.pt"),
-                    map_location=torch.device("cpu"),
-                )
-                if layer0["word_embeddings.weight"].size(0) > model_dict[
-                    "word_embeddings.weight"
-                ].size(0):
-                    logger.info(
-                        "Size of embedding weight in checkpoint is larger than the model's embedding weight, truncating"
-                    )
-                    ckpt_dict["word_embeddings.weight"] = layer0[
-                        "word_embeddings.weight"
-                    ][: model_dict["word_embeddings.weight"].size(0)]
-                elif layer0["word_embeddings.weight"].size(0) < model_dict[
-                    "word_embeddings.weight"
-                ].size(0):
-                    logger.info(
-                        "Size of embedding weight in checkpoint is smaller than the model's embedding weight, padding"
-                    )
-                    ckpt_dict["word_embeddings.weight"] = torch.cat(
-                        [
-                            layer0["word_embeddings.weight"],
-                            model_dict["word_embeddings.weight"][
-                                layer0["word_embeddings.weight"].size(0) :
-                            ],
-                        ],
-                        dim=0,
-                    )
-                else:
-                    ckpt_dict["word_embeddings.weight"] = layer0[
-                        "word_embeddings.weight"
-                    ]
-                for l in range(0, self.config.num_hidden_layers):
-                    l_index = str(l + 1).zfill(2)
-                    layer = torch.load(
-                        os.path.join(
-                            checkpoint_path, f"layer_{l_index}-model_00-model_states.pt"
-                        ),
-                        map_location=torch.device("cpu"),
-                    )
-                    for k in layer:
-                        if "dummy" in k or "rotary_emb" in k:
-                            continue
-                        if k == "self_attention.layernorm_qkv.query_weight":
-                            ckpt_dict[f"layers.{l}.self_attn.q_proj.weight"] = layer[k]
-                        elif k == "self_attention.layernorm_qkv.key_weight":
-                            ckpt_dict[f"layers.{l}.self_attn.k_proj.weight"] = layer[k]
-                        elif k == "self_attention.layernorm_qkv.value_weight":
-                            ckpt_dict[f"layers.{l}.self_attn.v_proj.weight"] = layer[k]
-                        elif k == "self_attention.proj.weight":
-                            ckpt_dict[f"layers.{l}.self_attn.o_proj.weight"] = layer[k]
-                        elif k == "self_attention.layernorm_qkv.layer_norm_weight":
-                            ckpt_dict[f"layers.{l}.input_layernorm.weight"] = layer[k]
-                        elif k == "layernorm_mlp.layer_norm_weight":
-                            ckpt_dict[
-                                f"layers.{l}.post_attention_layernorm.weight"
-                            ] = layer[k]
-                        elif k == "layernorm_mlp.fc2_weight":
-                            ckpt_dict[f"layers.{l}.mlp.down_proj.weight"] = layer[k]
-                        elif k == "layernorm_mlp.fc1_weight":
-                            splits = torch.split(layer[k], int(layer[k].size(0) / 2))
-                            ckpt_dict[f"layers.{l}.mlp.gate_proj.weight"] = splits[0]
-                            ckpt_dict[f"layers.{l}.mlp.up_proj.weight"] = splits[1]
-                        else:
-                            print(f"unexcept key {k}")
-                layer = torch.load(
-                    os.path.join(
-                        checkpoint_path,
-                        f"layer_{self.config.num_hidden_layers+1}-model_00-model_states.pt",
-                    ),
-                    map_location=torch.device("cpu"),
-                )
-                ckpt_dict["norm.weight"] = layer["norm.weight"]
-
-                layer = torch.load(
-                    os.path.join(
-                        checkpoint_path,
-                        f"layer_{self.config.num_hidden_layers+2}-model_00-model_states.pt",
-                    ),
-                    map_location=torch.device("cpu"),
-                )
-                if layer["lm_head.weight"].size(0) > model_dict["lm_head.weight"].size(
-                    0
-                ):
-                    logger.info(
-                        "Size of lm_head weight in checkpoint is larger than the model's lm_head weight, truncating"
-                    )
-                    ckpt_dict["lm_head.weight"] = layer["lm_head.weight"][
-                        : model_dict["lm_head.weight"].size(0)
-                    ]
-                elif layer["lm_head.weight"].size(0) < model_dict[
-                    "lm_head.weight"
-                ].size(0):
-                    logger.info(
-                        "Size of lm_head weight in checkpoint is smaller than the model's lm_head weight, padding"
-                    )
-                    ckpt_dict["lm_head.weight"] = torch.cat(
-                        [
-                            layer["lm_head.weight"],
-                            model_dict["lm_head.weight"][
-                                layer["lm_head.weight"].size(0) :
-                            ],
-                        ],
-                        dim=0,
-                    )
-                else:
-                    ckpt_dict["lm_head.weight"] = layer["lm_head.weight"]
-
-                model_dict.update(ckpt_dict)
-                checkpoints_state = model_dict
+                model_dict = self.__load_pretrained_weights_from_layers(checkpoint_path)
             elif os.path.exists(
                 os.path.join(checkpoint_path, "mp_rank_00_model_states.pt")
             ):
-                checkpoints_state = torch.load(
+                all_ckpt_dict = torch.load(
                     os.path.join(checkpoint_path, "mp_rank_00_model_states.pt"),
                     map_location="cpu",
                 )
+                ckpt_dict = {}
+                for k, v in all_ckpt_dict["module"].items():
+                    ckpt_dict[k.replace("net.", "")] = v
+                model_dict = self.__load_pretrained_weights_from_dict(ckpt_dict)
             else:
                 raise ValueError(f"Invalid checkpoint path: {checkpoint_path}")
         else:
             raise ValueError(f"Invalid checkpoint path: {checkpoint_path}")
 
-        IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = self.load_state_dict(model_dict, strict=False)
         IncompatibleKeys = IncompatibleKeys._asdict()
         print("IncompatibleKeys[missing_keys]: ", IncompatibleKeys["missing_keys"])
         print(

@@ -2,6 +2,7 @@
 amlt_test
 READY
 mock.py
+.tmp
 
 __pycache__/
 .ruff_cache
