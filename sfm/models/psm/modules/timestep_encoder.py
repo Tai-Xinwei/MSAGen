@@ -402,7 +402,7 @@ class DiffNoiseEDM(nn.Module):
         self.P_mean = psm_config.edm_P_mean
         self.P_std = psm_config.edm_P_std
         self.sigma_data = psm_config.edm_sigma_data
-        self.S_max = psm_config.edm_sample_S_max
+        self.S_max = psm_config.edm_sample_sigma_max
 
         self.torch_generator = None
 
