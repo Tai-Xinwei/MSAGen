@@ -312,9 +312,13 @@ class SingleNodeAccelerator(Accelerator):
         self.model.eval()
 
         batch_data = move_to_device(batch_data, self.device)
-        with torch.no_grad():
+        if self.args.AutoGradForce is True:
             pred = self.model(batch_data)
             model_output = self.model.compute_loss(pred, batch_data)
+        elif self.args.AutoGradForce is False:
+            with torch.no_grad():
+                pred = self.model(batch_data)
+                model_output = self.model.compute_loss(pred, batch_data)
 
         if hasattr(batch_data, "batch_size"):
             num_examples = batch_data.batch_size
@@ -443,7 +447,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             rank=self.rank,
             timeout=timedelta(minutes=int(ddp_timeout))
             if ddp_timeout is not None
-            else timedelta(minutes=5),
+            else timedelta(minutes=30),
         )
 
         torch.distributed.barrier()
@@ -1037,8 +1041,14 @@ class DeepSpeedAccelerator(Accelerator):
                 "gradient_accumulation_steps"
             ] = self.args.gradient_accumulation_steps
         else:
+            unfreeze_params = self.get_unfreeze_param_list(
+                self.args.unfreeze_param_list
+            )
+
             if self.optimizer is None or self.args.zero_offload:
-                self.optimizer, self.lr_scheduler = self.model.config_optimizer()
+                self.optimizer, self.lr_scheduler = self.model.config_optimizer(
+                    model=self.model
+                )
             else:
                 # When using custom scheduler, it is a good idea to set the optimizer type to None
                 logger.info("custom optimizer is set, DS optimizer is disabled")
@@ -1050,6 +1060,10 @@ class DeepSpeedAccelerator(Accelerator):
                 logger.info("lr scheduler is set, remove the ds default scheduler")
                 self.args.deepspeed_config["scheduler"]["type"] = None
 
+            model_parameters = (
+                unfreeze_params if len(unfreeze_params) > 0 else self.model.parameters()
+            )
+
             (
                 self.model_engine,
                 self.optimizer,
@@ -1058,7 +1072,7 @@ class DeepSpeedAccelerator(Accelerator):
             ) = deepspeed.initialize(
                 args=self.args,
                 model=self.model,
-                model_parameters=self.model.parameters(),
+                model_parameters=model_parameters,
                 training_data=self.train_data,
                 collate_fn=self.train_data.collate,
                 optimizer=self.optimizer,
@@ -1112,16 +1126,18 @@ class DeepSpeedAccelerator(Accelerator):
             or self.args.strategy == TrainStrategy.ThreeD
         ):
             dp_rank = self.model_engine.mpu.get_data_parallel_rank()
+            num_replicas = self.model_engine.mpu.get_data_parallel_world_size()
         else:
             dp_rank = self.model_engine.global_rank
+            num_replicas = self.model_engine.dp_world_size
 
         if self.args.use_unified_batch_sampler:
             self.train_sampler = UnifiedDataSampler(
                 train_data,
                 self.args.dataset_split_raito,
                 self.args.dataset_micro_batch_size,
-                num_replicas=self.world_size,
-                rank=self.rank,
+                num_replicas=num_replicas,
+                rank=dp_rank,
                 seed=self.args.seed,
             )
             self.train_data_loader = DataLoader(
@@ -1155,7 +1171,7 @@ class DeepSpeedAccelerator(Accelerator):
                 num_tokens_fn=self.train_data.num_tokens,
                 shuffle=True,
                 drop_last=False,
-                num_replicas=self.model_engine.dp_world_size,
+                num_replicas=num_replicas,
                 rank=dp_rank,
             )
             self.train_data_loader = DataLoader(
@@ -1198,8 +1214,8 @@ class DeepSpeedAccelerator(Accelerator):
                     val_data,
                     self.args.dataset_split_raito,
                     self.args.dataset_micro_batch_size,
-                    num_replicas=self.world_size,
-                    rank=self.rank,
+                    num_replicas=num_replicas,
+                    rank=dp_rank,
                     seed=self.args.seed,
                 )
                 self.valid_data_loader = DataLoader(
@@ -1210,7 +1226,7 @@ class DeepSpeedAccelerator(Accelerator):
             else:
                 validsampler = torch.utils.data.distributed.DistributedSampler(
                     self.valid_data,
-                    num_replicas=self.model_engine.dp_world_size,
+                    num_replicas=num_replicas,
                     rank=dp_rank,
                     shuffle=False,
                 )

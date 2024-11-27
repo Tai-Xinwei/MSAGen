@@ -1,0 +1,125 @@
+ # Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: PSMV1
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+
+target:
+  service: aml
+  # name: townsend1
+  # name: sfm-nd96amsra100v4-italynorth
+  name: sfm-nd96amsra100v4-uksouth
+
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  blob:
+    storage_account_name: sfmarca100 # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
+  eastus2:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: psmv1_edm_dit_v20_1b_stage1
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS}-IB
+  mpi: true
+  identity: managed
+  process_count_per_node: 1
+  command:
+  - export WANDB_TEAM=ai4s-sfm
+  - export wandb_group=psm_DiT_1b_v15
+  - export wandb_project=psm_VT
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - mkdir ./output
+  - export path=run.sh
+  - export num_pred_attn_layer=2
+  - export layers=20
+  - export hidden_size=1536
+  - export ffn_size=6144
+  - export num_head=32
+  - export atom_loss_coeff=1.0
+  - export pos_loss_coeff=1.0
+  - export sandwich_ln="true"
+  - export dropout=0.1
+  - export attn_dropout=0.1
+  - export act_dropout=0.1
+  - export weight_decay=0.0
+  - export droppath_prob=0.0
+  - export mask_ratio=0.0
+  - export d_tilde=1.0
+  - export max_lr=2e-4
+  - export strategy=Zero1
+  - export pipeline_model_parallel_size=0
+  - export total_num_steps=400000
+  - export warmup_num_steps=10000
+  - export train_batch_size=1024
+  - export val_batch_size=256
+  - export max_tokens=16000
+  - export max_length=384
+  - export max_residue_num=768
+  - export ligand_crop_size=20.0
+  - export gradient_accumulation_steps=8
+  - export log_interval=100
+  # - export data_path=/nfs7/psmdata/
+  - export data_path=/psm/data/
+  # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
+  # - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm,pdbcomplexmultimer'
+  # - export dataset_split_raito='0.05,0.13,0.2,0.3,0.02,0.1,0.2'
+  # - export dataset_micro_batch_size='8,8,32,8,8,8,2'
+  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
+  - export data_path_list='AFDB70-plddt70-CA.lmdb,MGnify,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
+  - export dataset_name_list='esm,mgnify,pdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.6,0.2,0.02,0.18'
+  - export dataset_micro_batch_size='16,16,16,2'
+  - export fp16=False
+  - export clean_sample_ratio=0.5
+  - export molecule_energy_loss_ratio=1.0
+  - export material_energy_loss_ratio=1.0
+  - export material_force_loss_ratio=1.0
+  # - export diffusion_mode=edm
+  - export diffusion_noise_std=1.0
+  - export diffusion_rescale_coeff=1.0
+  - export ddpm_schedule=sqrt
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=1e-2
+  - export diffusion_rescale_coeff=1.0
+  - export diffusion_training_loss=L2
+  - export AutoGradForce=False
+  - export use_hard_dist_loss=False
+  - export use_unified_batch_sampler=True
+  - export align_x0_in_diffusion_loss=True
+  - export decoder_feat4energy=False
+  - export encoderfeat4noise=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export if_total_energy=False
+  - export save_batch_interval=2500
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v18_1b_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt
+  - export psm_finetune_mode=False
+  # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b_stage2/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_scale1_sqrt_dit_v20_1b_stage1/checkpoints
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install nvidia-dali-cuda120
+  - bash ./scripts/psm/pretrain_psm_dit.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  preemptible: false

@@ -32,12 +32,12 @@ ft: false
 infer: false
 use_pbc: false
 transformer_m_pretrain: true
-mode_prob: 0.2,0.6,0.2
+mode_prob: 0.0,1.0,0.0
 num_timesteps: 5000
 num_timesteps_stepsize: -1
 ddpm_beta_start: 1.0e-07
 ddpm_beta_end: 0.002
-ddpm_schedule: sigmoid
+ddpm_schedule: sigmoid #sigmoid, cosine, linear, quadratic, sqrt
 noise_mode: diff
 num_edges: 25600
 num_atom_features: 5120
@@ -85,7 +85,6 @@ pbc_use_local_attention: true
 pbc_multigraph_cutoff: 10.0
 diff_init_lattice_size: 10.0
 add_unit_cell_virtual_node: false
-lattice_size: 4.0
 crop_radius: 50.0
 max_residue_num: 768
 complex_mode_prob: 0.4,0.4,0.2
@@ -93,8 +92,9 @@ sample_ligand_only: false
 molecule_ref_energy_source: null
 molecule_outlier_energy_atoms: DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST
 diffusion_sampling: ddpm
-diffusion_mode: epsilon
-diffusion_noise_std: 10.0
+diffusion_mode: edm
+diffusion_noise_std: 1.0
+diffusion_rescale_coeff: 1.0
 ddim_eta: 0.0
 ddim_steps: 50
 clean_sample_ratio: 0.6
@@ -125,12 +125,13 @@ molecule_energy_loss_ratio: 1.0
 energy_per_atom_label_scale: 1.0
 molecule_energy_per_atom_std_override: 1.0
 decoder_feat4energy: false
+encoderfeat4noise: true
 AutoGradForce: false
 NoisePredForce: false
 seq_only: false
 freeze_backbone: false
 hard_dist_loss_raito: 20.0
-use_hard_dist_loss: true
+use_hard_dist_loss: false
 if_total_energy: false
 num_force_and_noise_head_layers: 2
 psm_validation_mode: false

@@ -15,6 +15,24 @@ def pad_1d_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
+def pad_1d_chain_ids_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen], dtype=x.dtype)
+        new_x[:xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_1d_confidence_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = -1 * x.new_ones([padlen], dtype=x.dtype)
+        new_x[:xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
 def pad_2d_unsqueeze(x, padlen):
     x = x + 1  # pad id = 0
     xlen, xdim = x.size()
@@ -126,6 +144,12 @@ def collate_fn(
             item["position_ids"] = torch.arange(
                 0, item["token_type"].shape[0], dtype=torch.long
             )
+        if "confidence" not in item:
+            item["confidence"] = -100 * torch.ones(item["token_type"].shape[0])
+        if "chain_ids" not in item:
+            item["chain_ids"] = torch.ones(
+                item["token_type"].shape[0], dtype=torch.long
+            )
 
     idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
     sample_type = torch.tensor([i["sample_type"] for i in items], dtype=torch.long)
@@ -140,6 +164,13 @@ def collate_fn(
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
     position_ids = torch.cat(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
+    )
+    chain_ids = torch.cat(
+        [pad_1d_chain_ids_unsqueeze(i["chain_ids"], max_node_num) for i in items]
+    )
+
+    confidence = torch.cat(
+        [pad_1d_confidence_unsqueeze(i["confidence"], max_node_num) for i in items]
     )
 
     attn_bias = torch.cat(
@@ -183,6 +214,7 @@ def collate_fn(
         sample_in_validation
         and "edge_attr" in items[0]
         and items[0]["edge_attr"] is not None
+        and items[0]["sample_type"] != 6
     ):
         # add original edge information to recover the molecule
         max_num_edges = max(i["edge_attr"].size()[0] for i in items)
@@ -235,6 +267,8 @@ def collate_fn(
         num_atoms=num_atoms,
         is_stable_periodic=is_stable_periodic,
         position_ids=position_ids,
+        chain_ids=chain_ids,
+        confidence=confidence,
     )
 
     if preprocess_2d_bond_features_with_cuda:
@@ -257,11 +291,18 @@ def collate_fn(
         and "edge_attr" in items[0]
         and items[0]["edge_attr"] is not None
     ):
-        batched_data.update(
-            dict(
-                edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
+        if items[0]["sample_type"] != 6:
+            batched_data.update(
+                dict(
+                    edge_attr=edge_attr,
+                    edge_index=edge_index,
+                    num_edges=num_edges,
+                    idx=idx,
+                )
             )
-        )
         if "key" in items[0]:
             batched_data["key"] = [i["key"] for i in items]
+
+    if "data_name" in items[0]:
+        batched_data["data_name"] = [i["data_name"] for i in items]
     return batched_data

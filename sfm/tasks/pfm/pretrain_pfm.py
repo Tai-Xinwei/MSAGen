@@ -53,7 +53,7 @@ def main(args) -> None:
         vocab=trainset.vocab,
     )
 
-    model = PFMModel(args, loss_fn=ProteinPMLMMSA)
+    model = PFMModel(args, loss_fn=ProteinPMLMMSA, load_ckpt=True)
 
     optimizer, _ = myAdam(
         model,

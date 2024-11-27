@@ -25,7 +25,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000
+[ -z "${save_batch_interval}" ] && save_batch_interval=2000
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=10
 
@@ -257,7 +257,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      --unfreeze_param_list $unfreeze_param_list --learnable_cutoff $learnable_cutoff \
       ${MEGATRON_ARGS} ${load_ckpt} ${weighted_dataset}
+
+      # --unfreeze_param_list $unfreeze_param_list --learnable_cutoff $learnable_cutoff \
 
       # --model_type "$model_type" \

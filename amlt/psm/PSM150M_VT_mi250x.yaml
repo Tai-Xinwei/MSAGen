@@ -1,0 +1,103 @@
+# Amulet configuration file to run PSM training on AMD MI250x Singularity system
+
+description: PSM_AMD
+
+env_defaults:
+  NODES: 1
+  GPUS: 16
+  WANDB_API_KEY: ${WANDB_API_KEY}
+
+target:
+  service: sing
+  name: huashanvc4
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm/amd:20241015.130144
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+  setup:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+
+storage:
+  blob:
+    # storage_account_name: sfmarca100 # Storage account
+    # container_name: sfm # Container name
+    # mount_dir: /sfm
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: psm_amd_test
+  identity: managed
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS}-IB-xGMI
+  sla_tier: basic
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_TEAM=ai4s-sfm
+  - export wandb_group=psm_VT
+  - export wandb_project=psm_VT
+  - export wandb_key=${WANDB_API_KEY}
+  - mkdir ./output
+  - export path=run.sh
+  - export num_pred_attn_layer=4
+  - export layers=12
+  - export hidden_size=1024
+  - export ffn_size=4096
+  - export num_head=32
+  - export atom_loss_coeff=1.0
+  - export pos_loss_coeff=1.0
+  - export sandwich_ln="true"
+  - export dropout=0.0
+  - export attn_dropout=0.1
+  - export act_dropout=0.1
+  - export weight_decay=0.0
+  - export droppath_prob=0.0
+  - export mask_ratio=0.5
+  - export d_tilde=1.0
+  - export max_lr=2.0e-4
+  - export strategy=Zero1
+  - export pipeline_model_parallel_size=0
+  - export total_num_steps=1000
+  - export warmup_num_steps=1
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export max_tokens=16000
+  - export max_length=512
+  - export gradient_accumulation_steps=16
+  - export log_interval=10
+  - export data_path=/psm/data/
+  # - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
+  # - export dataset_name_list='pm6,mattersim,afdb,mattersim'
+  # - export dataset_split_raito='0.3,0.1,0.5,0.1'
+  # - export dataset_micro_batch_size='128,8,12,8'
+  - export data_path_list='matter-sim-15M-merged'
+  - export dataset_name_list='mattersim'
+  - export dataset_split_raito='1.0'
+  - export dataset_micro_batch_size='12'
+  # - export data_path_list='PubChemQC-B3LYP-PM6'
+  # - export dataset_name_list='pm6'
+  # - export dataset_split_raito='1.0'
+  # - export dataset_micro_batch_size='128'
+  - export fp16=False
+  - export use_unified_batch_sampler=True
+  - export use_dali_pipeline=False
+  - export clean_sample_ratio=0.5
+  # - export loadcheck_path=/psm/experiment/psm/psmv1_vt_v5_noenergy/checkpoints
+  # - export save_dir=/psm/experiment/psm/psmv1_vt_v5_noenergy/checkpoints
+  - export loadcheck_path='.'
+  - export save_dir='./output'
+  - export profiling=False
+  - export prof_dir=/psm/exp/eray/prof_mi250x/
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - bash ./scripts/psm/pretrain_psm_vanillatransformer_AMD.sh
+  submit_args:
+    env:
+      AMLT_DOCKERFILE_TEMPLATE: "none"

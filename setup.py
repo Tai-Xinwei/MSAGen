@@ -4,7 +4,6 @@ import subprocess
 import sys
 
 import numpy
-import setuptools_scm
 from Cython.Build import cythonize
 from setuptools import Extension, find_packages, setup
 from setuptools.command import egg_info
@@ -16,6 +15,8 @@ def fetch_requirements(path):
 
 
 try:
+    import setuptools_scm
+
     __version__ = setuptools_scm.get_version()
 except Exception:
     __version__ = "0.0.1"

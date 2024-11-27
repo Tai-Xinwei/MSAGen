@@ -14,16 +14,20 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
 
-from sfm.data.psm_data.pipeline import UnifiedBatchedIterableDataset
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
     BatchedDataDatasetForUnifiedSampler,
     UnifiedPSMDataset,
 )
 from sfm.logging import logger
-from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
+from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions, DiffProteaCriterions
 from sfm.models.psm.psm_config import PSMConfig
-from sfm.models.psm.psm_optimizer import DECAY_COSINE_RATE, WarmupDecayLR
+from sfm.models.psm.psm_optimizer import (
+    DECAY_COSINE_RATE,
+    WarmupDecayLR,
+    groupWarmupDecayLR,
+    myAdam,
+)
 
 try:
     from apex.optimizers import FusedAdam as AdamW
@@ -90,6 +94,8 @@ def main(args: DictConfig) -> None:
             args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
         )
     elif args.use_dali_pipeline:
+        from sfm.data.psm_data.pipeline import UnifiedBatchedIterableDataset
+
         train_data = UnifiedBatchedIterableDataset(args, train_data, dataset.train_len)
         valid_data = BatchedDataDatasetForUnifiedSampler(
             args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
@@ -116,24 +122,44 @@ def main(args: DictConfig) -> None:
             molecule_energy_per_atom_std = args.molecule_energy_per_atom_std_override
 
         def loss_fn(args):
-            return DiffMAE3dCriterions(
-                args,
-                dataset.molecule_energy_mean,
-                dataset.molecule_energy_std,
-                dataset.periodic_energy_mean,
-                dataset.periodic_energy_std,
-                dataset.molecule_energy_per_atom_mean,
-                molecule_energy_per_atom_std,
-                dataset.periodic_energy_per_atom_mean,
-                dataset.periodic_energy_per_atom_std,
-                dataset.molecule_force_mean,
-                dataset.molecule_force_std,
-                dataset.periodic_force_mean,
-                dataset.periodic_force_std,
-            )
+            if args.diffusion_mode == "protea":
+                return DiffProteaCriterions(
+                    args,
+                    dataset.molecule_energy_mean,
+                    dataset.molecule_energy_std,
+                    dataset.periodic_energy_mean,
+                    dataset.periodic_energy_std,
+                    dataset.molecule_energy_per_atom_mean,
+                    molecule_energy_per_atom_std,
+                    dataset.periodic_energy_per_atom_mean,
+                    dataset.periodic_energy_per_atom_std,
+                    dataset.molecule_force_mean,
+                    dataset.molecule_force_std,
+                    dataset.periodic_force_mean,
+                    dataset.periodic_force_std,
+                )
+            else:
+                return DiffMAE3dCriterions(
+                    args,
+                    dataset.molecule_energy_mean,
+                    dataset.molecule_energy_std,
+                    dataset.periodic_energy_mean,
+                    dataset.periodic_energy_std,
+                    dataset.molecule_energy_per_atom_mean,
+                    molecule_energy_per_atom_std,
+                    dataset.periodic_energy_per_atom_mean,
+                    dataset.periodic_energy_per_atom_std,
+                    dataset.molecule_force_mean,
+                    dataset.molecule_force_std,
+                    dataset.periodic_force_mean,
+                    dataset.periodic_force_std,
+                )
 
     else:
-        loss_fn = DiffMAE3dCriterions
+        if args.diffusion_mode == "protea":
+            loss_fn = DiffProteaCriterions
+        else:
+            loss_fn = DiffMAE3dCriterions
 
     model = PSMModel(
         args,
@@ -145,7 +171,15 @@ def main(args: DictConfig) -> None:
         periodic_force_std=dataset.periodic_force_std,
     )
     # define optimizer here
-    if args.fp16:
+    if args.group_optimizer:
+        optimizer = myAdam(
+            model,
+            lr=args.max_lr,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=args.weight_decay,
+        )
+    elif args.fp16:
         optimizer = AdamFP16(
             model.parameters(),
             distributed_strategy=args.strategy,
@@ -162,14 +196,24 @@ def main(args: DictConfig) -> None:
             eps=1e-8,
             weight_decay=args.weight_decay,
         )
-    lr_scheduler = WarmupDecayLR(
-        optimizer,
-        total_num_steps=args.total_num_steps,
-        warmup_max_lr=args.max_lr,
-        warmup_num_steps=args.warmup_num_steps,
-        decay_type=DECAY_COSINE_RATE,
-        d_tilde=args.d_tilde,
-    )
+
+    if args.group_optimizer:
+        lr_scheduler = groupWarmupDecayLR(
+            optimizer,
+            total_num_steps=args.total_num_steps,
+            warmup_max_lr=args.max_lr,
+            warmup_num_steps=args.warmup_num_steps,
+            decay_type=DECAY_COSINE_RATE,
+            d_tilde=args.group_lr_ratio,
+        )
+    else:
+        lr_scheduler = WarmupDecayLR(
+            optimizer,
+            total_num_steps=args.total_num_steps,
+            warmup_max_lr=args.max_lr,
+            warmup_num_steps=args.warmup_num_steps,
+            decay_type=DECAY_COSINE_RATE,
+        )
 
     if args.psm_validate_for_train_set and args.psm_validation_mode:
         valid_data = train_data

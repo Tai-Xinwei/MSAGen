@@ -1,6 +1,6 @@
 __pycache__
 .ruff_cache
-
+READY
 tdc_data
 
 # Build + installation data
@@ -204,3 +204,5 @@ log/
 
 bace/
 divided_data/
+
+*.whl

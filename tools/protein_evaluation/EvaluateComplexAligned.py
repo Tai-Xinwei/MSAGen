@@ -13,6 +13,10 @@ import tempfile
 import subprocess
 import sys
 import argparse
+from tqdm import tqdm
+
+from parallel_bust import do_parallel_bust
+from multiprocessing import cpu_count
 
 logger=logging.getLogger(__name__)
 
@@ -151,7 +155,7 @@ def main(sampled_folder, posebusters_folder, run_count, result_path, pocket_boun
     extra_info_global = {}
     with tempfile.NamedTemporaryFile(suffix=".csv", mode='w+') as busters_input:
         busters_input.write('name,mol_cond,mol_true,mol_pred\n')
-        for i in range(1, run_count+1):
+        for i in tqdm(range(1, run_count+1)):
             csvlines, extra_info = process_run_record(sampled_folder, posebusters_folder, i, pocket_boundary)
             for k, v in extra_info.items():
                 if k not in extra_info_global:
@@ -163,9 +167,8 @@ def main(sampled_folder, posebusters_folder, run_count, result_path, pocket_boun
         logging.info(f'Processed all {run_count} runs')
 
         # bust -t input.csv --full-report --outfmt csv > target.csv
-        logger.info(f'Running bust -t {busters_input.name} --full-report --outfmt csv > {result_path}')
-        with open(result_path, 'w') as f:
-            subprocess.run(['bust', '-t', busters_input.name, '--full-report', '--outfmt', 'csv'], stdout=f)
+        logger.info(f'Running posebuster csv {busters_input.name} to {result_path}')
+        do_parallel_bust(busters_input.name, result_path, cpu_count())
 
         # Append extra info
         with open(result_path, 'r') as f:
@@ -182,19 +185,20 @@ def main(sampled_folder, posebusters_folder, run_count, result_path, pocket_boun
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('sampled_folder', type=str, help='Folder containing the sampled complexes')
-    parser.add_argument('posebusters_folder', type=str, help='Folder containing the posebusters dataset')
-    parser.add_argument('run_count', type=int, help='Number of runs', default=1)
-    parser.add_argument('result_path', type=str, help='Path to save the result csv', default='result.csv')
-    parser.add_argument('pocket_boundary', type=int, help='Distance in Angstrom to consider atoms in the pocket. Set to -1 to use the whole protein', default=-1)
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('sampled_folder', type=str, help='Folder containing the sampled complexes')
+    # parser.add_argument('posebusters_folder', type=str, help='Folder containing the posebusters dataset')
+    # parser.add_argument('run_count', type=int, help='Number of runs', default=1)
+    # parser.add_argument('result_path', type=str, help='Path to save the result csv', default='result.csv')
+    # parser.add_argument('pocket_boundary', type=int, help='Distance in Angstrom to consider atoms in the pocket. Set to -1 to use the whole protein', default=-1)
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
-    sampled_folder = args.sampled_folder
-    posebusters_folder = args.posebusters_folder
-    run_count = args.run_count
-    result_path = args.result_path
-    pocket_boundary = args.pocket_boundary
+    # sampled_folder = args.sampled_folder
+    # posebusters_folder = args.posebusters_folder
+    # run_count = args.run_count
+    # result_path = args.result_path
+    # pocket_boundary = args.pocket_boundary
+    sampled_folder, posebusters_folder, run_count, result_path, pocket_boundary = sys.argv[1:6]
 
-    main(sampled_folder, posebusters_folder, run_count, result_path, pocket_boundary)
+    main(sampled_folder, posebusters_folder, int(run_count), result_path, int(pocket_boundary))

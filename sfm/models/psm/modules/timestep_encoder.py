@@ -99,12 +99,31 @@ class TimeStepSampler:
         time_step = torch.rand(size=(n_graph // 2 + 1,), device=device)
         time_step = torch.cat([time_step, 1.0 - time_step], dim=0)[:n_graph]
         time_step = time_step.to(dtype=dtype)
+
         clean_mask = torch.tensor(
             np.random.rand(n_graph) <= clean_sample_ratio,
             dtype=torch.bool,
             device=device,
         )
         return time_step, clean_mask
+
+    # def sample(self, n_graph, device, dtype, clean_sample_ratio: float = 0.0):
+    #     time_step = torch.randn(size=(n_graph,), device=device)
+    #     time_step = time_step.to(dtype=dtype)
+
+    #     time_step = torch.where(time_step < 0, time_step * 0.2, time_step * 0.25)
+    #     time_step = time_step + 0.4
+
+    #     time_backup = torch.rand(size=(n_graph,), device=device)
+    #     time_step = torch.where(
+    #         (time_step < 1e-4) | (time_step > 1), time_backup, time_step
+    #     )
+    #     clean_mask = torch.tensor(
+    #         np.random.rand(n_graph) <= clean_sample_ratio,
+    #         dtype=torch.bool,
+    #         device=device,
+    #     )
+    #     return time_step, clean_mask
 
     def get_continuous_time_step(self, t, n_graph, device, dtype):
         time_step = torch.zeros(
@@ -123,14 +142,20 @@ class DiffNoise(nn.Module):
         super(DiffNoise, self).__init__()
         self.psm_config = psm_config
 
-        assert psm_config.ddpm_schedule in ["linear", "quadratic", "sigmoid", "cosine"]
+        assert psm_config.ddpm_schedule in [
+            "linear",
+            "quadratic",
+            "sigmoid",
+            "cosine",
+            "sqrt",
+        ]
         (
             self.sqrt_alphas_cumprod,
             self.sqrt_one_minus_alphas_cumprod,
             self.alphas_cumprod,
             self.beta_list,
         ) = self._beta_schedule(
-            psm_config.num_timesteps + 1,
+            psm_config.num_timesteps,
             psm_config.ddpm_beta_start,
             psm_config.ddpm_beta_end,
             psm_config.ddpm_schedule,
@@ -150,6 +175,10 @@ class DiffNoise(nn.Module):
         elif schedule_type == "sigmoid":
             betas = torch.linspace(-6, 6, num_timesteps)
             beta_list = torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
+        elif schedule_type == "sqrt":
+            x = 1 - torch.sqrt(torch.linspace(0, 1, num_timesteps + 1) + 0.0001)
+            beta_list = 1 - x[1:] / x[:-1]
+            beta_list[beta_list > 0.999] = 0.999
         elif schedule_type == "cosine":
             s = 0.008
             steps = num_timesteps + 1
@@ -186,6 +215,196 @@ class DiffNoise(nn.Module):
             return out.reshape(batch_size, L, *((1,) * (len(x_shape) - 2))).to(t.device)
         else:
             raise Exception(f"t shape: {t.shape} not supported")
+
+    def _noise_lattice_vectors(self, pos, non_atom_mask, noise, is_stable_periodic):
+        n_graphs = pos[is_stable_periodic].size()[0]
+        device = pos.device
+        if self.psm_config.use_fixed_init_lattice_size:
+            lattice_corner_noise_scale = self.unit_noise_scale
+        else:
+            lattice_corner_noise_scale = (
+                self.psm_config.periodic_lattice_diffusion_noise_std
+            )
+        lattice_corner_noise = (
+            torch.randn(
+                [n_graphs, 8, 3],
+                device=device,
+                dtype=pos.dtype,
+                generator=self.torch_generator,
+            )
+            * lattice_corner_noise_scale
+        )
+        corner_noise = lattice_corner_noise[:, 0, :]
+        gather_index = (
+            torch.tensor([0, 4, 2, 1], device=device, dtype=torch.long)
+            .unsqueeze(0)
+            .unsqueeze(-1)
+            .repeat([n_graphs, 1, 3])
+        )
+        lattice_vector_noise = torch.gather(
+            lattice_corner_noise, index=gather_index, dim=1
+        )[:, 1:, :] - corner_noise.unsqueeze(1)
+        cell_matrix = torch.tensor(
+            [
+                [0, 0, 0],
+                [0, 0, 1],
+                [0, 1, 0],
+                [0, 1, 1],
+                [1, 0, 0],
+                [1, 0, 1],
+                [1, 1, 0],
+                [1, 1, 1],
+            ],
+            dtype=pos.dtype,
+            device=device,
+        )
+        corner_noise = torch.matmul(
+            cell_matrix, lattice_vector_noise
+        ) + corner_noise.unsqueeze(1)
+        corner_noise_center = (corner_noise[:, 0, :] + corner_noise[:, -1, :]) / 2.0
+        corner_noise -= corner_noise_center.unsqueeze(1)
+        num_atoms = torch.sum(~non_atom_mask[is_stable_periodic], dim=-1).long()
+        scatter_index = torch.arange(8, device=device).unsqueeze(0).unsqueeze(
+            -1
+        ).repeat([n_graphs, 1, 3]) + num_atoms.unsqueeze(-1).unsqueeze(-1)
+        noise[is_stable_periodic] = noise[is_stable_periodic].scatter(
+            1, scatter_index, corner_noise
+        )
+        return noise
+
+    def get_noise(self, pos, non_atom_mask, is_stable_periodic):
+        if self.torch_generator is None:
+            self.torch_generator = torch.Generator(device=pos.device)
+            self.torch_generator.manual_seed(dist.get_rank())
+        noise = (
+            torch.randn(
+                pos.size(),
+                device=pos.device,
+                dtype=pos.dtype,
+                generator=self.torch_generator,
+            )
+            * self.unit_noise_scale
+        )
+        # for non-cell corner nodes (atoms in molecules, amino acids in proteins and atoms in materials)
+        # use zero-centered noise
+        noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+        noise_center = noise.sum(dim=1, keepdim=True) / torch.sum(
+            (~non_atom_mask).long(), dim=-1
+        ).unsqueeze(-1).unsqueeze(-1)
+        noise[~is_stable_periodic] -= noise_center[~is_stable_periodic]
+        noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+        # for cell corner nodes (the noise is centered so that the noised cell is centered at the original point)
+        noise = self._noise_lattice_vectors(
+            pos, non_atom_mask, noise, is_stable_periodic
+        )
+
+        if (
+            self.psm_config.use_adaptive_noise_std_for_periodic
+            and is_stable_periodic.any()
+        ):
+            num_atoms = torch.sum(~non_atom_mask, dim=-1).long()
+            # periodic noise scale for atoms is fitting from training set of material structures, following the formula of $k \times N^{1 / 3.0}$
+            periodic_noise = (
+                torch.randn_like(pos)
+                * self.psm_config.periodic_diffusion_noise_std_factor
+                * (num_atoms.unsqueeze(-1).unsqueeze(-1) ** (1 / 3.0))
+            )
+            mask = is_stable_periodic[:, None] & (~non_atom_mask)
+            noise = torch.where(mask.unsqueeze(-1), periodic_noise, noise)
+
+        return noise
+
+    def get_sampling_start(self, init_pos, non_atom_mask, is_stable_periodic):
+        noise = self.get_noise(init_pos, non_atom_mask, is_stable_periodic)
+        return init_pos + noise
+
+    def noise_sample(
+        self,
+        x_start,
+        t,
+        non_atom_mask: Tensor,
+        is_stable_periodic: Tensor,
+        x_init=None,
+        clean_mask: Optional[Tensor] = None,
+    ):
+        t = (t * (self.psm_config.num_timesteps - 1)).long()
+        noise = self.get_noise(x_start, non_atom_mask, is_stable_periodic)
+
+        sqrt_alphas_cumprod_t = self._extract(
+            self.sqrt_alphas_cumprod, t, x_start.shape
+        )
+        sqrt_one_minus_alphas_cumprod_t = self._extract(
+            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
+        )
+
+        if x_init is None:
+            x_t = (
+                sqrt_alphas_cumprod_t * x_start
+                + sqrt_one_minus_alphas_cumprod_t * noise
+            )
+        else:
+            x_t = (
+                sqrt_alphas_cumprod_t * (x_start - x_init)
+                + sqrt_one_minus_alphas_cumprod_t * noise
+                + x_init
+            )
+
+        if clean_mask is not None:
+            if len(clean_mask.shape) == 1:
+                x_t = torch.where(clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_t)
+            elif len(clean_mask.shape) == 2:
+                x_t = torch.where(clean_mask.unsqueeze(-1), x_start, x_t)
+            else:
+                raise ValueError(
+                    f"clean_mask should be [B] or [B, L] tensor, but it's shape is {clean_mask.shape}"
+                )
+
+        return x_t, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
+
+    # Here, t is time point in (0, 1]
+    def _angle_noise_sample(self, x_start, t):
+        T = t
+        # T = t / 1000.0
+        T = T.unsqueeze(-1).unsqueeze(-1)
+
+        beta_min = 0.01 * torch.pi
+        beta_max = 1.0 * torch.pi
+
+        sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
+
+        noise = torch.randn_like(x_start) * sigma
+
+        return x_start + noise, noise, sigma
+
+
+class NoiseStepSamplerEDM:
+    def __init__(self):
+        pass
+
+    def sample(self, n_graph, device, dtype, clean_sample_ratio: float = 0.0):
+        noise_step = torch.randn((n_graph,), dtype=dtype, device=device)
+        clean_mask = torch.tensor(
+            np.random.rand(n_graph) <= clean_sample_ratio,
+            dtype=torch.bool,
+            device=device,
+        )
+
+        return noise_step, clean_mask
+
+
+class DiffNoiseEDM(nn.Module):
+    def __init__(self, psm_config: PSMConfig):
+        super(DiffNoiseEDM, self).__init__()
+        self.psm_config = psm_config
+
+        self.unit_noise_scale = psm_config.diffusion_noise_std
+
+        self.P_mean = psm_config.edm_P_mean
+        self.P_std = psm_config.edm_P_std
+        self.sigma_data = psm_config.edm_sigma_data
+        self.S_max = psm_config.edm_sample_S_max
+
+        self.torch_generator = None
 
     def _noise_lattice_vectors(self, pos, non_atom_mask, noise, is_stable_periodic):
         n_graphs = pos[is_stable_periodic].size()[0]
@@ -266,65 +485,86 @@ class DiffNoise(nn.Module):
 
     def get_sampling_start(self, init_pos, non_atom_mask, is_stable_periodic):
         noise = self.get_noise(init_pos, non_atom_mask, is_stable_periodic)
-        return init_pos + noise
+        return init_pos + noise * self.sigma_data * self.S_max
 
     def noise_sample(
         self,
         x_start,
-        t,
+        noise_step,
         non_atom_mask: Tensor,
         is_stable_periodic: Tensor,
         x_init=None,
         clean_mask: Optional[Tensor] = None,
     ):
-        t = (t * self.psm_config.num_timesteps).long()
+        # rnd_normal = torch.randn(
+        #     (x_start.shape[0],) + (1,) * (len(x_start.shape) - 1), device=x_start.device
+        # )
+        rnd_normal = noise_step
+        sigma = self.sigma(rnd_normal).unsqueeze(-1)
+        weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
         noise = self.get_noise(x_start, non_atom_mask, is_stable_periodic)
-
-        sqrt_alphas_cumprod_t = self._extract(
-            self.sqrt_alphas_cumprod, t, x_start.shape
-        )
-        sqrt_one_minus_alphas_cumprod_t = self._extract(
-            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
-        )
-
-        if x_init is None:
-            x_t = (
-                sqrt_alphas_cumprod_t * x_start
-                + sqrt_one_minus_alphas_cumprod_t * noise
-            )
-        else:
-            x_t = (
-                sqrt_alphas_cumprod_t * (x_start - x_init)
-                + sqrt_one_minus_alphas_cumprod_t * noise
-                + x_init
-            )
-
+        n = sigma * noise
+        x_noised = x_start + n  ## NOTE: x_init have no effect on EDM
         if clean_mask is not None:
             if len(clean_mask.shape) == 1:
-                x_t = torch.where(clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_t)
+                x_noised = torch.where(
+                    clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_noised
+                )
             elif len(clean_mask.shape) == 2:
-                x_t = torch.where(clean_mask.unsqueeze(-1), x_start, x_t)
+                x_noised = torch.where(clean_mask.unsqueeze(-1), x_start, x_noised)
             else:
                 raise ValueError(
                     f"clean_mask should be [B] or [B, L] tensor, but it's shape is {clean_mask.shape}"
                 )
+        return x_noised, noise, sigma, weight
 
-        return x_t, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
+    def precondition(self, sigma):
+        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
+        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
+        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
+        c_noise = (sigma / self.sigma_data).log() / 4
+        return c_skip, c_out, c_in, c_noise
 
-    # Here, t is time point in (0, 1]
-    def _angle_noise_sample(self, x_start, t):
-        T = t
-        # T = t / 1000.0
-        T = T.unsqueeze(-1).unsqueeze(-1)
+    def sigma(self, rand_normal):
+        ## NOTE:There is no sigma_data in EDM but it is used for AF3
+        return self.sigma_data * (rand_normal * self.P_std + self.P_mean).exp()
 
-        beta_min = 0.01 * torch.pi
-        beta_max = 1.0 * torch.pi
 
-        sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
+class PositionalEmbeddingEDM(torch.nn.Module):
+    def __init__(self, num_channels, max_positions=10000, endpoint=False):
+        super(PositionalEmbeddingEDM, self).__init__()
+        self.num_channels = num_channels
+        self.max_positions = max_positions
+        self.endpoint = endpoint
 
-        noise = torch.randn_like(x_start) * sigma
+    def forward(self, x):
+        freqs = torch.arange(
+            start=0, end=self.num_channels // 2, dtype=torch.float32, device=x.device
+        )
+        freqs = freqs / (self.num_channels // 2 - (1 if self.endpoint else 0))
+        freqs = (1 / self.max_positions) ** freqs
+        x = x.ger(freqs.to(x.dtype))
+        x = torch.cat([x.cos(), x.sin()], dim=1)
+        return x
 
-        return x_start + noise, noise, sigma
+
+class FourierEmbeddingAF3(torch.nn.Module):
+    def __init__(self, num_channels):
+        super(FourierEmbeddingAF3, self).__init__()
+        self.num_channels = num_channels
+        self.proj = nn.Linear(1, num_channels, dtype=torch.float64)
+        self.proj.requires_grad_(False)
+        self.noise_proj = nn.Sequential(
+            nn.LayerNorm(num_channels),
+            nn.Linear(num_channels, num_channels, bias=False),
+        )
+
+    def forward(self, x):
+        x = x.unsqueeze(-1)
+        x = self.proj(x.to(self.proj.weight.dtype))
+        embedding = torch.cos(2 * torch.pi * x).to(self.noise_proj[0].weight.dtype)
+        embedding = self.noise_proj(embedding)
+        return embedding
 
 
 if __name__ == "__main__":

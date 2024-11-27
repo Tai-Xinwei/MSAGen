@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import select
 import zlib
 from functools import lru_cache
 
@@ -84,15 +85,22 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         #         max_sizes=self.args.max_length - 2,
         #     )
 
-        self.atomic_ref_energy_tensor = self.get_atomic_ref_energy_tensor(
-            args.molecule_ref_energy_source,
-            args.data_path,
-            args.molecule_outlier_energy_atoms,
-        )
+        try:
+            self.atomic_ref_energy_tensor = self.get_atomic_ref_energy_tensor(
+                args.molecule_ref_energy_source,
+                args.data_path,
+                args.molecule_outlier_energy_atoms,
+            )
 
-        self.energy_per_atom_scale = self.get_energy_per_atom_scale(
-            getattr(args, "energy_per_atom_label_scale", None)
-        )
+            self.energy_per_atom_scale = self.get_energy_per_atom_scale(
+                getattr(args, "energy_per_atom_label_scale", None)
+            )
+        except:
+            logger.warning(
+                "Failed to load atomic reference energy tensor and energy per atom scale"
+            )
+            self.atomic_ref_energy_tensor = None
+            self.energy_per_atom_scale = None
 
     def _ensure_init_db(self):
         if self._env is not None:
@@ -206,7 +214,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self._ensure_init_db()
         return self._keys
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, validation_ratio=0.001, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -289,21 +297,23 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             data["energy_per_atom"] = (
                 torch.tensor(total_energy) - reference_energy
             ) / data["num_atoms"]
+            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
 
             if self.energy_per_atom_scale is not None:
                 data["energy_per_atom"] *= self.energy_per_atom_scale
         else:
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+            data["has_energy"] = torch.tensor([0], dtype=torch.bool)
 
         has_forces = data.get("forces") is not None
         if has_forces:
             data["forces"] = torch.tensor(data["forces"], dtype=torch.float64)
+            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
         else:
             data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
+            data["has_forces"] = torch.tensor([0], dtype=torch.bool)
 
-        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([has_forces], dtype=torch.bool)
         data = self.generate_2dgraphfeat(data)
 
         data["is_stable_periodic"] = False
@@ -457,6 +467,54 @@ class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
         return x
 
 
+class GEOMDataset(MoleculeLMDBDataset):
+    def __init__(self, args, path, version=None, keys=None, sizes=None):
+        assert os.path.exists(path)
+        super().__init__(args, path, keys=keys, sizes=sizes)
+        self.filter_indices_by_size(
+            indices=np.array(range(len(self.keys))),
+            max_sizes=128,
+        )
+
+    @classmethod
+    def _open_db(cls, lmdb_path):
+        env = lmdb.open(
+            str(lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        txn = env.begin(write=False)
+        metadata = pkl.loads(txn.get("metadata".encode()))
+        keys = metadata["keys"]
+        sizes = metadata["sizes"]
+        return env, txn, keys, sizes
+
+    def _ensure_init_db(self):
+        if self._env is not None:
+            return
+        self._env, self._txn, self._keys, self._sizes = self._open_db(self.lmdb_path)
+
+    def raw(self, idx: Union[int, np.integer]) -> Data:
+        x = super().raw(idx)
+        x["node_feat"] = np.array(x["node_feat"]).reshape(-1, 9)
+        x["coords"] = np.array(x["coords"]).reshape(-1, 3)
+        x["num_nodes"] = len(x["node_feat"])
+        assert x["num_nodes"] == len(x["node_feat"]) == len(x["coords"])
+
+        forces = x.get("forces")
+        if forces is not None:
+            x["forces"] = np.array(forces).reshape(-1, 3)
+            assert x["num_nodes"] == len(x["forces"])
+
+        x["edge_index"] = np.array(x["edge_index"]).reshape(2, -1)
+        x["edge_feat"] = np.array(x["edge_feat"]).reshape(-1, 3)
+        assert x["edge_index"].shape[1] == x["edge_feat"].shape[0]
+        return x
+
+
 class PM6FullLMDBDataset(MoleculeLMDBDataset):
     latest_version = "20240527.1"
     energy_mean: float = -42774.16038176129
@@ -547,6 +605,7 @@ class SmallMolDataset(FoundationModelDataset):
                 raise ValueError(
                     "sorry, when using pubchem the basis should be def2-tzvp"
                 )
+        self.data_name = data_name
         (
             self.atom_reference,
             self.system_ref,
@@ -647,6 +706,7 @@ class SmallMolDataset(FoundationModelDataset):
             * self.unit,  # this is used from model training, mean/ref is removed.
             "has_energy": torch.tensor([self.has_energy], dtype=torch.bool),
             "has_forces": torch.tensor([self.has_forces], dtype=torch.bool),
+            "data_name": self.data_name,
         }
         if self.is_pbc:
             cell_corner_pos_matrix = torch.tensor(
@@ -737,11 +797,11 @@ class SmallMolDataset(FoundationModelDataset):
                 "has_energy",
                 "has_forces",
                 "sample_type",
+                "data_name",
             ]:
-                out[key] = torch.tensor(out[key], dtype=torch.float32)
+                out[key] = out[key].clone().detach().float()
 
         out = self.generate_2dgraphfeat(out)
-
         return out
 
     def generate_2dgraphfeat(self, data):
@@ -981,6 +1041,14 @@ class MatterSimDataset:
         cell = cell[best_permutation] * np.array(best_lattice_flip_sign)[:, None]
         return pbc, cell
 
+    def decompose_cell_into_symmetric_lattice_vectors(self, cell, pos):
+        cell = cell.T
+        U, S, Vh = np.linalg.svd(cell)
+        rot = np.matmul(U, Vh)
+        new_cell = np.matmul(np.matmul(Vh.T, np.diag(S)), Vh).T
+        new_pos = np.matmul(rot.T, pos.T).T
+        return new_cell, new_pos
+
     # energy and std calculated over training part of the dataset
     @property
     def energy_mean(self):
@@ -1014,7 +1082,11 @@ class MatterSimDataset:
             key = self.index_to_key_name[idx]
             data = pkl.loads(self.data_txn.get(key.encode()))
 
-        if self.data_path.find("force-filtered") != -1:
+        if (
+            self.data_path.find("force-filtered") != -1
+            and self.dataset_type
+            != "single structure file"  # we assume that single structure file is not used for diffusion
+        ):
             is_stable_periodic = True
         else:
             is_stable_periodic = False | self.add_unit_cell_virtual_node
@@ -1035,17 +1107,24 @@ class MatterSimDataset:
         positions = data.pop("positions")
 
         data["sample_type"] = 1
-        data["coords"] = torch.tensor(positions, dtype=torch.float64)
         data["token_type"] = x
         data["idx"] = idx
 
         if is_stable_periodic:
+            (
+                data["cell"],
+                positions,
+            ) = self.decompose_cell_into_symmetric_lattice_vectors(
+                data["cell"], positions
+            )
             data["pbc"], data["cell"] = self.switch_lattice_vectors(
                 data["pbc"], data["cell"]
             )
 
         data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
         data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
+
+        data["coords"] = torch.tensor(positions, dtype=torch.float64)
 
         if is_stable_periodic:
             cell_corner_pos_matrix = torch.tensor(
@@ -1067,20 +1146,9 @@ class MatterSimDataset:
                 [data["coords"], cell_corner_pos], dim=0
             )  # expand pos with cell corners
 
-        if "forces" not in data and "energy" not in data and "stress" not in data:
-            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
-            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
-            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
-            if is_stable_periodic:
-                data["forces"] = torch.zeros(
-                    [data["num_atoms"] + 8, 3], dtype=torch.float64
-                )
-            else:
-                data["forces"] = torch.zeros(
-                    [data["num_atoms"], 3], dtype=torch.float64
-                )
-        else:
-            if is_stable_periodic:
+        # get forces
+        if is_stable_periodic:
+            if "forces" in data:
                 data["forces"] = torch.cat(
                     [
                         (
@@ -1092,10 +1160,21 @@ class MatterSimDataset:
                     dim=0,
                 )  # expand forces for cell corners
             else:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"] + 8, 3], dtype=torch.float64
+                )
+        else:
+            if "forces" in data:
                 data["forces"] = torch.tensor(
                     data["forces"] - self.force_mean, dtype=torch.float64
                 )
+            else:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"], 3], dtype=torch.float64
+                )
 
+        # get energy
+        if "info" in data and "energy" in data["info"]:
             data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
             data["energy_per_atom"] = torch.tensor(
                 [
@@ -1105,7 +1184,15 @@ class MatterSimDataset:
                     )
                 ]
             )
+        else:
+            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+
+        # get stress
+        if "info" in data and "stress" in data["info"]:
             data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+        else:
+            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
 
         if self.args.rescale_loss_with_std:
             data["energy"] = data["energy"] / self.energy_std
@@ -1258,6 +1345,28 @@ class AFDBLMDBDataset(FoundationModelDataset):
             self._init_db()
         return self._keys
 
+    def crop_spatial(self, data):
+        if len(data["pos"].shape) == 3:
+            coords = data["pos"][:, 1, :]
+        elif len(data["pos"].shape) == 2:
+            coords = data["pos"]
+        else:
+            raise ValueError(f"Invalid shape of data['pos']: {data['pos'].shape}")
+
+        confidence = data["confidence"]
+
+        indices = np.arange(coords.shape[0])
+        nonNan_indices = indices[confidence > self.args.plddt_threshold]
+        if nonNan_indices.shape[0] <= self.args.max_length:
+            return nonNan_indices
+
+        c_index = np.random.choice(nonNan_indices)
+
+        d = np.linalg.norm(coords[nonNan_indices] - coords[c_index], axis=-1)
+        cutoff = np.partition(d, self.args.max_length - 1)[self.args.max_length - 1]
+        selected_indices = nonNan_indices[d <= cutoff]
+        return selected_indices
+
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
         value = self.txn.get(key.encode())
@@ -1265,16 +1374,38 @@ class AFDBLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
-            coords = data["pos"][
-                random_start : random_start + self.args.max_length, 1, :
-            ]
+            if np.random.rand() < 0.25:
+                random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+                data["aa"] = data["aa"][
+                    random_start : random_start + self.args.max_length
+                ]
+                coords = data["pos"][
+                    random_start : random_start + self.args.max_length, 1, :
+                ]
+                confidence = data["confidence"][
+                    random_start : random_start + self.args.max_length
+                ]
+                position_ids = range(
+                    random_start_pos_id + random_start,
+                    random_start_pos_id + random_start + self.args.max_length,
+                )
+            else:
+                selected_idx = self.crop_spatial(data)
+                data["aa"] = data["aa"][selected_idx]
+                coords = data["pos"][selected_idx, 1, :]
+                confidence = data["confidence"][selected_idx]
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"][:, 1, :]
+            confidence = data["confidence"]
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1285,6 +1416,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         coords = torch.tensor(coords, dtype=torch.float64)
         data["coords"] = coords
+        data["confidence"] = torch.tensor(confidence, dtype=torch.float64)
         data["num_atoms"] = x.size()[0]
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
@@ -1300,6 +1432,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -1307,7 +1440,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         return data
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, validation_ratio=0.001, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -1443,14 +1576,61 @@ class ESMDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        random_start_pos_id = np.random.randint(0, 2000)
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
-            coords = data["pos"][random_start : random_start + self.args.max_length, :]
+            # if np.random.rand() < 0.25:
+            #     confidence = data["confidence"]
+            #     indices = np.arange(confidence.shape[0])
+            #     nonNan_indices = indices[confidence > 60]
+
+            #     # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            #     random_center = np.random.choice(nonNan_indices)
+            #     random_start = random_center - self.args.max_length // 2
+            #     if random_start > len(data["aa"]) - self.args.max_length:
+            #         random_start = len(data["aa"]) - self.args.max_length
+            #     elif random_start < 0:
+            #         random_start = 0
+
+            #     data["aa"] = data["aa"][
+            #         random_start : random_start + self.args.max_length
+            #     ]
+            #     coords = data["pos"][
+            #         random_start : random_start + self.args.max_length, :
+            #     ]
+            #     confidence = data["confidence"][
+            #         random_start : random_start + self.args.max_length
+            #     ]
+            #     position_ids = range(random_start, random_start + self.args.max_length)
+            if np.random.rand() < 0.25:
+                random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+                data["aa"] = data["aa"][
+                    random_start : random_start + self.args.max_length
+                ]
+                coords = data["pos"][
+                    random_start : random_start + self.args.max_length, :
+                ]
+                confidence = data["confidence"][
+                    random_start : random_start + self.args.max_length
+                ]
+                position_ids = range(
+                    random_start + random_start_pos_id,
+                    random_start + random_start_pos_id + self.args.max_length,
+                )
+            else:
+                selected_idx = self.crop_spatial(data)
+                data["aa"] = data["aa"][selected_idx]
+                coords = data["pos"][selected_idx, :]
+                confidence = data["confidence"][selected_idx]
+                position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"]
+            confidence = data["confidence"]
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1461,6 +1641,7 @@ class ESMDataset(AFDBLMDBDataset):
 
         coords = torch.tensor(coords, dtype=torch.float64)
         data["coords"] = coords
+        data["confidence"] = torch.tensor(confidence, dtype=torch.float64)
         data["num_atoms"] = x.size()[0]
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
@@ -1476,6 +1657,113 @@ class ESMDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+
+class MGnifyDataset(AFDBLMDBDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
+    ):
+        version = "mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb"
+        if lmdb_path.find(version) == -1:
+            self.lmdb_path = os.path.join(lmdb_path, version)
+        else:
+            self.lmdb_path = lmdb_path
+        self.args = args
+
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+        if keys is not None:
+            self._env = lmdb.open(
+                str(self.lmdb_path),
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self._txn = self._env.begin(write=False)
+            self._keys = keys
+            self._sizes = sizes
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = bstr2obj(value)
+
+        random_start_pos_id = np.random.randint(0, 2000)
+
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            if np.random.rand() < 0.25:
+                random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+                data["aa"] = data["aa"][
+                    random_start : random_start + self.args.max_length
+                ]
+                coords = data["pos"][
+                    random_start : random_start + self.args.max_length, :
+                ]
+                confidence = data["confidence"][
+                    random_start : random_start + self.args.max_length
+                ]
+                position_ids = range(
+                    random_start + random_start_pos_id,
+                    random_start + random_start_pos_id + self.args.max_length,
+                )
+            else:
+                selected_idx = self.crop_spatial(data)
+                data["aa"] = data["aa"][selected_idx]
+                coords = data["pos"][selected_idx, :]
+                confidence = data["confidence"][selected_idx]
+                position_ids = selected_idx + random_start_pos_id
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"]
+            confidence = data["confidence"]
+            position_ids = range(
+                random_start_pos_id, random_start_pos_id + len(data["aa"])
+            )
+
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+
+        data["sample_type"] = 2
+        data["token_type"] = x
+        data["idx"] = idx
+
+        coords = torch.tensor(coords, dtype=torch.float64)
+        data["coords"] = coords
+        data["confidence"] = torch.tensor(confidence, dtype=torch.float64)
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -1493,12 +1781,33 @@ class PDBDataset(AFDBLMDBDataset):
         keys: Optional[List[str]] = None,
         sizes: Optional[List[int]] = None,
     ):
-        # version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
-        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.protein_chain.lmdb"
+        version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
+        # version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.protein_chain.lmdb"
         testflag = "ProteinTest"
         if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
+
+    def crop_spatial(self, data):
+        if len(data["pos"].shape) == 3:
+            coords = data["pos"][:, 1, :]
+        elif len(data["pos"].shape) == 2:
+            coords = data["pos"]
+        else:
+            raise ValueError(f"Invalid shape of data['pos']: {data['pos'].shape}")
+
+        indices = np.arange(coords.shape[0])
+        # get non nan index
+        nonNan_indices = indices[~np.isnan(coords).any(axis=1)]
+        if nonNan_indices.shape[0] <= self.args.max_length:
+            return nonNan_indices
+
+        c_index = np.random.choice(nonNan_indices)
+
+        d = np.linalg.norm(coords[nonNan_indices] - coords[c_index], axis=-1)
+        cutoff = np.partition(d, self.args.max_length - 1)[self.args.max_length - 1]
+        selected_indices = nonNan_indices[d <= cutoff]
+        return selected_indices
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
@@ -1509,12 +1818,27 @@ class PDBDataset(AFDBLMDBDataset):
 
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
-            coords = data["pos"][random_start : random_start + self.args.max_length, :]
+            # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            # data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            # coords = data["pos"][random_start : random_start + self.args.max_length, :]
+            if np.random.rand() < 0.5:
+                random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+                data["aa"] = data["aa"][
+                    random_start : random_start + self.args.max_length
+                ]
+                coords = data["pos"][
+                    random_start : random_start + self.args.max_length, :
+                ]
+                position_ids = range(random_start, random_start + self.args.max_length)
+            else:
+                selected_idx = self.crop_spatial(data)
+                data["aa"] = data["aa"][selected_idx]
+                coords = data["pos"][selected_idx, :]
+                position_ids = selected_idx
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"][:, :]
+            position_ids = range(0, len(data["aa"]))
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1525,6 +1849,9 @@ class PDBDataset(AFDBLMDBDataset):
         data["key"] = key
 
         coords = torch.tensor(coords, dtype=torch.float64)
+
+        N = data["token_type"].shape[0]
+        data["confidence"] = -1.0 * torch.ones(N, dtype=torch.float64)
 
         data["coords"] = coords
         data["num_atoms"] = x.size()[0]
@@ -1542,6 +1869,7 @@ class PDBDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -1706,7 +2034,7 @@ class UR50LMDBDataset(FoundationModelDataset):
 
         return data
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, validation_ratio=0.01, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -1842,8 +2170,16 @@ class PDBComplexDataset(AFDBLMDBDataset):
         keys: Optional[List[str]] = None,
         sizes: Optional[List[int]] = None,
     ):
-        version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
+        # version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs_rmfarlig_complexonly.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.rmfarligfull.lmdb"
+        # version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
+        version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
         testflag = "ComplexTest"
+
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
         self.ligand_crop_size = args.ligand_crop_size
@@ -1852,6 +2188,12 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
+
+        if lmdb_path.find(testflag) != -1:
+            self.sample_mode = True
+        else:
+            self.sample_mode = False
+
         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
     def _init_db(self):
@@ -1891,15 +2233,17 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 # pick random ligand from non-polymer to choose crop center
                 center_ligand_idx = random.choice(range(len(non_polymers)))
                 crop_center_ligand = non_polymers[center_ligand_idx]["node_coord"]
-                keep_num = self.max_residue_num - len(crop_center_ligand)
+                # keep_num = self.max_residue_num - len(crop_center_ligand)
                 # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
                 crop_center_ligand = crop_center_ligand[
                     np.any(~np.isnan(crop_center_ligand), axis=-1)
                 ]
                 crop_center = random.choice(crop_center_ligand)
+                # add a noise
+                crop_center += np.random.normal(0, 5, crop_center.shape)
             else:
                 center_ligand_idx = -1
-                keep_num = self.max_residue_num
+                # keep_num = self.max_residue_num
                 # pick random polymer from non-polymer to choose crop center
                 polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
                 chain_name = polymer_chains_idxes[polymer_chains_idx]
@@ -1912,7 +2256,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             self.iter_flag = not self.iter_flag
         elif len(polymer_chains_idxes) > 0:
             center_ligand_idx = -1
-            keep_num = self.max_residue_num
+            # keep_num = self.max_residue_num
             # pick random polymer from non-polymer to choose crop center
             polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
             chain_name = polymer_chains_idxes[polymer_chains_idx]
@@ -1928,21 +2272,21 @@ class PDBComplexDataset(AFDBLMDBDataset):
             )
 
         # crop the complex and multimers
-        cropped_chain_idxes_list, center_ligand_idx = spatial_crop_psm(
+        cropped_chain_idxes_list, candidate_ligand_idx_list = spatial_crop_psm(
             polymer_chains,
             non_polymers,
             polymer_chains_idxes,
             self.crop_radius,
             center_ligand_idx,
             crop_center,
-            ligand_crop_size=self.ligand_crop_size,
-            keep_num=keep_num,
+            ligand_buffer=5,
+            keep_num=self.max_residue_num,
         )
 
         # reconstruct the graph
         data = self._reconstruct_graph(
             cropped_chain_idxes_list,
-            center_ligand_idx,
+            candidate_ligand_idx_list,
             polymer_chains,
             non_polymers,
         )
@@ -1952,7 +2296,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
     def _reconstruct_graph(
         self,
         cropped_chain_idxes_list,
-        center_ligand_idx,
+        candidate_ligand_idx_list,
         polymer_chains,
         non_polymers,
     ):
@@ -1962,9 +2306,16 @@ class PDBComplexDataset(AFDBLMDBDataset):
         token_type = []
         coords = []
         position_ids = []
-        start_position_ids = 0
+        chain_ids = []
+
+        start_position_ids = np.random.randint(0, 2000)
         polymer_len = 0
+
         # reconstruct the polymer chains
+
+        # shuffle the chain order
+        random.shuffle(cropped_chain_idxes_list)
+
         for idx, chain in enumerate(cropped_chain_idxes_list):
             chain_name = chain["chain_name"]
             cropped_chain_idxes = chain["cropped_chain_idxes"]
@@ -1972,37 +2323,21 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
             # rescontruct the residue sequence
             crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
-            if idx == len(cropped_chain_idxes_list) - 1:
-                token_type.extend(crop_chain)
-            else:
-                token_type.extend(crop_chain + ["."])
+            token_type.extend(crop_chain)
 
-            # rescontruct the coords
-            if idx == len(cropped_chain_idxes_list) - 1:
-                crop_coords = chain["center_coord"][cropped_chain_idxes]
-            else:
-                crop_coords = np.concatenate(
-                    [
-                        chain["center_coord"][cropped_chain_idxes],
-                        np.zeros((1, 3)),
-                    ],
-                    axis=0,
-                )
+            crop_coords = chain["center_coord"][cropped_chain_idxes]
             coords.append(crop_coords)
 
             # build discontinuous position ids for rope
-            if idx == len(cropped_chain_idxes_list) - 1:
-                position_ids.extend(
-                    range(start_position_ids, start_position_ids + len(crop_chain))
-                )
-                start_position_ids = start_position_ids + len(crop_chain) + 1000
-                polymer_len += len(crop_chain)
-            else:
-                position_ids.extend(
-                    range(start_position_ids, start_position_ids + len(crop_chain) + 1)
-                )
-                start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
-                polymer_len += len(crop_chain) + 1
+            position_ids.extend(
+                range(start_position_ids, start_position_ids + len(crop_chain))
+            )
+            start_position_ids = start_position_ids + len(crop_chain) + 1000
+            chain_ids.extend([idx + 1] * len(crop_chain))
+            polymer_len += len(crop_chain)
+
+            if idx == 299:
+                break
 
         if polymer_len > 0:
             x = [VOCAB[tok] - 1 for tok in token_type]
@@ -2010,45 +2345,58 @@ class PDBComplexDataset(AFDBLMDBDataset):
         else:
             x = []
 
-        # reconstruct the ligand
-        if center_ligand_idx != -1:
-            ligand = non_polymers[center_ligand_idx]
+        # reconstruct the ligands
+        if len(candidate_ligand_idx_list) > 0:
+            random.shuffle(candidate_ligand_idx_list)
+            cum_ligand_len = 0
+            for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
+                # if len(cropped_chain_idxes_list) + idx + 1 == 399:
+                # break
 
-            # rescontruct the atom type of the ligand
-            atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-            if len(x) > 0:
-                x.extend([VOCAB["."] - 1] + atom_ids)
-                pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
-                # build position ids for ligand, but this may not used in the attention, just for length alignment
-                position_ids.extend(
-                    range(start_position_ids, start_position_ids + len(atom_ids) + 1)
-                )
-            else:
+                ligand = non_polymers[center_ligand_idx]
+
+                # rescontruct the atom type of the ligand
+                atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
+
                 x.extend(atom_ids)
                 pos = ligand["node_coord"]
                 # build position ids for ligand, but this may not used in the attention, just for length alignment
                 position_ids.extend(
                     range(start_position_ids, start_position_ids + len(atom_ids))
                 )
+                chain_ids.extend(
+                    [len(cropped_chain_idxes_list) + idx + 1] * len(atom_ids)
+                )  # + [0])
 
-            # rescontruct the coords of the ligand
-            coords.append(pos)
+                # rescontruct the coords of the ligand
+                coords.append(pos)
 
-            if polymer_len == 0:
-                node_feature = torch.from_numpy(ligand["node_feat"])
-            else:
-                node_feature = torch.cat(
-                    [
-                        node_feature,
-                        torch.zeros((1, 9), dtype=torch.int32),
-                        torch.from_numpy(ligand["node_feat"]),
-                    ],
-                    dim=0,
-                )
-                polymer_len += 1
+                if polymer_len == 0 and idx == 0:
+                    node_feature = torch.from_numpy(ligand["node_feat"])
+                else:
+                    node_feature = torch.cat(
+                        [
+                            node_feature,
+                            torch.from_numpy(ligand["node_feat"]),
+                        ],
+                        dim=0,
+                    )
 
-            edge_index = ligand["edge_index"]
-            # edge_attr = ligand["edge_feat"]
+                if idx == 0:
+                    edge_index = ligand["edge_index"]
+                else:
+                    edge_index = np.concatenate(
+                        [
+                            edge_index,
+                            ligand["edge_index"] + cum_ligand_len,
+                        ],
+                        axis=1,
+                    )
+                cum_ligand_len += len(atom_ids)
+                # edge_attr = ligand["edge_feat"]
+                if self.sample_mode:
+                    break
+
         else:
             edge_index = None
 
@@ -2056,14 +2404,109 @@ class PDBComplexDataset(AFDBLMDBDataset):
         x = torch.tensor(x, dtype=torch.int32)
         coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float64)
         position_ids = torch.tensor(position_ids, dtype=torch.int32)
+        chain_ids = torch.tensor(chain_ids, dtype=torch.int32)
 
         data = {
             "token_type": x,
             "coords": coords,
             "polymer_len": polymer_len,
             "position_ids": position_ids,
+            "chain_ids": chain_ids,
             "node_feature": node_feature,
             "edge_index": edge_index,
+            "edge_attr": edge_attr,
+        }
+
+        return data
+
+    def contiguous_crop(self, data):
+        """
+        Crop the complex and multimers in a contiguous way
+        """
+        polymer_chains = data["polymer_chains"]
+        data["nonpoly_graphs"]
+
+        # shuffle the chain idxes to avoid the order of the chains
+        polymer_chains_idxes = []
+        for key in polymer_chains.keys():
+            # # TODO: filter DNA/RNA chains, needs to be considered in the future
+            # if np.any(polymer_chains[key]["restype"] == "N"):
+            #     continue
+
+            # some croped polymer has all Nan coords, so we need to avoid it
+            if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
+                polymer_chains_idxes.append(key)
+
+        random.shuffle(polymer_chains_idxes)
+
+        n_added, n_remaining, n_res = 0, 0, self.max_residue_num
+
+        for polymer_chains_idx in polymer_chains_idxes:
+            n_remaining += polymer_chains[polymer_chains_idx]["center_coord"].shape[0]
+
+        token_type = []
+        coords = []
+        position_ids = []
+        chain_ids = []
+        start_position_ids = np.random.randint(0, 2000)
+        polymer_len = 0
+
+        for idx, polymer_chains_idx in enumerate(polymer_chains_idxes):
+            n_k = polymer_chains[polymer_chains_idx]["center_coord"].shape[0]
+            n_remaining -= n_k
+            crop_size_max = min(n_res - n_added, n_k)
+            crop_size_min = min(n_k, max(0, n_res - (n_added + n_remaining)))
+
+            crop_size = np.random.randint(crop_size_min, crop_size_max + 1)
+            n_added += crop_size
+            if n_added > self.max_residue_num:
+                break
+            crop_start = np.random.randint(n_k - crop_size + 1)
+            crop_chain = polymer_chains[polymer_chains_idx]["seqres"][
+                crop_start : crop_start + crop_size
+            ].tolist()
+            token_type.extend(crop_chain)
+            crop_coords = np.concatenate(
+                [
+                    polymer_chains[polymer_chains_idx]["center_coord"][
+                        crop_start : crop_start + crop_size
+                    ],
+                ],
+                axis=0,
+            )
+            coords.append(crop_coords)
+
+            position_ids.extend(
+                range(start_position_ids, start_position_ids + len(crop_chain))
+            )
+            start_position_ids = start_position_ids + n_k + 1000
+            chain_ids.extend([idx + 1] * len(crop_chain))
+            polymer_len += len(crop_chain)
+
+        coords = np.concatenate(coords, axis=0)
+        if len(token_type) > 0:
+            token_type = token_type[: self.max_residue_num]
+            coords = coords[: self.max_residue_num, :]
+            position_ids = position_ids[: self.max_residue_num]
+            chain_ids = chain_ids[: self.max_residue_num]
+
+        x = [VOCAB[tok] - 1 for tok in token_type]
+        node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
+
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        x = torch.tensor(x, dtype=torch.int32)
+        coords = torch.tensor(coords, dtype=torch.float64)
+        position_ids = torch.tensor(position_ids, dtype=torch.int32)
+        chain_ids = torch.tensor(chain_ids, dtype=torch.int32)
+
+        data = {
+            "token_type": x,
+            "coords": coords,
+            "polymer_len": polymer_len,
+            "position_ids": position_ids,
+            "chain_ids": chain_ids,
+            "node_feature": node_feature,
+            "edge_index": None,
             "edge_attr": edge_attr,
         }
 
@@ -2076,8 +2519,15 @@ class PDBComplexDataset(AFDBLMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         ori_data = bstr2obj(value)
 
-        # crop and reconstruct the graph
-        data = self._crop_and_reconstruct_graph(ori_data)
+        if self.sample_mode:
+            data = self._crop_and_reconstruct_graph(ori_data)
+        else:
+            # crop and reconstruct the graph
+            if np.random.rand() < 0.25:  # contiguous crop
+                data = self.contiguous_crop(ori_data)
+            else:  # spatial crop
+                #     # crop and reconstruct the graph
+                data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
         data["key"] = key
@@ -2094,7 +2544,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["node_attr"] = convert_to_single_emb(data["node_feature"].long())
 
         if data["edge_index"] is not None:
-            data["edge_index"] = torch.tensor(data["edge_index"], dtype=torch.int32)
             # complex
             data["sample_type"] = 6
             adj = torch.zeros([N, N], dtype=torch.bool)
@@ -2103,6 +2552,10 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 data["edge_index"][1, :] + polymer_len,
             ] = True
             adj[torch.arange(N), torch.arange(N)] = True
+
+            # allow interaction between protein and protein
+            adj[:polymer_len, :polymer_len] = True
+
             # allow interaction between protein and ligand, and protein and protein
             polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
             polymer_ligand_adj[:polymer_len] = True
@@ -2111,8 +2564,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
             )  # torch disallow inplace operationS
             adj |= polymer_ligand_adj
         else:
-            # multimers
-            data["sample_type"] = 7
+            # multimers, sample type was 7 here, but we use 6 to avoid the allreduce error
+            data["sample_type"] = 6
             edge_index = torch.zeros([2, 0], dtype=torch.long)
             edge_attr = torch.zeros([0, 3], dtype=torch.long)
             data["edge_index"] = edge_index
@@ -2121,6 +2574,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         data["adj"] = adj
 
+        data["confidence"] = -100.0 * torch.ones(N, dtype=torch.float64)
         # redundant, but for compatibility
         attn_edge_type = torch.zeros(
             [N, N, data["edge_attr"].size(-1)], dtype=torch.long
@@ -2137,6 +2591,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["energy"] = torch.tensor([0.0], dtype=torch.float64)
         data["in_degree"] = adj.long().sum(dim=1).view(-1)
         data["is_stable_periodic"] = False
+
         return data
 
     def __len__(self) -> int:
@@ -2148,7 +2603,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         result.update(dict(polymer_len=polymer_len))
         return result
 
-    def split_dataset(self, validation_ratio=0.01, sort=False):
+    def split_dataset(self, validation_ratio=0.03, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -2157,9 +2612,9 @@ class PDBComplexDataset(AFDBLMDBDataset):
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
 
-        training_indices = indices[:num_training_samples]
+        # training_indices = indices[:num_training_samples]
         validation_indices = indices[num_training_samples:]
-        # training_indices = indices
+        training_indices = indices
         # validation_indices = indices
 
         # Create training and validation datasets

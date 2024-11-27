@@ -3,9 +3,11 @@ from typing import Callable, Dict, Optional
 
 import torch
 import torch.nn as nn
+from sympy import ff
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
+    MultiheadAttentionWithProteinRotaryEmbedding,
 )
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.mem_eff_attn import MemEffAttn
@@ -20,21 +22,39 @@ class DiTBlock(nn.Module):
     A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
 
-    def __init__(self, args, psm_config: PSMConfig):
+    def __init__(
+        self,
+        args,
+        psm_config: PSMConfig,
+        embedding_dim: torch.Tensor = None,
+        ffn_embedding_dim: torch.Tensor = None,
+        num_attention_heads: int = None,
+    ):
         super().__init__()
+        if embedding_dim is None:
+            embedding_dim = psm_config.embedding_dim
+
+        if ffn_embedding_dim is None:
+            ffn_embedding_dim = psm_config.ffn_embedding_dim
+
+        if num_attention_heads is None:
+            num_attention_heads = psm_config.num_attention_heads
+
         self.norm1 = nn.LayerNorm(
             psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
         )
         self.psm_config = psm_config
 
-        if psm_config.only_use_rotary_embedding_for_protein:
+        if not self.psm_config.use_memory_efficient_attention:
+            attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
+        elif psm_config.only_use_rotary_embedding_for_protein:
             attn_cls = MemEffAttnWithProteinRotaryEmbedding
         else:
             attn_cls = MemEffAttn
 
         self.attn = attn_cls(
-            psm_config.embedding_dim,
-            psm_config.num_attention_heads,
+            embedding_dim,
+            num_attention_heads,
             dropout=psm_config.dropout,
             k_bias=False,
             q_bias=False,
@@ -49,19 +69,13 @@ class DiTBlock(nn.Module):
             psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
         )
         self.mlp = nn.Sequential(
-            nn.Linear(
-                psm_config.embedding_dim, psm_config.ffn_embedding_dim, bias=False
-            ),
+            nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),
-            nn.Linear(
-                psm_config.ffn_embedding_dim, psm_config.embedding_dim, bias=False
-            ),
+            nn.Linear(ffn_embedding_dim, embedding_dim, bias=False),
         )
         self.adaLN_modulation = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(
-                psm_config.embedding_dim, 6 * psm_config.embedding_dim, bias=False
-            ),
+            nn.Linear(embedding_dim, 6 * embedding_dim, bias=False),
         )
 
     def forward(
@@ -74,7 +88,7 @@ class DiTBlock(nn.Module):
         mixed_attn_bias=None,
         ifbackprop=False,
     ):
-        math_kernel = ifbackprop and pbc_expand_batched is not None
+        math_kernel = ifbackprop  # and pbc_expand_batched is not None
 
         (
             shift_msa,

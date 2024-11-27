@@ -642,7 +642,7 @@ class Trainer(object):
                         self.state.global_step += 1
                         self.state.sample += model_output.num_examples
 
-                        if self.should_do_batch_validate():
+                        if self.should_do_batch_validate() and not self.args.profiling:
                             self.validate()
 
                         if self.should_log():
@@ -675,15 +675,16 @@ class Trainer(object):
 
                 self.state.batch = 0
 
-                if self.should_do_epoch_validate():
-                    valid_log = self.validate()
-                else:
-                    valid_log = None
-
                 self.accelerator.barrier()
                 if self.should_save_epoch_checkpoint():
                     checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
                     self.save_checkpoint(checkpoint_name, self.state)
+
+                if self.should_do_epoch_validate():
+                    valid_log = self.validate()
+                else:
+                    valid_log = None
+                self.accelerator.barrier()
 
                 # if use early stopping
                 if self.args.early_stopping:
@@ -779,8 +780,13 @@ class Trainer(object):
             )
 
         for idx, batch_data in enumerate(self.valid_data_loader):
-            with torch.no_grad():
+            if self.args.AutoGradForce is True:
                 output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
+            elif self.args.AutoGradForce is False:
+                with torch.no_grad():
+                    output = self.accelerator.valid_step(
+                        batch_data, epoch=self.state.epoch
+                    )
             loss_accumulator.add(output.valid_loss, output.num_examples)
             interval_loss_accumulator.add(
                 output.valid_loss,
@@ -996,7 +1002,7 @@ class Trainer(object):
                 torch.profiler.ProfilerActivity.CUDA,
             ],
             schedule=torch.profiler.schedule(
-                wait=1, warmup=1, active=8, repeat=9, skip_first=0
+                wait=0, warmup=1, active=1, repeat=1, skip_first=0
             ),
             # custom profiling results (TB in Torch ReadMe:)
             # https://github.com/pytorch/kineto/blob/main/tb_plugin/README.md

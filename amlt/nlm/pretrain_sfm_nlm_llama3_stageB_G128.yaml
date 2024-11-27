@@ -1,7 +1,7 @@
 description: train_sfm_nlm8B
 
 env_defaults:
-  NODES: 8
+  NODES: 16
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -47,20 +47,24 @@ search:
       - pip uninstall flash-attn -y
       - pip install ase
       - python tools/nlm/compute_text_data_ratio.py {text_raito} {prot_raito} {dna_raito} {other_raito}
-      - export train_batch_size=1024
-      - export val_batch_size=1024
-      - export gradient_accumulation_steps=32
+      - export train_batch_size=4096
+      - export val_batch_size=4096
+      - export gradient_accumulation_steps=64
       - export tensor_model_parallel_size=1
       - export pipeline_model_parallel_size=2
       - export load_ckpt=True
-      - export weighted_dataset=True
-      - export data_dir=/nlm/peiran/llama3_processed_data/lmdb/v5_train_split/
-      - export train_data_path=`cat /tmp/train_data_path.txt`
-      - export data_ratio=`cat /tmp/data_ratio.txt`
-      - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split_dna_six/
+      # - export weighted_dataset=True
+      # - export data_dir=/nlm/peiran/llama3_processed_data/lmdb/v5_train_split/
+      # - export train_data_path=`cat /tmp/train_data_path.txt`
+      # - export data_ratio=`cat /tmp/data_ratio.txt`
+      # - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split_dna_six/
+      # - export train_data_path=/tmp/train.npy
+      - export train_data_path=/nlm/peiran/llama3_processed_data/v5_train/train.npy
+      - export valid_data_path=/nlm/peiran/llama3_processed_data/v5_train/valid.npy
       - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
       # - export loadcheck_path=/nlm/peiran/output/llama3_stageA_G256/global_step19000
-      - export loadcheck_path=/nlm/zekun/output/base8b/stageB/global_step11000
+      # - export loadcheck_path=/nlm/zekun/output/base8b/stageB/global_step11000
+      - export loadcheck_path=/nlm/peiran/output/llama3_stageB_G256/global_step4000/
       - export save_dir=/nlm/peiran/output/llama3_stageB_G128_ratio/
       - bash scripts/nlm/pretrain_nlm_llama3_7b_stageB.sh
     submit_args:

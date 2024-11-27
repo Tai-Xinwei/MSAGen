@@ -1,0 +1,81 @@
+description: DFT_label_GEOM_drug_jobq_enqueue
+
+environment:
+  image: lightaimd-1.0:20240708.105201_sm75
+  registry: msrmoldyn.azurecr.io
+  image_setup:
+  - apt install sudo -y
+  - sudo apt update
+  - sudo apt install curl -y
+  - curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+
+target:
+  service: sing
+  # name: msroctobasicvc
+  # name: msroctobasicvc
+  name: msrresrchvc
+  workspace_name: sfm-ws
+
+env_defaults:
+  NODES: 1
+  QUEUE: geom-queue-full
+  APPLICATIONINSIGHTS_CONNECTION_STRING: InstrumentationKey=ba13eba2-46dc-4af3-86ea-b2914c29334b;IngestionEndpoint=https://westus3-1.in.applicationinsights.azure.com/;ApplicationId=bbb1412b-e8c8-4113-b849-b9054a276169
+
+code:
+  local_dir: $CONFIG_DIR/../../../../ # parent directory including sfm and feynman
+  ignore:
+  # # use .amltignore to ignore other folders except for sfm and feynman
+  # # TODO: how to ignore other content directly under sfm or feynman?
+  - '*'
+  - '!sfm/'
+  - 'sfm/*'
+  - '!sfm/data/'
+  - 'sfm/data/*'
+  - '!sfm/data/mol_data/'
+  - 'sfm/data/mol_data/*'
+  - '!sfm/data/mol_data/GEOM/'
+  - '!sfm/data/mol_data/utils/'
+
+storage:
+  blob:
+    storage_account_name: sfmdataeastus2
+    container_name: psm
+    mount_dir: /blob
+    local_dir: /datadisk # for local test
+
+search:
+  type: grid
+  params:
+  - name: rank
+    spec: discrete
+    values: "range(0,$NODES)"
+  max_trials: $NODES
+  job_template:
+    name: DFT_label_GEOM_drug_enqueue_${QUEUE}_{rank}
+    sku: G1-A100
+    identity: managed
+    sla_tier: Standard
+    tags: [ProjectID:PRJ-0209-A40]
+    command:
+    - set -e
+    - export AZURE_CLIENT_ID="22542c5d-e635-4702-bded-53a9db908d41"
+    - export DEFAULT_IDENTITY_CLIENT_ID="22542c5d-e635-4702-bded-53a9db908d41"
+    - eval "$$(conda shell.bash hook)" && conda activate madft
+    - cp /blob/data/geom_origin/ai4s-jobq.tar.gz ./
+    - tar -xzf ai4s-jobq.tar.gz
+    - pip install -e ai4s-jobq
+    - pip install aiofiles rdkit
+    - PYTHONPATH=. python sfm/data/mol_data/GEOM/label_geom.py
+      --storage-account sfmdataeastus2
+      --queue $QUEUE
+      --enqueue
+      --rank {rank}
+      --input-dir /blob/data/geom_origin/rdkit_folder/drugs
+    submit_args:
+      env:
+        _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+        APPLICATIONINSIGHTS_CONNECTION_STRING: $APPLICATIONINSIGHTS_CONNECTION_STRING
+        ENQUEUE_WORLD_SIZE: $NODES
+      container_args:
+        shm_size: 1024g

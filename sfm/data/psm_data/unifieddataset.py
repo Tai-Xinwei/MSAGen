@@ -7,14 +7,21 @@ from typing import Iterator, Optional
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset
-from torch.utils.data.distributed import DistributedSampler, T_co
+from torch.utils.data.distributed import DistributedSampler
+
+try:
+    from torch.utils.data.distributed import T_co
+except ImportError:
+    from torch.utils.data.distributed import _T_co as T_co
 
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
     ESMDataset,
+    GEOMDataset,
     MatterSimDataset,
+    MGnifyDataset,
     PDBComplexDataset,
     PDBDataset,
     PlainPM6FullLMDBDataset,
@@ -127,6 +134,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "mgnify":
+                dataset = MGnifyDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                self.sizes.append(train_dataset.sizes)
             elif dataset_name == "mattersim":
                 train_dataset = MatterSimDataset(
                     args, data_path, split="train", **kwargs
@@ -144,13 +157,19 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.periodic_force_std = train_dataset.force_std
             elif dataset_name == "matbench":
                 train_dataset = MatBenchDataset(args, split="train_val", **kwargs)
-                valid_dataset = MatBenchDataset(args, split="test", **kwargs)
+                valid_dataset = MatBenchDataset(
+                    args,
+                    split="test",
+                    y_mean=train_dataset.y_mean,
+                    y_std=train_dataset.y_std,
+                    **kwargs,
+                )
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 len_total = len(train_dataset) + len(valid_dataset)
-                self.periodic_energy_mean = 0.0
-                self.periodic_energy_std = 1.0
-                self.periodic_energy_per_atom_mean = 0.0
-                self.periodic_energy_per_atom_std = 1.0
+                self.periodic_energy_mean = train_dataset.y_mean
+                self.periodic_energy_std = train_dataset.y_std
+                self.periodic_energy_per_atom_mean = train_dataset.y_mean
+                self.periodic_energy_per_atom_std = train_dataset.y_std
                 self.periodic_force_mean = 0.0
                 self.periodic_force_std = 1.0
             elif dataset_name in [
@@ -165,6 +184,9 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 "double_walled_nanotube",  # double_walled_nanotube/radius3_broadcast_kmeans
                 "oc20",
                 "deshaw",
+                "deshaw_120",
+                "deshaw_400",
+                "deshaw_650",
                 "GEMS",
             ]:
                 dataset = SmallMolDataset(
@@ -225,6 +247,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                     validation_ratio=0.01
                 )
                 len_total = len(dataset)
+            elif dataset_name == "geom":
+                dataset = GEOMDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset(
+                    validation_ratio=0.01
+                )
+                len_total = len(dataset)
             else:
                 raise ValueError(f"Invalid dataset name:{dataset_name}")
 
@@ -234,7 +262,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
             self.train_len += len(train_dataset)
             self.valid_len += len(valid_dataset)
             logger.info(
-                f"Loaded dataset {dataset_name} with total {len_total/1000/1000:0.2f} samples, {len(train_dataset)/1000/1000:0.2f} for training, {len(valid_dataset)/1000/1000:0.2f} for validation"
+                f"Loaded dataset {dataset_name} with total {len_total/1000/1000:0.2f}M samples, {len(train_dataset)/1000/1000:0.2f}M for training, {len(valid_dataset)/1000/1000:0.2f}M for validation"
             )
 
         self.num_datasets = len(self.train_dataset_list)
@@ -271,7 +299,7 @@ class BatchedDataDataset(FoundationModelDataset):
             )
             self.dataset_split_raito[-1] = 1.0 - sum(self.dataset_split_raito[:-1])
 
-        logger.info(f"Total data Length is {len_data:0.2f}")
+        logger.info(f"Total data Length is {len_data/1000/1000:0.2f}M")
 
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max

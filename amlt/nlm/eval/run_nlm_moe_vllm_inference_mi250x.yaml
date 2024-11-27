@@ -1,0 +1,56 @@
+# Amulet configuration file to run NLM vLLM inference on AMD MI250x Singularity system
+# export HG_TOKEN=<HG token here>
+
+description: run_nlm_moe_vllm_inference
+
+env_defaults:
+  NODES: 1
+  GPUS: 16
+  HG_TOKEN: ${HG_TOKEN}
+
+target:
+  service: sing
+  name: huashanvc4
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm/vllm/amd:20241001.141704 # vllm image for AMD
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  blob:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /nlm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: "run_nlm_moe_vllm_inference_mi200x"
+  identity: managed
+  tags: [ProjectID:PRJ-0209-A40]
+  sku: ${NODES}xG${GPUS}
+  sla_tier: premium
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - huggingface-cli login --token ${HG_TOKEN}
+  - cd /scratch/amlt_code
+  - python sfm/tasks/nlm/eval/moe_inference_module.py
+  - conda activate vllm
+  - pushd sfm/tasks/nlm/eval/inputs/
+  - cp -vu /nlm/yeqibai/nlm_data-main.zip .
+  - unzip nlm_data-main.zip && mv nlm_data-main nlm_data
+  - popd
+  - export NLM_LOCAL_PATH="/scratch/amlt_code/cache/nlm_moe"
+  - export VLLM_ALLOW_DEPRECATED_BEAM_SEARCH=1
+  - bash scripts/nlm/eval/run_nlm_moe_vllm_inference.sh
+  # - sleep infinity # interactive run for testing
+  submit_args:
+    env:
+      AMLT_DOCKERFILE_TEMPLATE: "none"
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity

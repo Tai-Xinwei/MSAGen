@@ -189,6 +189,9 @@ class TrainerConfig:
     # debugger
     debug: bool = False
 
+    # AutoGradForce
+    AutoGradForce: bool = False
+
     def __str__(self):
         return (
             "Config[\n"

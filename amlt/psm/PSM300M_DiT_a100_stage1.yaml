@@ -7,18 +7,20 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 2
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 # target:
-#   service: sing
-#   name: baltic02
-#   workspace_name: msrresrchws
+#   service: singularity
+#   name: msrresrchvc
+#   workspace_name: sfm-ws
+
 
 target:
   service: aml
   name: townsend1
+  # name: sfm-nd96amsra100v4-uksouth
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -30,10 +32,10 @@ storage:
     storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /sfm
-  # eastus2:
-  #   storage_account_name: sfmdataeastus2 # Storage account
-  #   container_name: psm # Container name
-  #   mount_dir: /psm
+  eastus2:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
 
 code:
   local_dir: ../SFM_framework
@@ -41,13 +43,13 @@ code:
 jobs:
 - name: psmv1_dit_v13
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  sku: ${NODES}xG${GPUS}-IB
+  sku: ${NODES}x80G${GPUS}-A100
   mpi: true
   identity: managed
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm_DiT
+  - export wandb_group=psm_DiT_300M
   - export wandb_project=psm_VT
   - export wandb_key=${WANDB_API_KEY}
   - export num_pred_attn_layer=2
@@ -55,15 +57,12 @@ jobs:
   - export hidden_size=1024
   - export ffn_size=4096
   - export num_head=32
-  - export atom_loss_coeff=1.0
-  - export pos_loss_coeff=1.0
-  - export sandwich_ln="true"
-  - export dropout=0.0
+  - export dropout=0.1
   - export attn_dropout=0.1
   - export act_dropout=0.1
   - export weight_decay=0.0
   - export droppath_prob=0.0
-  - export mask_ratio=0.3
+  - export mask_ratio=0.15
   - export d_tilde=1.0
   - export max_lr=1e-4
   - export strategy=Zero1
@@ -74,40 +73,33 @@ jobs:
   - export val_batch_size=768
   - export max_tokens=16000
   - export max_length=512
-  - export gradient_accumulation_steps=4
+  - export gradient_accumulation_steps=8
   - export log_interval=100
-  - export data_path=/nfs2/psmdata/
-  # - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
-  # - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
-  # - export dataset_split_raito='0.3,0.05,0.3,0.15,0.1,0.1,0.1'
-  # - export dataset_micro_batch_size='112,8,24,8,12,24,12'
-  # - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data' #,ur50_23_bpe_pack512.lmdb'
-  # - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer' #,ur50'
-  # - export dataset_split_raito='0.1,0.1,0.3,0.35,0.1,0.05' #,0.1'
-  # - export dataset_micro_batch_size='8,8,72,16,16,8'
-  - export data_path_list='PubChemQC-B3LYP-PM6' #,ur50_23_bpe_pack512.lmdb'
-  - export dataset_name_list='pm6-wb97xd3' #,ur50'
-  - export dataset_split_raito='1.0' #,0.1'
-  - export dataset_micro_batch_size='64'
+  - export data_path=/nfs6/psmdata/
+  # - export data_path=/psm/data/
+  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm,pdbcomplexmultimer'
+  - export dataset_split_raito='0.03,0.15,0.3,0.3,0.1,0.02,0.1'
+  # - export dataset_micro_batch_size='12,12,64,12,12,12,6'
+  - export dataset_micro_batch_size='6,6,32,12,12,12,6'
   - export fp16=False
-  # - export dataset_micro_batch_size='12,12,100,24,24,24'
-  # - export fp16=True
   - export clean_sample_ratio=0.5
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
   - export molecule_ref_energy_source=PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train
-  - export molecule_outlier_energy_atoms="."
-  - export AutoGradForce=False
+  - export molecule_outlier_energy_atoms=""
+  - export AutoGradForce=True
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
-  - export decoder_feat4energy=True
+  - export decoder_feat4energy=False
+  - export encoderfeat4noise=True
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v15_300m/checkpoints
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_300m/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

@@ -17,7 +17,7 @@ if __name__ == '__main__':
     assert os.path.exists(lmdbdir), f"{lmdbdir} not found."
     show_lmdb(lmdbdir)
 
-    assert 4 == len(pdbid), f"PDBID must be 4 characters, wrong id {pdbid}."
+    # assert 4 == len(pdbid), f"PDBID must be 4 characters, wrong id {pdbid}."
     print(f"Extracting {pdbid} from {lmdbdir}")
 
     with lmdb.open(lmdbdir, readonly=True).begin(write=False) as txn:
@@ -37,9 +37,9 @@ if __name__ == '__main__':
 
             print('-'*80)
             print(f">{key}")
-            print(metadata['structure_methods'][idx])
-            print(metadata['release_dates'][idx])
-            print("resolution", metadata['resolutions'][idx])
+            print("structure_methods:", metadata['structure_methods'][idx])
+            print("release_dates:", metadata['release_dates'][idx])
+            print("resolutions:", metadata['resolutions'][idx])
 
             value = txn.get(key.encode())
             if not value:

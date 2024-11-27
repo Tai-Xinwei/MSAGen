@@ -35,6 +35,25 @@ def crop_chain(
     return idxes, dists
 
 
+def ligand_max_dist(ligand_coords: np.ndarray, crop_center: np.ndarray) -> np.ndarray:
+    """
+    Calculate the distance between the atoms and the crop center.
+    Args:
+        ligand_coords: the coordinates of the ligand
+        crop_center: the center of the crop
+    Returns:
+        dists: a list of distances between the atoms and the crop center
+    """
+    ligand_coords[np.isnan(ligand_coords)] = 10000
+
+    # Calculate the distance between the atoms and the crop center
+    dists = np.linalg.norm(ligand_coords - crop_center, axis=1)
+    # Get the index of the atoms within the crop size
+    idxes = np.where(dists < 10000)[0]
+
+    return dists[idxes].max()
+
+
 def crop_ligand(
     ligand_coords: np.ndarray, crop_size: int, crop_center: np.ndarray
 ) -> np.ndarray:
@@ -60,7 +79,7 @@ def crop_ligand(
     dists = np.linalg.norm(ligand_coords - crop_center, axis=1)
 
     # Get the index of the atoms within the crop size
-    idxes = np.where(dists < 100000)[0]
+    idxes = np.where(dists < 10000)[0]
 
     return idxes, dists, ligand_center
 
@@ -120,7 +139,7 @@ def spatial_crop_psm(
     crop_size: int,
     center_ligand_idx: int,
     crop_center: np.ndarray,
-    ligand_crop_size: int = 20,
+    ligand_buffer: int = 5,
     keep_num: int = 768,
 ) -> Dict:
     """
@@ -131,6 +150,7 @@ def spatial_crop_psm(
         polymer_chains_idx: a list of polymer chains index
         crop_size: the size of the cropped polymer chains
         crop_center: the center of the crop
+        ligand_buffer: the buffer size of the ligand
         keep_num: the number of residues to keep
     Returns:
         cropped_chain_idxes_list: a list of cropped polymer chains index
@@ -162,35 +182,67 @@ def spatial_crop_psm(
 
         total_residue_num += len(cropped_chain_idxes)
 
-    ligand_dists = []
-    ligand_center_list = []
-    ligand_idx_list = []
+    # include if ligand is fully in the crop radius
     total_atom_num = 0
-    ligand_size = 0
-    if center_ligand_idx == -1:
-        for ligand_idx, ligand in enumerate(non_polymers):
-            # Crop the polymer chain
-            cropped_ligand_idxes, dist, ligand_center = crop_ligand(
-                copy.deepcopy(ligand["node_coord"]), ligand_crop_size, crop_center
+    candidate_ligand_idx_list = []
+    for ligand_idx, ligand in enumerate(non_polymers):
+        max_dist = (
+            ligand_max_dist(copy.deepcopy(ligand["node_coord"]), crop_center)
+            + ligand_buffer
+        )
+        if max_dist > crop_size:
+            continue
+        candidate_ligand_idx_list.append(ligand_idx)
+        dists.append([max_dist] * len(ligand["node_coord"]))
+        total_atom_num += len(ligand["node_coord"])
+
+    # if the total number of tokens cropped by the crop_radius is less than keep_num
+    # then we include all of them
+    if total_residue_num + total_atom_num < keep_num:
+        return cropped_chain_idxes_list, candidate_ligand_idx_list
+
+    # Recalculate the crop radius and crop the polymer chains and ligands again
+    dists_all = np.concatenate(dists)
+    cutoff_dists = np.sort(dists_all)[keep_num - 1]
+
+    cropped_chain_idxes_list = []
+    total_residue_num = 0
+    for chain_name in polymer_chains_idxes:
+        polymer_chain = polymer_chains[chain_name]
+
+        # Crop the polymer chain
+        cropped_chain_idxes, _ = crop_chain(
+            copy.deepcopy(polymer_chain["center_coord"]), cutoff_dists, crop_center
+        )
+
+        # if the cropped chain is not empty
+        if len(cropped_chain_idxes) > 0:
+            cropped_chain_idxes_list.append(
+                {
+                    "center_ligand_idx": center_ligand_idx,
+                    "number_of_ligands": len(non_polymers),
+                    "number_of_polymer_chains": len(polymer_chains_idxes),
+                    "chain_name": chain_name,
+                    "cropped_chain_idxes": cropped_chain_idxes,
+                }
             )
-            if cropped_ligand_idxes is None:
-                continue
 
-            ligand_dists.append(dist)
-            ligand_center_list.append(ligand_center)
-            ligand_idx_list.append(ligand_idx)
+        total_residue_num += len(cropped_chain_idxes)
 
-            total_atom_num += len(cropped_ligand_idxes)
+    total_atom_num = 0
+    candidate_ligand_idx_list = []
+    for ligand_idx, ligand in enumerate(non_polymers):
+        max_dist = (
+            ligand_max_dist(copy.deepcopy(ligand["node_coord"]), crop_center)
+            + ligand_buffer
+        )
+        if max_dist >= cutoff_dists:
+            continue
+        candidate_ligand_idx_list.append(ligand_idx)
+        total_atom_num += len(ligand["node_coord"])
 
-        if len(ligand_idx_list) > 0:
-            center_ligand_idx = random.choice(ligand_idx_list)
-            ligand_size = len(non_polymers[center_ligand_idx]["node_coord"])
+    assert (
+        total_residue_num + total_atom_num <= keep_num
+    ), f"{total_residue_num=}, {total_atom_num=}, {keep_num=}"
 
-    if total_residue_num < keep_num - ligand_size:
-        return cropped_chain_idxes_list, center_ligand_idx
-
-    cropped_chain_idxes_list = keep_nearest_residue(
-        cropped_chain_idxes_list, dists, keep_num=keep_num - ligand_size
-    )
-
-    return cropped_chain_idxes_list, center_ligand_idx
+    return cropped_chain_idxes_list, candidate_ligand_idx_list
