@@ -33,7 +33,7 @@ class PSMPlainEncoder(nn.Module):
         # dummy param for lora, do not remove
         self.dummy = nn.Linear(1, 1, bias=False)
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def forward(
         self,
         x: torch.Tensor,
@@ -76,7 +76,7 @@ class PSMPairPlainEncoder(nn.Module):
         self.ln_pair = nn.LayerNorm(psm_config.encoder_pair_embed_dim)
         self.dummy = nn.Linear(1, 1, bias=False)
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def forward(
         self,
         x: torch.Tensor,

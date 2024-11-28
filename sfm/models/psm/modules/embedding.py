@@ -99,7 +99,11 @@ class PSMMixEmbedding(nn.Module):
         else:
             time_embed = None
 
-        if is_protein and (not ignore_mlm_from_decoder_feature) and (not self.psm_config.mlm_from_decoder_feature):
+        if (
+            is_protein
+            and (not ignore_mlm_from_decoder_feature)
+            and (not self.psm_config.mlm_from_decoder_feature)
+        ):
             return x, padding_mask, time_embed, None
 
         if time_embed is not None:

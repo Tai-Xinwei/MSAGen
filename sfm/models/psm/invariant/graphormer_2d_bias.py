@@ -166,15 +166,12 @@ class GraphAttnBias(nn.Module):
 
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
         if self.psm_config.share_attention_bias:
-            graph_attn_bias = (
-                graph_attn_bias.reshape(
-                    n_graph,
-                    self.psm_config.num_attention_heads,
-                    n_node + 1,
-                    n_node + 1,
-                )
-                .contiguous()
-            )
+            graph_attn_bias = graph_attn_bias.reshape(
+                n_graph,
+                self.psm_config.num_attention_heads,
+                n_node + 1,
+                n_node + 1,
+            ).contiguous()
         else:
             graph_attn_bias = (
                 graph_attn_bias.reshape(

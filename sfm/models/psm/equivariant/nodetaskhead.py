@@ -9,6 +9,7 @@ from sympy import ff
 from torch import Tensor
 
 from sfm.models.psm.invariant.dit_encoder import DiTBlock
+from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
 )
@@ -16,7 +17,6 @@ from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.layer_norm import AdaNorm
 from sfm.modules.mem_eff_attn import MemEffAttn
 
-from sfm.models.psm.modules.embedding import PSMMixEmbedding
 
 class NodeTaskHead(nn.Module):
     def __init__(
@@ -618,7 +618,14 @@ class InvariantDiffusionModule(nn.Module):
     ) -> Tensor:
         x = x.transpose(0, 1)
 
-        pos_embedding, _, _, pos_attn_bias = self.embedding(batched_data, time_step=None, aa_mask=None, clean_mask=batched_data["clean_mask"], pbc_expand_batched=pbc_expand_batched, ignore_mlm_from_decoder_feature=True)
+        pos_embedding, _, _, pos_attn_bias = self.embedding(
+            batched_data,
+            time_step=None,
+            aa_mask=None,
+            clean_mask=batched_data["clean_mask"],
+            pbc_expand_batched=pbc_expand_batched,
+            ignore_mlm_from_decoder_feature=True,
+        )
 
         if pair_feat is not None:
             if pbc_expand_batched is not None:
