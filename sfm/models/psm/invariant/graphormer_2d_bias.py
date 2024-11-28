@@ -35,12 +35,14 @@ class GraphAttnBias(nn.Module):
         self.edge_hidden_dim = (
             psm_config.encoder_embed_dim // psm_config.num_attention_heads
         )
-        self.edge_encoder = nn.Embedding(
-            psm_config.num_edges + 1, self.edge_hidden_dim, padding_idx=0
-        )
-        self.edge_dis_encoder = nn.Embedding(
-            psm_config.num_edge_dis * self.edge_hidden_dim * self.num_heads, 1
-        )
+
+        if self.psm_config.use_graphormer_path_edge_feature:
+            self.edge_encoder = nn.Embedding(
+                psm_config.num_edges + 1, self.edge_hidden_dim, padding_idx=0
+            )
+            self.edge_dis_encoder = nn.Embedding(
+                psm_config.num_edge_dis * self.edge_hidden_dim * self.num_heads, 1
+            )
         self.spatial_pos_encoder = nn.Embedding(
             psm_config.num_spatial + 10, self.num_heads, padding_idx=0
         )
@@ -133,7 +135,7 @@ class GraphAttnBias(nn.Module):
         graph_attn_bias[:, :, 1:, 0] = graph_attn_bias[:, :, 1:, 0] + t
         graph_attn_bias[:, :, 0, :] = graph_attn_bias[:, :, 0, :] + t
 
-        if num_molecules > 0:
+        if num_molecules > 0 and self.psm_config.use_graphormer_path_edge_feature:
             spatial_pos_ = spatial_pos.clone()
             spatial_pos_[spatial_pos_ == 0] = 1  # set pad to 1
             # set 1 to 1, x > 1 to x - 1
@@ -163,16 +165,27 @@ class GraphAttnBias(nn.Module):
             graph_attn_bias[:, :, 1:, 1:] = graph_attn_bias[:, :, 1:, 1:] + edge_input
 
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
-        graph_attn_bias = (
-            graph_attn_bias.reshape(
-                n_graph,
-                self.psm_config.num_encoder_layers + 1,
-                self.psm_config.num_attention_heads,
-                n_node + 1,
-                n_node + 1,
+        if self.psm_config.share_attention_bias:
+            graph_attn_bias = (
+                graph_attn_bias.reshape(
+                    n_graph,
+                    self.psm_config.num_attention_heads,
+                    n_node + 1,
+                    n_node + 1,
+                )
+                .contiguous()
             )
-            .permute(1, 0, 2, 3, 4)
-            .contiguous()
-        )
+        else:
+            graph_attn_bias = (
+                graph_attn_bias.reshape(
+                    n_graph,
+                    self.psm_config.num_encoder_layers + 1,
+                    self.psm_config.num_attention_heads,
+                    n_node + 1,
+                    n_node + 1,
+                )
+                .permute(1, 0, 2, 3, 4)
+                .contiguous()
+            )
 
         return graph_attn_bias

@@ -62,6 +62,31 @@ class GaussianFeatureNodeType(Enum):
         return self.value
 
 
+class SequenceEncoderOption(Enum):
+    PAIR_PLAIN: str = "PAIR_PLAIN"
+    NONE: str = "NONE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class StructureEncoderOption(Enum):
+    GRAPHORMER: str = "GRAPHORMER"
+    DIT: str = "DIT"
+    NONE: str = "NONE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class StructureDecoderOption(Enum):
+    GEOMFORMER: str = "GEOMFORMER"
+    NONE: str = "NONE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @dataclass
 class PSMConfig(GraphormerConfig):
     model_type: str = "psm"
@@ -72,7 +97,10 @@ class PSMConfig(GraphormerConfig):
     num_residues: int = 32
     max_num_aa: int = 1024
 
+    num_structure_encoder_layer: int = 4
     encoder_pair_embed_dim: int = 32
+    structure_ffn_dim: int = 2028
+    structure_hidden_dim: int = 512
     decoder_ffn_dim: int = 2048
     decoder_hidden_dim: int = 512
 
@@ -99,6 +127,7 @@ class PSMConfig(GraphormerConfig):
     diff_init_lattice_size: float = 10.0
     use_fixed_init_lattice_size: bool = False
     add_unit_cell_virtual_node: bool = False
+    use_ddpm_for_material: bool = False
 
     # for protein and complex
     crop_radius: float = 50.0
@@ -200,6 +229,7 @@ class PSMConfig(GraphormerConfig):
     # for 2D information
     use_2d_atom_features: bool = False
     use_2d_bond_features: bool = False
+    use_graphormer_path_edge_feature: bool = True
     preprocess_2d_bond_features_with_cuda: bool = True
     share_attention_bias: bool = False
 

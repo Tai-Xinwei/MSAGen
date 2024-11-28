@@ -24,6 +24,7 @@ from sfm.models.psm.equivariant.nodetaskhead import (
     DiffusionModule,
     DiffusionModule2,
     DiffusionModule3,
+    InvariantDiffusionModule,
     ForceGatedOutput,
     ForceVecOutput,
     NodeTaskHead,
@@ -126,6 +127,9 @@ class PSMModel(Model):
                 ](self.diffnoise.alphas_cumprod, self.psm_config)
             elif self.psm_config.diffusion_sampling == "edm":
                 self.diffusion_process = None
+            if self.psm_config.use_ddpm_for_material:
+                self.material_diffnoise = DiffNoise(self.psm_config)
+                self.material_diffusion_process = DIFFUSION_PROCESS_REGISTER["ddpm"](self.diffnoise.alphas_cumprod, self.psm_config)
         else:
             self.diffnoise = DiffNoise(self.psm_config)
 
@@ -135,6 +139,8 @@ class PSMModel(Model):
 
         if self.psm_config.diffusion_mode == "edm":
             self.time_step_sampler = NoiseStepSamplerEDM()
+            if self.psm_config.use_ddpm_for_material:
+                self.material_time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
         else:
             self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
@@ -574,7 +580,7 @@ class PSMModel(Model):
         is_heavy_atom = is_molecule & (token_id > 130).any(dim=-1)
 
         is_seq_only = sample_type == 5
-        is_seq_only = is_seq_only | batched_data["protein_mask"].all(dim=(-1, -2))
+        is_seq_only = is_seq_only | batched_data["protein_mask"].all(dim=-1).all(dim=-1) # (dim=(-1, -2))
 
         is_energy_outlier = is_molecule & (
             torch.abs(batched_data["energy_per_atom"]) > 23
@@ -668,22 +674,40 @@ class PSMModel(Model):
         batched_data["ori_pos"] = ori_pos
 
         if self.psm_config.diffusion_mode == "edm":
-            (
-                noise_pos,
-                noise,
-                sigma_edm,
-                weight_edm,
-            ) = self.diffnoise.noise_sample(
-                x_start=ori_pos,
-                noise_step=noise_step,
-                non_atom_mask=batched_data["non_atom_mask"],
-                is_stable_periodic=batched_data["is_stable_periodic"],
-                x_init=batched_data["init_pos"],
-                clean_mask=clean_mask,
-            )
-            sigma = sigma_edm
-            alpha = None
-            weight = weight_edm
+            if self.psm_config.use_ddpm_for_material and batched_data["is_periodic"].all():
+                (
+                    noise_pos,
+                    noise,
+                    sqrt_one_minus_alphas_cumprod_t,
+                    sqrt_alphas_cumprod_t,
+                ) = self.material_diffnoise.noise_sample(
+                    x_start=ori_pos,
+                    t=time_step,
+                    non_atom_mask=batched_data["non_atom_mask"],
+                    is_stable_periodic=batched_data["is_stable_periodic"],
+                    x_init=batched_data["init_pos"],
+                    clean_mask=clean_mask,
+                )
+                sigma = sqrt_one_minus_alphas_cumprod_t
+                alpha = sqrt_alphas_cumprod_t
+                weight = None
+            else:
+                (
+                    noise_pos,
+                    noise,
+                    sigma_edm,
+                    weight_edm,
+                ) = self.diffnoise.noise_sample(
+                    x_start=ori_pos,
+                    noise_step=noise_step,
+                    non_atom_mask=batched_data["non_atom_mask"],
+                    is_stable_periodic=batched_data["is_stable_periodic"],
+                    x_init=batched_data["init_pos"],
+                    clean_mask=clean_mask,
+                )
+                sigma = sigma_edm
+                alpha = None
+                weight = weight_edm
         elif self.psm_config.diffusion_mode == "protea":
             (
                 noise_pos,
@@ -814,7 +838,7 @@ class PSMModel(Model):
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
             if (
                 self.psm_config.diffusion_mode == "edm"
-                and self.psm_config.diffusion_sampling == "edm"
+                and self.psm_config.diffusion_sampling == "edm" and (not (batched_data["is_periodic"].any() and self.psm_config.use_ddpm_for_material))
             ):
                 # if self.psm_config.edm_sampling_method == "af3":
                 self.sample_AF3(batched_data=batched_data)
@@ -859,12 +883,21 @@ class PSMModel(Model):
 
         n_graphs = pos.size(0)
 
+        is_ddpm_for_material_when_edm = (self.psm_config.diffusion_mode == "edm" and self.psm_config.use_ddpm_for_material and batched_data["is_periodic"].all())
+
         if self.psm_config.diffusion_mode == "edm":
-            time_step = None
-            time_step_1d = None
-            noise_step, clean_mask = self.time_step_sampler.sample(
-                n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
-            )
+            if is_ddpm_for_material_when_edm:
+                noise_step = None
+                time_step_1d = None
+                time_step, clean_mask = self.material_time_step_sampler.sample(
+                    n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+                )
+            else:
+                time_step = None
+                time_step_1d = None
+                noise_step, clean_mask = self.time_step_sampler.sample(
+                    n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+                )
         elif self.psm_config.diffusion_mode == "protea":
             noise_step = None
             time_step, clean_mask = self.time_step_sampler.sample(
@@ -981,7 +1014,7 @@ class PSMModel(Model):
         )
         batched_data["pos"] = pos
 
-        if self.psm_config.diffusion_mode == "edm":
+        if self.psm_config.diffusion_mode == "edm" and (not is_ddpm_for_material_when_edm):
             batched_data["sigma_edm"] = sigma
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = None
             batched_data["sqrt_alphas_cumprod_t"] = None
@@ -994,7 +1027,7 @@ class PSMModel(Model):
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = sigma
             batched_data["sqrt_alphas_cumprod_t"] = alpha
 
-        if self.psm_config.diffusion_mode == "edm":
+        if self.psm_config.diffusion_mode == "edm" and (not is_ddpm_for_material_when_edm):
             c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(sigma)
         else:
             c_skip, c_out, c_in, c_noise = None, None, None, None
@@ -1040,6 +1073,8 @@ class PSMModel(Model):
             noise,
             padding_mask,
         ) = self._pre_forward_operation(batched_data)
+
+        batched_data["clean_mask"] = clean_mask
 
         if self.psm_config.psm_sample_structure_in_finetune:
             self.net.eval()
@@ -1175,11 +1210,20 @@ class PSMModel(Model):
         clean_mask = clean_mask.masked_fill(token_id == 156, True)
         clean_mask = clean_mask.masked_fill(padding_mask, True)
 
-        batched_data["pos"] = self.diffnoise.get_sampling_start(
-            batched_data["init_pos"],
-            batched_data["non_atom_mask"],
-            batched_data["is_stable_periodic"],
-        )
+        is_ddpm_for_material_when_edm = (self.psm_config.diffusion_mode == "edm" and self.psm_config.use_ddpm_for_material and batched_data["is_periodic"].all())
+
+        if is_ddpm_for_material_when_edm:
+            batched_data["pos"] = self.material_diffnoise.get_sampling_start(
+                batched_data["init_pos"],
+                batched_data["non_atom_mask"],
+                batched_data["is_stable_periodic"],
+            )
+        else:
+            batched_data["pos"] = self.diffnoise.get_sampling_start(
+                batched_data["init_pos"],
+                batched_data["non_atom_mask"],
+                batched_data["is_stable_periodic"],
+            )
 
         if clean_mask is not None:
             batched_data["pos"] = torch.where(
@@ -1206,7 +1250,10 @@ class PSMModel(Model):
         ):
             # forward
             if self.psm_config.diffusion_mode == "edm":
-                time_step = None
+                if is_ddpm_for_material_when_edm:
+                    time_step = self.material_time_step_sampler.get_continuous_time_step(t, n_graphs, device=device, dtype=batched_data["pos"].dtype)
+                else:
+                    time_step = None
             else:
                 time_step = self.time_step_sampler.get_continuous_time_step(
                     t, n_graphs, device=device, dtype=batched_data["pos"].dtype
@@ -1219,18 +1266,27 @@ class PSMModel(Model):
 
             x_t = batched_data["pos"].clone()  # to avoid in-place operation in edm
             if self.psm_config.diffusion_mode == "edm":
-                t_hat = self.diffusion_process.t_to_sigma(t)
-                # Reshape sigma to (B, L, 1)
-                t_hat = t_hat.unsqueeze(-1).repeat(1, x_t.shape[1]).unsqueeze(-1)
-                t_hat = t_hat.double()
-                t_hat = t_hat.masked_fill(clean_mask.unsqueeze(-1), 0.0064)
+                if is_ddpm_for_material_when_edm:
+                    batched_data[
+                        "sqrt_one_minus_alphas_cumprod_t"
+                    ] = self.material_diffnoise._extract(
+                        self.material_diffnoise.sqrt_one_minus_alphas_cumprod,
+                        (time_step * self.psm_config.num_timesteps).long(),
+                        batched_data["pos"].shape,
+                    )
+                else:
+                    t_hat = self.diffusion_process.t_to_sigma(t)
+                    # Reshape sigma to (B, L, 1)
+                    t_hat = t_hat.unsqueeze(-1).repeat(1, x_t.shape[1]).unsqueeze(-1)
+                    t_hat = t_hat.double()
+                    t_hat = t_hat.masked_fill(clean_mask.unsqueeze(-1), 0.0064)
 
-                c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
-                batched_data["edm_sigma"] = t_hat
-                batched_data["c_skip"] = c_skip
-                batched_data["c_out"] = c_out
-                batched_data["c_in"] = c_in
-                batched_data["c_noise"] = c_noise
+                    c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
+                    batched_data["edm_sigma"] = t_hat
+                    batched_data["c_skip"] = c_skip
+                    batched_data["c_out"] = c_out
+                    batched_data["c_in"] = c_in
+                    batched_data["c_noise"] = c_noise
             else:
                 batched_data[
                     "sqrt_one_minus_alphas_cumprod_t"
@@ -1250,11 +1306,19 @@ class PSMModel(Model):
             predicted_noise = net_result["noise_pred"]
             if self.psm_config.psm_finetune_mode:
                 decoder_x_output = net_result["decoder_x_output"]
-            epsilon = self.diffnoise.get_noise(
-                batched_data["pos"],
-                batched_data["non_atom_mask"],
-                batched_data["is_stable_periodic"],
-            )
+
+            if is_ddpm_for_material_when_edm:
+                epsilon = self.material_diffnoise.get_noise(
+                    batched_data["pos"],
+                    batched_data["non_atom_mask"],
+                    batched_data["is_stable_periodic"],
+                )
+            else:
+                epsilon = self.diffnoise.get_noise(
+                    batched_data["pos"],
+                    batched_data["non_atom_mask"],
+                    batched_data["is_stable_periodic"],
+                )
 
             batched_data["pos"] = self.diffusion_process.sample_step(
                 x_t,
@@ -1678,9 +1742,11 @@ class PSM(nn.Module):
             self.embedding = PSMLightPEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
-        elif args.backbone in ["exp", "exp2", "exp3"]:
+        elif args.backbone in ["exp", "exp2", "exp3", "seq-dit-geom"]:
             # self.embedding = PSMSeqEmbedding(psm_config)
             self.embedding = PSMMixSeqEmbedding(psm_config)
+            if args.backbone in ["seq-dit-geom"]:
+                self.structure_embedding = PSMMixEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
 
@@ -1747,6 +1813,10 @@ class PSM(nn.Module):
             self.encoder = PSMDiTEncoder(args, psm_config)
             self.decoder = E2former(**args.backbone_config)
             # self.decoder = EquivariantDecoder(psm_config)
+        elif args.backbone in ["seq-dit-geom"]:
+            self.seq_encoder = PSMPairPlainEncoder(args, psm_config)
+            self.structure_encoder = InvariantDiffusionModule(args, psm_config)
+            self.structure_decoder = EquivariantDecoder(psm_config)
         else:
             raise NotImplementedError
 
@@ -1956,6 +2026,7 @@ class PSM(nn.Module):
             "exp",
             "exp2",
             "exp3",
+            "seq-dit-geom",
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
@@ -2042,7 +2113,9 @@ class PSM(nn.Module):
         if self.args.AutoGradForce:
             pos.requires_grad_(True)
 
-        if self.psm_config.diffusion_mode == "edm":
+        is_ddpm_for_material_when_edm = (self.psm_config.diffusion_mode == "edm" and self.psm_config.use_ddpm_for_material and batched_data["is_periodic"].all())
+
+        if self.psm_config.diffusion_mode == "edm" and (not is_ddpm_for_material_when_edm):
             pos_noised_no_c_in = batched_data["pos"].clone()
             batched_data["pos"] = pos * batched_data["c_in"]
 
@@ -2119,7 +2192,7 @@ class PSM(nn.Module):
                     aa_mask,
                     pbc_expand_batched=pbc_expand_batched,
                 )
-            elif self.args.backbone in ["exp2", "exp3"]:
+            elif self.args.backbone in ["exp2", "exp3", "seq-dit-geom"]:
                 (
                     token_embedding,
                     padding_mask,
@@ -2211,8 +2284,9 @@ class PSM(nn.Module):
 
                 decoder_vec_output = None
                 encoder_output = encoder_output.transpose(0, 1)
-        elif self.args.backbone in ["exp2", "exp3"]:
-            encoder_output, x_pair = self.encoder(
+        elif self.args.backbone in ["exp2", "exp3", "seq-dit-geom"]:
+            encoder = self.encoder if self.args.backbone in ["exp2", "exp3"] else self.seq_encoder
+            encoder_output, x_pair = encoder(
                 token_embedding.transpose(0, 1),
                 padding_mask,
                 batched_data,
@@ -2231,7 +2305,8 @@ class PSM(nn.Module):
                 dist_map = self.dist_head(x_pair)
 
                 if not self.args.seq_only:
-                    decoder_x_output = self.decoder(
+                    decoder = self.decoder if self.args.backbone in ["exp2", "exp3"] else self.structure_encoder
+                    decoder_x_output = decoder(
                         batched_data,
                         encoder_output,
                         time_embed,
@@ -2243,8 +2318,18 @@ class PSM(nn.Module):
                         ifbackprop=self.args.AutoGradForce,
                     )
 
-                decoder_vec_output = None
-                encoder_output = encoder_output.transpose(0, 1)
+                if self.args.backbone in ["exp2", "exp3"]:
+                    decoder_vec_output = None
+                    encoder_output = encoder_output.transpose(0, 1)
+                else:
+                    decoder_x_output, decoder_vec_output = self.structure_decoder(
+                        batched_data,
+                        decoder_x_output.transpose(0, 1),
+                        mixed_attn_bias,
+                        padding_mask,
+                        pbc_expand_batched,
+                        time_embed=time_embed,
+                    )
 
         elif self.args.backbone in ["dit", "ditp"]:
             encoder_output = self.encoder(
@@ -2406,7 +2491,8 @@ class PSM(nn.Module):
                     assert self.args.backbone not in [
                         "graphormer",
                         "graphormer-e2",
-                    ], "encoderfeat4noise=True is not compatible with graphormer and graphormer-e2"
+                        "seq-dit-geom"
+                    ], "encoderfeat4noise=True is not compatible with graphormer, graphormer-e2 and seq-dit-geom"
                     invariant_output = encoder_output
                 else:
                     invariant_output = decoder_x_output
@@ -2428,7 +2514,7 @@ class PSM(nn.Module):
                     noise_pred = torch.where(
                         is_protein[:, :, None], protein_noise_pred, noise_pred
                     )
-                elif self.args.backbone not in ["graphormer", "graphormer-e2"]:
+                elif self.args.backbone not in ["graphormer", "graphormer-e2", "seq-dit-geom"]:
                     noise_pred = self.noise_head(invariant_output, decoder_vec_output)
                     periodic_noise_pred = self.periodic_noise_head(
                         invariant_output, decoder_vec_output
@@ -2460,7 +2546,7 @@ class PSM(nn.Module):
                         ).squeeze(-1),
                     )
 
-                if self.args.diffusion_mode == "edm":
+                if self.args.diffusion_mode == "edm" and (not is_ddpm_for_material_when_edm):
                     noise_pred = (
                         batched_data["c_skip"] * pos_noised_no_c_in
                         + batched_data["c_out"] * noise_pred
@@ -2471,7 +2557,7 @@ class PSM(nn.Module):
                         batched_data["sqrt_one_minus_alphas_cumprod_t"]
                     )
                     scale = torch.sigmoid(scale_shift + logit_bias)
-                    if self.psm_config.diffusion_mode == "epsilon":
+                    if self.psm_config.diffusion_mode == "epsilon" or (self.psm_config.diffusion_mode == "edm" and is_ddpm_for_material_when_edm):
                         noise_pred = (
                             scale * (batched_data["pos"] - batched_data["init_pos"])
                             + (1 - scale) * noise_pred

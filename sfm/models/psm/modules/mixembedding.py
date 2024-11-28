@@ -295,7 +295,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
                     num_channels=psm_config.embedding_dim,
                 )
 
-    @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -676,7 +676,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
             psm_config.num_3d_bias_kernel, psm_config.num_attention_heads
         )
 
-    @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -771,7 +771,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
 
         return graph_attn_bias
 
-    @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def _2dedge_emb(
         self,
         adj: torch.Tensor,
@@ -956,7 +956,7 @@ class PSMLightPEmbedding(PSMMix3dDitEmbedding):
             psm_config.diffusion_time_step_encoder_type,
         )
 
-    @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -1298,7 +1298,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
                 psm_config.num_3d_bias_kernel * 4,
                 bias=False,
             ),
-            nn.LayerNorm(psm_config.num_3d_bias_kernel * 4, bias=False),
+            nn.LayerNorm(psm_config.num_3d_bias_kernel * 4), #, bias=False),
             nn.ReLU(),
             nn.Linear(
                 psm_config.num_3d_bias_kernel * 4,
@@ -1322,7 +1322,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
         self.psm_config = psm_config
 
-    @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def _2dedge_emb(
         self,
         adj: torch.Tensor,
@@ -1402,7 +1402,9 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         else:
             x = torch.matmul(batched_data["one_hot_token_id"], self.embed.weight)
 
-        if self.psm_config.diffusion_mode == "edm":
+        is_ddpm_for_material_when_edm = (self.psm_config.diffusion_mode == "edm" and self.psm_config.use_ddpm_for_material and batched_data["is_periodic"].all())
+
+        if self.psm_config.diffusion_mode == "edm" and (not is_ddpm_for_material_when_edm):
             noise_embed_edm = self.noise_cond_embed_edm(
                 batched_data["c_noise"].to(x.dtype).flatten()
             ).to(x.dtype)

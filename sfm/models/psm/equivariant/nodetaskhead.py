@@ -16,6 +16,7 @@ from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.layer_norm import AdaNorm
 from sfm.modules.mem_eff_attn import MemEffAttn
 
+from sfm.models.psm.modules.embedding import PSMMixEmbedding
 
 class NodeTaskHead(nn.Module):
     def __init__(
@@ -547,6 +548,104 @@ class DiffusionModule3(nn.Module):
             mixed_attn_bias = mixed_attn_bias + pair_feat_bias
         else:
             mixed_attn_bias = pair_feat_bias
+
+        if feat2node is not None:
+            x = x + feat2node
+
+        for _, layer in enumerate(self.layers):
+            pos_embedding = layer(
+                pos_embedding + time_emb,
+                x,
+                padding_mask,
+                batched_data,
+                pbc_expand_batched=pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
+                ifbackprop=ifbackprop,
+            )
+
+        return pos_embedding
+
+
+class InvariantDiffusionModule(nn.Module):
+    def __init__(
+        self,
+        args,
+        psm_config: PSMConfig,
+    ):
+        super().__init__()
+
+        self.layers = nn.ModuleList([])
+
+        self.embedding = PSMMixEmbedding(psm_config)
+
+        self.pair_feat_bias = nn.Sequential(
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.encoder_pair_embed_dim,
+                bias=False,
+            ),
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.num_attention_heads,
+                bias=False,
+            ),
+        )
+
+        for nl in range(psm_config.num_structure_encoder_layer):
+            self.layers.extend(
+                [
+                    DiTBlock(
+                        args,
+                        psm_config,
+                        embedding_dim=psm_config.structure_hidden_dim,
+                        ffn_embedding_dim=psm_config.structure_ffn_dim,
+                    )
+                ]
+            )
+
+    def forward(
+        self,
+        batched_data: Dict,
+        x,
+        time_emb,
+        padding_mask,
+        mixed_attn_bias: Optional[Tensor] = None,
+        pbc_expand_batched: Optional[Dict] = None,
+        ifbackprop: bool = False,
+        pair_feat: Optional[Tensor] = None,
+        dist_map: Optional[Tensor] = None,
+    ) -> Tensor:
+        x = x.transpose(0, 1)
+
+        pos_embedding, _, _, pos_attn_bias = self.embedding(batched_data, time_step=None, aa_mask=None, clean_mask=batched_data["clean_mask"], pbc_expand_batched=pbc_expand_batched, ignore_mlm_from_decoder_feature=True)
+
+        if pair_feat is not None:
+            if pbc_expand_batched is not None:
+                expand_mask = torch.cat(
+                    [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+                )
+            else:
+                expand_mask = padding_mask
+
+            pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
+
+            pair_feat = pair_feat.masked_fill(
+                expand_mask.unsqueeze(-1).unsqueeze(1), 0.0
+            )
+            pair_feat = pair_feat.masked_fill(
+                padding_mask.unsqueeze(-1).unsqueeze(2), 0.0
+            )
+
+            feat2node = None
+        else:
+            pair_feat_bias = None
+            feat2node = None
+
+        if mixed_attn_bias is not None:
+            mixed_attn_bias = mixed_attn_bias + pair_feat_bias + pos_attn_bias
+        else:
+            mixed_attn_bias = pair_feat_bias + pos_attn_bias
 
         if feat2node is not None:
             x = x + feat2node
