@@ -36,7 +36,7 @@ class GraphAttnBias(nn.Module):
             psm_config.encoder_embed_dim // psm_config.num_attention_heads
         )
 
-        if self.psm_config.use_graphormer_path_edge_feature:
+        if psm_config.use_graphormer_path_edge_feature:
             self.edge_encoder = nn.Embedding(
                 psm_config.num_edges + 1, self.edge_hidden_dim, padding_idx=0
             )

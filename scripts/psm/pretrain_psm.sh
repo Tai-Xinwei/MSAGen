@@ -8,6 +8,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+[ -z "${backbone}" ] && backbone=seq-dit-geom
 [ -z "${layers}" ] && layers=22
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
@@ -223,7 +224,7 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=seq-dit-geom \
+          backbone=$backbone \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           encoder_ffn_embed_dim=$ffn_size \
