@@ -2349,7 +2349,7 @@ class PSM(nn.Module):
                         if self.args.backbone in ["exp2", "exp3"]
                         else self.structure_encoder
                     )
-                    decoder_x_output = decoder(
+                    decoder_x_output, mixed_attn_bias = decoder(
                         batched_data,
                         encoder_output,
                         time_embed,

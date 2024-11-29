@@ -668,4 +668,4 @@ class InvariantDiffusionModule(nn.Module):
                 ifbackprop=ifbackprop,
             )
 
-        return pos_embedding
+        return pos_embedding, mixed_attn_bias
