@@ -170,7 +170,7 @@ class EquivariantLayerNorm(nn.Module):
     def __init__(
         self,
         normalized_shape: int,
-        eps: float = 1e-5,
+        eps: float = 1e-3,
         elementwise_linear: bool = True,
         device=None,
         dtype=None,

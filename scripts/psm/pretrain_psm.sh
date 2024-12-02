@@ -78,7 +78,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_shiyu_seq_dit_geom_20241127
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev_shiyu_seq_dit_geom_20241127
-# [ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
+[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 [ -z "${wandb_run_name}" ] && wandb_run_name=mattergen_adaptive_noise
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -200,8 +200,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-# export WANDB_API_KEY=$wandb_key
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
