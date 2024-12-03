@@ -1390,9 +1390,20 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         )
 
         if aa_mask is not None:
-            mask_token_type = token_id.masked_fill(
-                aa_mask, 157
-            )  # 157 is the mask token
+            # mask_token_type = token_id.masked_fill(
+            #     aa_mask, 157
+            # )  # 157 is the mask token
+            # 80% mask, 10% replace, 10% keep
+            prob = torch.rand(token_id.shape, device=token_id.device)
+            mask_token_type = token_id.clone()
+            mask_token_type[prob < 0.8] = 157  # 80% mask
+            mask_token_type[(prob >= 0.8) & (prob < 0.9)] = torch.randint(
+                130, 157, token_id.shape, device=token_id.device
+            )[
+                (prob >= 0.8) & (prob < 0.9)
+            ]  # 10% replace
+            # 10% keep remains unchanged
+            mask_token_type = torch.where(aa_mask, mask_token_type, token_id)
         else:
             mask_token_type = token_id
 
