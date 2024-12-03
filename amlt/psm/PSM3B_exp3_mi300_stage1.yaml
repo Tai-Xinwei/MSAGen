@@ -74,7 +74,10 @@ jobs:
   - export act_dropout=0.1
   - export weight_decay=0.0
   - export droppath_prob=0.0
-  - export mask_ratio=0.0
+  - export mask_ratio=0.15
+  - export mask_prob='0.1,0.9,0.0'
+  - export complex_mode_prob='0.9,0.0,0.1,0.0.0
+
   - export d_tilde=1.0
   - export max_lr=1e-4
   - export strategy=Zero1
