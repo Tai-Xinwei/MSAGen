@@ -80,7 +80,7 @@ jobs:
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=400000
-  - export warmup_num_steps=10000
+  - export warmup_num_steps=1000
   - export train_batch_size=2048
   - export val_batch_size=512
   - export max_tokens=16000
@@ -92,10 +92,10 @@ jobs:
   - export log_interval=100
 
   - export data_path=/psm/data_copy/
-  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
-  - export dataset_name_list='esm,mgnify,esm,pdbcomplexmultimer' #,geom'
-  - export dataset_split_raito='0.4,0.2,0.2,0.2' #,0.2'
-  - export dataset_micro_batch_size='16,16,16,16,16'
+  - export data_path_list='MGnify,AFDB90-plddt70-reduce.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='mgnify,esm,esm,pdbcomplexmultimer' #,geom'
+  - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
+  - export dataset_micro_batch_size='16,16,16,16'
 
   - export fp16=False
   - export clean_sample_ratio=0.0
