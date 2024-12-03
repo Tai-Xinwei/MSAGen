@@ -150,15 +150,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
 
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
-
-[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+
+# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
 # [ -z "${data_path_list}" ] && data_path_list='MGnify'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mgnify'

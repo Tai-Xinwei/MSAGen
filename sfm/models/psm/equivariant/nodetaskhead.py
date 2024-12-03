@@ -573,3 +573,134 @@ class DiffusionModule3(nn.Module):
             )
 
         return pos_embedding
+
+
+class AADiffusionModule(nn.Module):
+    def __init__(
+        self,
+        args,
+        psm_config: PSMConfig,
+    ):
+        super().__init__()
+
+        self.layers = nn.ModuleList([])
+
+        self.atom_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
+        self.residue_pos_emb = nn.Linear(111, psm_config.embedding_dim, bias=False)
+
+        self.pair_feat_bias = nn.Sequential(
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.encoder_pair_embed_dim,
+                bias=False,
+            ),
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.num_attention_heads,
+                bias=False,
+            ),
+        )
+
+        for nl in range(psm_config.num_pred_attn_layer):
+            self.layers.extend(
+                [
+                    DiTBlock(
+                        args,
+                        psm_config,
+                        embedding_dim=psm_config.decoder_hidden_dim,
+                        ffn_embedding_dim=psm_config.decoder_ffn_dim,
+                    )
+                ]
+            )
+
+    def forward(
+        self,
+        batched_data: Dict,
+        x,
+        time_emb,
+        padding_mask,
+        mixed_attn_bias: Optional[Tensor] = None,
+        pbc_expand_batched: Optional[Dict] = None,
+        ifbackprop: bool = False,
+        pair_feat: Optional[Tensor] = None,
+        dist_map: Optional[Tensor] = None,
+    ) -> Tensor:
+        x = x.transpose(0, 1)
+
+        if pbc_expand_batched is not None:
+            # use pbc and multi-graph
+            # expand_pos = torch.cat([batched_data["pos"], pbc_expand_batched["expand_pos"]], dim=1)
+            expand_mask = torch.cat(
+                [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+            )
+        else:
+            # expand_pos = batched_data["pos"]
+            expand_mask = padding_mask
+
+        # mix pos embedding
+        if batched_data["is_protein"].any():
+            pos_embedding_res = (
+                self.residue_pos_emb(batched_data["pos"])
+                .to(self.pos_emb.weight.dtype)
+                .masked_fill(padding_mask.unsqueeze(-1), 0.0)
+            )
+            pos_embedding_atom = (
+                self.atom_pos_emb(batched_data["pos"][:, 0, :])
+                .to(self.pos_emb.weight.dtype)
+                .masked_fill(padding_mask.unsqueeze(-1), 0.0)
+            )
+            pos_embedding = torch.where(
+                batched_data["is_protein"].unsqueeze(-1),
+                pos_embedding_res,
+                pos_embedding_atom,
+            )
+        else:
+            pos_embedding = (
+                self.atom_pos_emb(batched_data["pos"][:, 0, :])
+                .to(self.pos_emb.weight.dtype)
+                .masked_fill(padding_mask.unsqueeze(-1), 0.0)
+            )
+
+        if pair_feat is not None:
+            if pbc_expand_batched is not None:
+                expand_mask = torch.cat(
+                    [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+                )
+            else:
+                expand_mask = padding_mask
+
+            pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
+
+            pair_feat = pair_feat.masked_fill(
+                expand_mask.unsqueeze(-1).unsqueeze(1), 0.0
+            )
+            pair_feat = pair_feat.masked_fill(
+                padding_mask.unsqueeze(-1).unsqueeze(2), 0.0
+            )
+
+            feat2node = None
+        else:
+            pair_feat_bias = None
+            feat2node = None
+
+        if mixed_attn_bias is not None:
+            mixed_attn_bias = mixed_attn_bias + pair_feat_bias
+        else:
+            mixed_attn_bias = pair_feat_bias
+
+        if feat2node is not None:
+            x = x + feat2node
+
+        for _, layer in enumerate(self.layers):
+            pos_embedding = layer(
+                pos_embedding + time_emb,
+                x,
+                padding_mask,
+                batched_data,
+                pbc_expand_batched=pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
+                ifbackprop=ifbackprop,
+            )
+
+        return pos_embedding

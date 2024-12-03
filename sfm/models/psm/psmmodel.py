@@ -20,6 +20,7 @@ from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
+    AADiffusionModule,
     ConditionVectorGatedOutput,
     DiffusionModule,
     DiffusionModule2,
@@ -292,11 +293,18 @@ class PSMModel(Model):
 
     def _create_protein_mask(self, batched_data):
         token_id = batched_data["token_id"]  # B x T
+
         # create protein aa mask with mask ratio
-        batched_data["protein_masked_pos"] = (
-            torch.rand_like(token_id.unsqueeze(-1), dtype=torch.float)
-            < self.psm_config.mask_ratio
-        ).expand_as(batched_data["pos"])
+        if self.psm_config.all_atom:
+            batched_data["protein_masked_pos"] = (
+                torch.rand_like(token_id.unsqueeze(-1).unsqueeze(-1), dtype=torch.float)
+                < self.psm_config.mask_ratio
+            ).expand_as(batched_data["pos"])
+        else:
+            batched_data["protein_masked_pos"] = (
+                torch.rand_like(token_id.unsqueeze(-1), dtype=torch.float)
+                < self.psm_config.mask_ratio
+            ).expand_as(batched_data["pos"])
 
         # generate a random number [0.15, 0.6] as mask ratio
         if self.psm_config.mask_ratio < 0.15:
@@ -311,12 +319,22 @@ class PSMModel(Model):
         masked_pos = batched_data["protein_masked_pos"]
 
         # for both protein and complex, mask out protein aa and ligands nan/inf coords
-        masked_protein = (
-            ((token_id > 1) & (token_id < 158))
-            .any(dim=-1, keepdim=True)
-            .unsqueeze(-1)
-            .expand_as(masked_pos)
-        )  # mask_protein: B x T x 3
+        if self.psm_config.all_atom:
+            masked_protein = (
+                ((token_id > 1) & (token_id < 158))
+                .any(dim=-1, keepdim=True)
+                .unsqueeze(-1)
+                .unsqueeze(-1)
+                .expand_as(masked_pos)
+            )  # mask_protein: B x T x 3
+        else:
+            masked_protein = (
+                ((token_id > 1) & (token_id < 158))
+                .any(dim=-1, keepdim=True)
+                .unsqueeze(-1)
+                .expand_as(masked_pos)
+            )  # mask_protein: B x T x 3
+
         masked_nan = (
             torch.isnan(batched_data["pos"])
             .any(dim=-1, keepdim=True)
@@ -337,7 +355,10 @@ class PSMModel(Model):
                 batched_data["confidence"] < self.psm_config.plddt_threshold
             ) & (batched_data["confidence"] >= 0.0)
 
-            mask = mask | confidence_mask.unsqueeze(-1)
+            if self.psm_config.all_atom:
+                mask = mask | confidence_mask.unsqueeze(-1).unsqueeze(-1)
+            else:
+                mask = mask | confidence_mask.unsqueeze(-1)
 
         batched_data["protein_mask"] = mask
 
@@ -1619,6 +1640,7 @@ def complete_cell(pos, batched_data):
     lattice = torch.gather(periodic_pos, 1, index=gather_index)
     corner = lattice[:, 0, :]
     lattice = lattice[:, 1:, :] - corner.unsqueeze(1)
+    batched_data["cell"] = batched_data["cell"].to(lattice.dtype)
     batched_data["cell"][is_stable_periodic, :, :] = lattice
     cell = torch.matmul(cell_matrix, lattice) + corner.unsqueeze(1)
     scatter_index = torch.arange(8, device=device).unsqueeze(0).unsqueeze(-1).repeat(
@@ -1726,7 +1748,10 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMPairPlainEncoder(args, psm_config)
             # Implement the decoder
-            self.decoder = DiffusionModule3(args, psm_config)
+            if args.all_atom:
+                self.decoder = AADiffusionModule(args, psm_config)
+            else:
+                self.decoder = DiffusionModule3(args, psm_config)
         elif args.backbone in ["vectorvanillatransformer"]:
             self.encoder = None
             self.decoder = VectorVanillaTransformer(psm_config)

@@ -96,11 +96,18 @@ def pad_3d_unsqueeze(x, padlen1, padlen2, padlen3):
 
 
 def pad_pos_unsqueeze(x, padlen):
-    xlen, xdim = x.size()
-    if xlen < padlen:
-        new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
-        new_x[:xlen, :] = x
-        x = new_x
+    if len(x.size()) == 2:
+        xlen, xdim = x.size()
+        if xlen < padlen:
+            new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
+            new_x[:xlen, :] = x
+            x = new_x
+    elif len(x.size()) == 3:
+        xlen, natom, xdim = x.size()
+        if xlen < padlen:
+            new_x = x.new_zeros([padlen, natom, xdim], dtype=x.dtype)
+            new_x[:xlen, :, :] = x
+            x = new_x
     return x.unsqueeze(0)
 
 

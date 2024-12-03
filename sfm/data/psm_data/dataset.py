@@ -1383,9 +1383,14 @@ class AFDBLMDBDataset(FoundationModelDataset):
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
                 ]
-                coords = data["pos"][
-                    random_start : random_start + self.args.max_length, 1, :
-                ]
+                if self.args.all_atom:
+                    coords = data["pos"][
+                        random_start : random_start + self.args.max_length, :, :
+                    ]
+                else:
+                    coords = data["pos"][
+                        random_start : random_start + self.args.max_length, 1, :
+                    ]
                 confidence = data["confidence"][
                     random_start : random_start + self.args.max_length
                 ]
@@ -1396,12 +1401,18 @@ class AFDBLMDBDataset(FoundationModelDataset):
             else:
                 selected_idx = self.crop_spatial(data)
                 data["aa"] = data["aa"][selected_idx]
-                coords = data["pos"][selected_idx, 1, :]
+                if self.args.all_atom:
+                    coords = data["pos"][selected_idx, :, :]
+                else:
+                    coords = data["pos"][selected_idx, 1, :]
                 confidence = data["confidence"][selected_idx]
                 position_ids = selected_idx + random_start_pos_id
         else:
             # CA atom positions, assume all values are valid.
-            coords = data["pos"][:, 1, :]
+            if self.args.all_atom:
+                coords = data["pos"][:, :, :]
+            else:
+                coords = data["pos"][:, 1, :]
             confidence = data["confidence"]
             position_ids = range(
                 random_start_pos_id, random_start_pos_id + len(data["aa"])

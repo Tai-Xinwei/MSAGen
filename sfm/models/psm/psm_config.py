@@ -108,6 +108,7 @@ class PSMConfig(GraphormerConfig):
     complex_mode_prob: str = "0.1,0.4,0.5"
     sample_ligand_only: bool = False
     plddt_threshold: float = 70.0
+    all_atom: bool = False
 
     # for molecule
     molecule_ref_energy_source: Optional[str] = None
