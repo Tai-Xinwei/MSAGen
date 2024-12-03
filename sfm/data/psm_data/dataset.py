@@ -2309,8 +2309,10 @@ class PDBComplexDataset(AFDBLMDBDataset):
         position_ids = []
         chain_ids = []
 
-        if self.sample_mode:
+        if not self.sample_mode:
             start_position_ids = np.random.randint(0, 2000)
+        else:
+            start_position_ids = 0
 
         polymer_len = 0
 
@@ -2452,8 +2454,10 @@ class PDBComplexDataset(AFDBLMDBDataset):
         position_ids = []
         chain_ids = []
 
-        if self.sample_mode:
+        if not self.sample_mode:
             start_position_ids = np.random.randint(0, 2000)
+        else:
+            start_position_ids = 0
 
         polymer_len = 0
 

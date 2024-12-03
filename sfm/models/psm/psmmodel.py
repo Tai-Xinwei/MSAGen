@@ -2552,10 +2552,12 @@ class PSM(nn.Module):
                 forces = torch.zeros_like(batched_data["pos"])
                 noise_pred = torch.zeros_like(batched_data["pos"])
 
-            if not (
-                self.psm_config.psm_finetune_mode
-                and self.psm_config.psm_finetune_skip_ori_head
-            ):
+            if (
+                not (
+                    self.psm_config.psm_finetune_mode
+                    and self.psm_config.psm_finetune_skip_ori_head
+                )
+            ) and self.psm_config.encoderfeat4mlm:
                 aa_logits = self.aa_mask_head(encoder_output)
                 # q, k = self.pair_proj(encoder_output).chunk(2, dim=-1)
                 # dist_map = torch.einsum("bld,bkd->blkd", q, k)

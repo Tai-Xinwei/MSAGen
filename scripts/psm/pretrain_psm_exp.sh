@@ -46,7 +46,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -62,8 +62,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0' #'0.2,0.7,0.1'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.9,0.0' #'0.2,0.7,0.1'
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.9,0.0,0.1,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
@@ -246,7 +246,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
+
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=True
