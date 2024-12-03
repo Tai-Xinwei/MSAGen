@@ -2309,7 +2309,9 @@ class PDBComplexDataset(AFDBLMDBDataset):
         position_ids = []
         chain_ids = []
 
-        start_position_ids = np.random.randint(0, 2000)
+        if self.sample_mode:
+            start_position_ids = np.random.randint(0, 2000)
+
         polymer_len = 0
 
         # reconstruct the polymer chains
@@ -2449,7 +2451,10 @@ class PDBComplexDataset(AFDBLMDBDataset):
         coords = []
         position_ids = []
         chain_ids = []
-        start_position_ids = np.random.randint(0, 2000)
+
+        if self.sample_mode:
+            start_position_ids = np.random.randint(0, 2000)
+
         polymer_len = 0
 
         for idx, polymer_chains_idx in enumerate(polymer_chains_idxes):
