@@ -14,8 +14,8 @@ ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm
 # global_step=global_step8848
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241105-lr2e-5-bsz2-steps400000-warm25000-holo
 
-# global_step_step=6000
-# ckpt_folder_path=/data/peiran/output/dit300m/
+global_step=global_step47304
+ckpt_folder_path=/data/peiran/output/dit300m/
 
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/complex/$global_step/prediction
@@ -46,6 +46,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   max_residue_num=20480 \
   ligand_crop_size=10000 \
   diffusion_mode=edm \
+  use_memory_efficient_attention=false \
   # sample_ligand_only=true \
 
 

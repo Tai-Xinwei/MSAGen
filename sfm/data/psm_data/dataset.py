@@ -1674,7 +1674,8 @@ class MGnifyDataset(AFDBLMDBDataset):
         keys: Optional[List[str]] = None,
         sizes: Optional[List[int]] = None,
     ):
-        version = "mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb"
+        # version = "mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb"
+        version = "mgnify90_2019_05.cluster_size_gt1.sequence_length_20to2699.20211129_c8e25fe8.plddt_gt70.lmdb"
         if lmdb_path.find(version) == -1:
             self.lmdb_path = os.path.join(lmdb_path, version)
         else:
