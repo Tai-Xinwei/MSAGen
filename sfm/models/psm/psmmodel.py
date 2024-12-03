@@ -2242,6 +2242,8 @@ class PSM(nn.Module):
                         dist_map=dist_map,
                         ifbackprop=self.args.AutoGradForce,
                     )
+                else:
+                    decoder_x_output = None
 
                 decoder_vec_output = None
                 encoder_output = encoder_output.transpose(0, 1)
@@ -2594,6 +2596,7 @@ class PSM(nn.Module):
         if self.psm_config.psm_finetune_mode:
             result_dict.update(
                 {
+                    "encoder_output": encoder_output,
                     "decoder_x_output": decoder_x_output,
                     "decoder_vec_output": decoder_vec_output,
                 }
