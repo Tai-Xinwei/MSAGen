@@ -76,7 +76,7 @@ jobs:
   - export droppath_prob=0.0
   - export mask_ratio=0.15
   - export mask_prob='0.1,0.9,0.0'
-  - export complex_mode_prob='0.9,0.0,0.1,0.0.0
+  - export complex_mode_prob='0.9,0.0,0.1,0.0'
 
   - export d_tilde=1.0
   - export max_lr=1e-4
@@ -95,10 +95,10 @@ jobs:
   - export log_interval=100
 
   - export data_path=/psm/data/
-  - export data_path_list='MGnify,AFDB90-plddt70-reduce.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
-  - export dataset_name_list='mgnify,esm,pdbcomplexmultimer' #,geom'
-  - export dataset_split_raito='0.4,0.4,0.2' #,0.2'
-  - export dataset_micro_batch_size='16,16,16'
+  - export data_path_list='MGnify,UniProt-updated-plddt70-reduce.lmdb,AFDB90-plddt70-reduce.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='mgnify,esm,esm,pdbcomplexmultimer' #,geom'
+  - export dataset_split_raito='0.2,0.3,0.3,0.2' #,0.2'
+  - export dataset_micro_batch_size='16,16,16,16'
 
   - export fp16=False
   - export clean_sample_ratio=0.0

@@ -1398,7 +1398,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             mask_token_type = token_id.clone()
             mask_token_type[prob < 0.8] = 157  # 80% mask
             mask_token_type[(prob >= 0.8) & (prob < 0.9)] = torch.randint(
-                130, 157, token_id.shape, device=token_id.device
+                130, 156, token_id.shape, device=token_id.device
             )[
                 (prob >= 0.8) & (prob < 0.9)
             ]  # 10% replace
