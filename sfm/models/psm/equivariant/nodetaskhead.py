@@ -602,7 +602,7 @@ class AADiffusionModule(nn.Module):
             ),
         )
 
-        for nl in range(psm_config.num_pred_attn_layer):
+        for _ in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
                 [
                     DiTBlock(
@@ -640,8 +640,10 @@ class AADiffusionModule(nn.Module):
 
         # mix pos embedding
         if batched_data["is_protein"].any():
+            B, L, _, _ = batched_data["pos"].shape
             pos_embedding_res = (
                 self.residue_pos_emb(batched_data["pos"])
+                .view(B, L, -1)
                 .to(self.pos_emb.weight.dtype)
                 .masked_fill(padding_mask.unsqueeze(-1), 0.0)
             )

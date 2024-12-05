@@ -478,42 +478,83 @@ class PSMModel(Model):
         token_id = batched_data["token_id"]
         clean_mask = clean_mask.masked_fill(token_id == 156, True)
 
-        if time_step is not None:
-            time_step = time_step.masked_fill(token_id == 156, 0.0)
-            # set T noise if protein is seq only
-            time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
-            # set 0 noise for padding
-            time_step = time_step.masked_fill(padding_mask, 0.0)
-            # # TODO: found this may cause instability issue, need to check
-            # # # set T noise for batched_data["protein_mask"] nan/inf coords
-            time_step = time_step.masked_fill(
-                batched_data["protein_mask"].any(dim=-1), 1.0
+        if self.psm_config.all_atom:
+            if time_step is not None:
+                time_step = time_step.masked_fill(token_id == 156, 0.0)
+                # set T noise if protein is seq only
+                time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
+                # set 0 noise for padding
+                time_step = time_step.masked_fill(padding_mask, 0.0)
+                # # TODO: found this may cause instability issue, need to check
+                # # # set T noise for batched_data["protein_mask"] nan/inf coords
+                time_step = time_step.unsqueeze(-1).repeat(1, 1, 37)
+                time_step = time_step.masked_fill(
+                    batched_data["protein_mask"].any(dim=-1), 1.0
+                )
+
+            if noise_step is not None:
+                noise_step = noise_step.masked_fill(token_id == 156, -4.42)
+                # set T noise if protein is seq only
+                noise_step = noise_step.masked_fill(
+                    is_seq_only.unsqueeze(-1), 4.19
+                )  # NOTE: 3σ is used as the maximum value
+                # set 0 noise for padding
+                noise_step = noise_step.masked_fill(padding_mask, -4.42)
+                # # TODO: found this may cause instability issue, need to check
+                # # # set T noise for batched_data["protein_mask"] nan/inf coords
+                noise_step = noise_step.unsqueeze(-1).repeat(1, 1, 37)
+                noise_step = noise_step.masked_fill(
+                    batched_data["protein_mask"].any(dim=-1), 4.19
+                )
+
+            clean_mask = clean_mask.unsqueeze(-1).repeat(1, 1, 37)
+            # make sure noise really replaces nan/inf coords
+            clean_mask = clean_mask.masked_fill(
+                batched_data["protein_mask"].any(dim=-1), False
             )
 
-        if noise_step is not None:
-            noise_step = noise_step.masked_fill(token_id == 156, -4.42)
-            # set T noise if protein is seq only
-            noise_step = noise_step.masked_fill(
-                is_seq_only.unsqueeze(-1), 4.19
-            )  # NOTE: 3σ is used as the maximum value
-            # set 0 noise for padding
-            noise_step = noise_step.masked_fill(padding_mask, -4.42)
-            # # TODO: found this may cause instability issue, need to check
-            # # # set T noise for batched_data["protein_mask"] nan/inf coords
-            noise_step = noise_step.masked_fill(
-                batched_data["protein_mask"].any(dim=-1), 4.19
+            if time_step is not None:
+                time_step = time_step.masked_fill(clean_mask, 0.0)
+
+            if noise_step is not None:
+                noise_step = noise_step.masked_fill(clean_mask, -4.42)
+        else:
+            if time_step is not None:
+                time_step = time_step.masked_fill(token_id == 156, 0.0)
+                # set T noise if protein is seq only
+                time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
+                # set 0 noise for padding
+                time_step = time_step.masked_fill(padding_mask, 0.0)
+                # # TODO: found this may cause instability issue, need to check
+                # # # set T noise for batched_data["protein_mask"] nan/inf coords
+                time_step = time_step.masked_fill(
+                    batched_data["protein_mask"].any(dim=-1), 1.0
+                )
+
+            if noise_step is not None:
+                noise_step = noise_step.masked_fill(token_id == 156, -4.42)
+                # set T noise if protein is seq only
+                noise_step = noise_step.masked_fill(
+                    is_seq_only.unsqueeze(-1), 4.19
+                )  # NOTE: 3σ is used as the maximum value
+                # set 0 noise for padding
+                noise_step = noise_step.masked_fill(padding_mask, -4.42)
+                # # TODO: found this may cause instability issue, need to check
+                # # # set T noise for batched_data["protein_mask"] nan/inf coords
+                noise_step = noise_step.masked_fill(
+                    batched_data["protein_mask"].any(dim=-1), 4.19
+                )
+
+            # make sure noise really replaces nan/inf coords
+            clean_mask = clean_mask.masked_fill(
+                batched_data["protein_mask"].any(dim=-1), False
             )
 
-        # make sure noise really replaces nan/inf coords
-        clean_mask = clean_mask.masked_fill(
-            batched_data["protein_mask"].any(dim=-1), False
-        )
+            if time_step is not None:
+                time_step = time_step.masked_fill(clean_mask, 0.0)
 
-        if time_step is not None:
-            time_step = time_step.masked_fill(clean_mask, 0.0)
-
-        if noise_step is not None:
-            noise_step = noise_step.masked_fill(clean_mask, -4.42)
+            if noise_step is not None:
+                noise_step = noise_step.masked_fill(clean_mask, -4.42)
 
         return clean_mask, aa_mask, time_step, noise_step
 
@@ -595,7 +636,13 @@ class PSMModel(Model):
         is_heavy_atom = is_molecule & (token_id > 130).any(dim=-1)
 
         is_seq_only = sample_type == 5
-        is_seq_only = is_seq_only | batched_data["protein_mask"].all(dim=(-1, -2))
+
+        if self.psm_config.all_atom:
+            is_seq_only = is_seq_only | batched_data["protein_mask"].all(
+                dim=(-1, -2, -3)
+            )
+        else:
+            is_seq_only = is_seq_only | batched_data["protein_mask"].all(dim=(-1, -2))
 
         is_energy_outlier = is_molecule & (
             torch.abs(batched_data["energy_per_atom"]) > 23
@@ -680,7 +727,10 @@ class PSMModel(Model):
             T = torch.randn(
                 ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
             ).unsqueeze(1)
-            ori_pos = torch.bmm(ori_pos, R) + T
+            if self.psm_config.all_atom:
+                ori_pos = torch.bmm(ori_pos, R) + T.unsqueeze(1)
+            else:
+                ori_pos = torch.bmm(ori_pos, R) + T
             batched_data["forces"] = torch.bmm(batched_data["forces"].float(), R)
             # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
             # batched_data["cell"] = torch.bmm(batched_data["cell"], R)

@@ -512,9 +512,11 @@ class DiffNoiseEDM(nn.Module):
                 )
             elif len(clean_mask.shape) == 2:
                 x_noised = torch.where(clean_mask.unsqueeze(-1), x_start, x_noised)
+            elif len(clean_mask.shape) == 3:
+                x_noised = torch.where(clean_mask.unsqueeze(-1), x_start, x_noised)
             else:
                 raise ValueError(
-                    f"clean_mask should be [B] or [B, L] tensor, but it's shape is {clean_mask.shape}"
+                    f"clean_mask should be [B] or [B, L] or [B, L, 37] tensor, but it's shape is {clean_mask.shape}"
                 )
         return x_noised, noise, sigma, weight
 

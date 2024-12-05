@@ -49,7 +49,6 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   use_memory_efficient_attention=false \
   # sample_ligand_only=true \
 
-
 pocket_boundary=-1
 result_path=$SMPL_PATH/../result.csv
 
