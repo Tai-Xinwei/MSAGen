@@ -8,7 +8,7 @@ description: psm
 env_defaults:
   NODES: 8
   GPUS_PER_NODE: 8
-  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+  WANDB_API_KEY: ${WANDB_API_KEY}
 
 target:
   service: sing
@@ -16,28 +16,18 @@ target:
   workspace_name: sfm-ws
 
 environment:
-  image: ai4s-sfm/amd:20241022.151209
+  image: ai4s-sfm/amd:20241111.140607-rocm624
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
   setup:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - sudo chown -R aiscuser /opt
-  - pip install /opt/rocm/share/amd_smi
-  - wget https://raw.githubusercontent.com/wiki/ROCm/pytorch/files/install_kdb_files_for_pytorch_wheels.sh
-  - export GFX_ARCH=gfx942
-  - export ROCM_VERSION=6.1
-  - bash ./install_kdb_files_for_pytorch_wheels.sh
 
 storage:
   eastus2:
     storage_account_name: sfmdatawestus # Storage account
     container_name: psm # Container name
     mount_dir: /psm
-  arca100:
-    storage_account_name: sfmarca100 # Storage account
-    container_name: sfm # Container name
-    mount_dir: /sfm
 
 code:
   local_dir: ../../
@@ -51,9 +41,9 @@ jobs:
   process_count_per_node: 1
   command:
   - export data_path=/psm/data/
-  - mkdir -p /sfm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
-  - export save_dir=/sfm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
-  - export sampled_structure_output_path=/sfm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
+  - mkdir -p /psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
+  - export save_dir=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
+  - export sampled_structure_output_path=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
   - export pbc_cutoff=40.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=512
@@ -124,8 +114,8 @@ jobs:
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
   - export ddpm_schedule=sigmoid
-  - export loadcheck_path='/sfm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241115-1708/checkpoint_E0_B37500.pt'
-  - export psm_finetune_mode=False
+  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/global_step47500/mp_rank_00_model_states.pt'
+  - export psm_finetune_mode=True
   - export psm_validation_mode=False
   - export sample_in_validation=False
   - export psm_finetune_reset_head=False
@@ -178,8 +168,6 @@ jobs:
   - export log_interval=100
 
   - eval "$$(conda shell.bash hook)" && conda activate sfm
-  - python setup_cython.py build_ext --inplace
-  - pip install nvidia-dali-cuda120
   # - bash ./scripts/psm/get_azcopy.sh
   # - mkdir -p /tmp/psmdata/PubChemQC-B3LYP-PM6
   # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/PubChemQC-B3LYP-PM6/wb97xd3/<SAS>" bash ./scripts/psm/azcopydata.sh
@@ -197,7 +185,7 @@ jobs:
   # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-sim-15M-correct-stress/<SAS>" bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm.sh
   submit_args:
-    container_args:
-      shm_size: 1024g
     env:
+      SHARED_MEMORY_PERCENT: 0.9
+      AMLT_DOCKERFILE_TEMPLATE: "none"
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
