@@ -99,6 +99,8 @@ class UnifiedPSMDataset(FoundationModelDataset):
         self.molecule_force_std = 1.0
         self.periodic_force_mean = 0.0
         self.periodic_force_std = 1.0
+        self.periodic_stress_mean = 0.0
+        self.periodic_stress_std = 1.0
 
         for data_path, dataset_name in zip(file_list, dataset_name_list):
             if dataset_name in ["pm6", "pm6-b3lyp", "pm6-wb97xd3"]:
@@ -155,6 +157,8 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.periodic_energy_per_atom_std = train_dataset.energy_per_atom_std
                 self.periodic_force_mean = train_dataset.force_mean
                 self.periodic_force_std = train_dataset.force_std
+                self.periodic_stress_mean = train_dataset.stress_mean
+                self.periodic_stress_std = train_dataset.stress_std
             elif dataset_name == "matbench":
                 train_dataset = MatBenchDataset(args, split="train_val", **kwargs)
                 valid_dataset = MatBenchDataset(

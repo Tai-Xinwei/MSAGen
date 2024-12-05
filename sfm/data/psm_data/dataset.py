@@ -1074,6 +1074,20 @@ class MatterSimDataset:
     def force_std(self):
         return 2.155674863803223
 
+    @property
+    def stress_mean(self):  # stress mean can be non-zero to keep equivariance
+        return -2.69278931e+01
+
+    @property
+    def stress_std(self):
+        return 162.15763102
+
+    @property
+    def stress_mean_elementwise(self):
+        return np.array([[-2.69278931e+01,  0.0,  0.0],
+                         [ 0.0, -2.69278931e+01,  0.0],
+                         [ 0.0,  0.0, -2.69278931e+01]])
+
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
         if self.dataset_type == "single structure file":
@@ -1190,7 +1204,7 @@ class MatterSimDataset:
 
         # get stress
         if "info" in data and "stress" in data["info"]:
-            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+            data["stress"] = torch.tensor(data["info"]["stress"] - self.stress_mean_elementwise, dtype=torch.float64)
         else:
             data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
 
@@ -1198,9 +1212,17 @@ class MatterSimDataset:
             data["energy"] = data["energy"] / self.energy_std
             data["energy_per_atom"] = data["energy_per_atom"] / self.energy_per_atom_std
             data["forces"] = data["forces"] / self.force_std
+            data["stress"] = data["stress"] / self.stress_std
 
         data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+        if is_stable_periodic:
+            data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        else:
+            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+        if is_stable_periodic:
+            data["has_stress"] = torch.tensor([0], dtype=torch.bool)
+        else:
+            data["has_stress"] = torch.tensor([1], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 

@@ -83,6 +83,8 @@ class PSMModel(Model):
         periodic_energy_per_atom_std=1.0,
         molecule_force_std=1.0,
         periodic_force_std=1.0,
+        periodic_stress_mean=0.0,
+        periodic_stress_std=1.0,
     ):
         """
         Initialize the PSMModel class.
@@ -1743,6 +1745,8 @@ class PSM(nn.Module):
         periodic_energy_per_atom_std=1.0,
         molecule_force_std=1.0,
         periodic_force_std=1.0,
+        periodic_stress_mean=0.0,
+        periodic_stress_std=1.0,
     ):
         super().__init__()
         self.max_positions = args.max_positions
@@ -2037,6 +2041,9 @@ class PSM(nn.Module):
                     periodic_energy_per_atom_std=periodic_energy_per_atom_std,
                     molecule_force_std=molecule_force_std,
                     periodic_force_std=periodic_force_std,
+                    periodic_stress_mean=periodic_stress_mean,
+                    periodic_stress_std=periodic_stress_std,
+                    supervise_total_energy=self.psm_config.if_total_energy,
                 )
 
         self.mlp_w = nn.Sequential(
@@ -2139,8 +2146,8 @@ class PSM(nn.Module):
 
         pos = batched_data["pos"]
 
-        if self.args.AutoGradForce:
-            pos.requires_grad_(True)
+        if self.args.AutoGradForce or self.psm_config.supervise_autograd_stress:
+            self.autograd_force_head.wrap_input(batched_data)
 
         is_ddpm_for_material_when_edm = (
             self.psm_config.diffusion_mode == "edm"
@@ -2632,15 +2639,17 @@ class PSM(nn.Module):
                         or batched_data["is_periodic"].any()
                     )
                 ):
-                    autograd_forces = self.autograd_force_head(
+                    autograd_forces, autograd_stress = self.autograd_force_head(
                         energy_per_atom,
                         non_atom_mask,
                         pos,
+                        batched_data["cell"],
                         batched_data["is_periodic"],
                         batched_data["is_molecule"],
                     )
                 else:
                     autograd_forces = None
+                    autograd_stress = None
 
                 if (
                     (not self.psm_config.supervise_force_from_head_when_autograd)
@@ -2723,6 +2732,11 @@ class PSM(nn.Module):
             "pos": batched_data["pos"],
             "dist_map": dist_map,
         }
+
+        if autograd_forces is not None:
+            result_dict.update({"autograd_forces": autograd_forces})
+        if autograd_stress is not None:
+            result_dict.update({"autograd_stress": autograd_stress})
 
         if "one_hot_token_id" in batched_data:
             result_dict["one_hot_token_id"] = batched_data["one_hot_token_id"]

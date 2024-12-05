@@ -325,5 +325,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           num_structure_encoder_layer=$num_structure_encoder_layer \
           structure_ffn_dim=$structure_ffn_dim \
           structure_hidden_dim=$structure_hidden_dim \
-          use_graphormer_path_edge_feature=$use_graphormer_path_edge_feature
-          # ifresume=True \
+          use_graphormer_path_edge_feature=$use_graphormer_path_edge_feature \
+          ifresume=True \
