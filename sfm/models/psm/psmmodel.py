@@ -1611,9 +1611,16 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
             dim=1,
         )
     ) / 2.0
-    protein_mask = batched_data["protein_mask"] | batched_data["token_id"].eq(
-        156
-    ).unsqueeze(-1)
+
+    if len(batched_data["protein_mask"].shape) == 3:
+        protein_mask = batched_data["protein_mask"] | batched_data["token_id"].eq(
+            156
+        ).unsqueeze(-1)
+    elif len(batched_data["protein_mask"].shape) == 4:
+        protein_mask = batched_data["protein_mask"] | batched_data["token_id"].eq(
+            156
+        ).unsqueeze(-1).unsqueeze(-1)
+
     if clean_mask is None:
         num_non_atoms = torch.sum(protein_mask.any(dim=-1), dim=-1)
         non_periodic_center = torch.sum(
