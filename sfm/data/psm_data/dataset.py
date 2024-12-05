@@ -2195,6 +2195,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
         self.ligand_crop_size = args.ligand_crop_size
+        self.all_atom = args.all_atom
 
         self.iter_flag = True
 
