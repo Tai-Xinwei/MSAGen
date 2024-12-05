@@ -37,6 +37,17 @@ class ForceLoss(Enum):
         return self.value
 
 
+class StressLoss(Enum):
+    L1: str = "L1"
+    L2: str = "L2"
+    MSE: str = "MSE"
+    SmoothL1: str = "SmoothL1"
+    NoiseTolerentL1: str = "NoiseTolerentL1"
+
+    def __str__(self):
+        return self.value
+
+
 class DiffusionTimeStepEncoderType(Enum):
     DISCRETE_LEARNABLE: str = "DISCRETE_LEARNABLE"
     POSITIONAL: str = "POSITIONAL"
@@ -207,12 +218,14 @@ class PSMConfig(GraphormerConfig):
     af3_sample_gamma_min: float = 1.0
     af3_sample_step_scale: float = 1.5
     noise_embedding: str = "fourier"
-    # for force
+    # for force and stress
     force_loss_type: ForceLoss = ForceLoss.L1
     force_head_type: ForceHeadType = ForceHeadType.GATED_EQUIVARIANT
     node_type_edge_method: GaussianFeatureNodeType = (
         GaussianFeatureNodeType.NON_EXCHANGABLE
     )
+    stress_loss_type: StressLoss = StressLoss.L1
+    stress_loss_factor: float = 0.1
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
@@ -248,6 +261,7 @@ class PSMConfig(GraphormerConfig):
     encoderfeat4noise: bool = False
     AutoGradForce: bool = False
     supervise_force_from_head_when_autograd: bool = False
+    supervise_autograd_stress: bool = False
     NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False

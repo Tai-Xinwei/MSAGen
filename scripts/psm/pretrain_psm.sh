@@ -57,10 +57,10 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path_list}" ] && data_path_list='AFDB70-plddt70-reduce.lmdb,20240630_PDB_Training_Data,MGnify,matter-gen-force-filtered'
-[ -z "${dataset_name_list}" ] && dataset_name_list='esm,pdbcomplexmultimer,mgnify,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.1,0.3'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2,2,2,8"
+[ -z "${data_path_list}" ] && data_path_list='AFDB70-plddt70-reduce.lmdb,20240630_PDB_Training_Data,MGnify,matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='esm,pdbcomplexmultimer,mgnify,mattersim,mattersim,pm6-wb97xd3'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.1,0.2,0.2,0.2'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2,2,2,8,2,2"
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0' # '0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
@@ -68,7 +68,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/mattergen-debug-20241018-1304/global_step205053/mp_rank_00_model_states.pt'
-[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241127-1540'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1330'
 # [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -87,13 +87,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 
 # material diffusion settings
 [ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=False
@@ -163,6 +163,8 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=True
+[ -z "${supervise_autograd_stress}" ] && supervise_autograd_stress=True
+[ -z "${stress_loss_factor}" ] && stress_loss_factor=0.1
 
 [ -z "${molecule_ref_energy_source}" ] && molecule_ref_energy_source='PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train'
 [ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms=''
@@ -327,3 +329,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           structure_hidden_dim=$structure_hidden_dim \
           use_graphormer_path_edge_feature=$use_graphormer_path_edge_feature \
           ifresume=True \
+          supervise_autograd_stress=$supervise_autograd_stress \
+          stress_loss_factor=$stress_loss_factor

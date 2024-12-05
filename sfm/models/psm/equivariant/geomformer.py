@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn.attention import SDPBackend, sdpa_kernel
+# from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from sfm.models.psm.psm_config import PSMConfig, VecInitApproach
 from sfm.modules.rotary_embedding import SFMRotaryEmbedding

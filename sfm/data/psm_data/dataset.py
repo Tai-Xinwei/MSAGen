@@ -313,6 +313,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         else:
             data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
             data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -706,6 +707,7 @@ class SmallMolDataset(FoundationModelDataset):
             * self.unit,  # this is used from model training, mean/ref is removed.
             "has_energy": torch.tensor([self.has_energy], dtype=torch.bool),
             "has_forces": torch.tensor([self.has_forces], dtype=torch.bool),
+            "has_stress": torch.tensor([0], dtype=torch.bool),
             "data_name": self.data_name,
         }
         if self.is_pbc:
@@ -796,6 +798,7 @@ class SmallMolDataset(FoundationModelDataset):
                 "edge_index",
                 "has_energy",
                 "has_forces",
+                "has_stress",
                 "sample_type",
                 "data_name",
             ]:
@@ -1454,6 +1457,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -1679,6 +1683,7 @@ class ESMDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -1785,6 +1790,7 @@ class MGnifyDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -1891,6 +1897,7 @@ class PDBDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -2049,6 +2056,7 @@ class UR50LMDBDataset(FoundationModelDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -2610,6 +2618,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
         data["energy"] = torch.tensor([0.0], dtype=torch.float64)
         data["in_degree"] = adj.long().sum(dim=1).view(-1)

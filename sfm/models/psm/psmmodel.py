@@ -14,9 +14,9 @@ import torch.nn.functional as F
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
-from sfm.models.psm.equivariant.e2former import E2former
-from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
-from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
+# from sfm.models.psm.equivariant.e2former import E2former
+# from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
+# from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
@@ -353,7 +353,7 @@ class PSMModel(Model):
 
         batched_data["protein_mask"] = mask
 
-    # @torch.compiler.disable(recursive=False)
+    # # @torch.compiler.disable(recursive=False)
     def _protein_pretrain_mode(
         self,
         clean_mask,
@@ -1124,6 +1124,7 @@ class PSMModel(Model):
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
         result_dict["ori_pos"] = batched_data["ori_pos"]
         result_dict["force_label"] = batched_data["forces"]
+        result_dict["stress_label"] = batched_data["stress"]
         result_dict["padding_mask"] = padding_mask
 
         if self.psm_config.diffusion_mode == "edm":
@@ -1614,7 +1615,7 @@ class PSMModel(Model):
         }
 
 
-@torch.compiler.disable(recursive=True)
+# @torch.compiler.disable(recursive=True)
 def center_pos(batched_data, padding_mask, clean_mask=None):
     # get center of system positions
     is_stable_periodic = batched_data["is_stable_periodic"]  # B x 3 -> B
@@ -2035,8 +2036,9 @@ class PSM(nn.Module):
                 nn.Linear(psm_config.embedding_dim, 160, bias=False),
             )
 
-            if self.args.AutoGradForce:
+            if self.args.AutoGradForce or self.psm_config.supervise_autograd_stress:
                 self.autograd_force_head = GradientHead(
+                    psm_config=self.psm_config,
                     molecule_energy_per_atom_std=molecule_energy_per_atom_std,
                     periodic_energy_per_atom_std=periodic_energy_per_atom_std,
                     molecule_force_std=molecule_force_std,
@@ -2066,9 +2068,6 @@ class PSM(nn.Module):
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
-
-        # if self.args.AutoGradForce:
-        self.autograd_force_head = GradientHead()
 
         self.num_vocab = max([VOCAB[key] for key in VOCAB]) + 1
 
@@ -2266,6 +2265,7 @@ class PSM(nn.Module):
 
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
+        stress_pred = None
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
             encoder_output = self.encoder(
                 token_embedding.transpose(0, 1),
@@ -2631,7 +2631,7 @@ class PSM(nn.Module):
                         )
 
                 if (
-                    self.args.AutoGradForce
+                    (self.args.AutoGradForce or self.psm_config.supervise_autograd_stress)
                     and (clean_mask.all(dim=-1)).any()
                     and batched_data["has_forces"].any()
                     and (
@@ -2646,6 +2646,7 @@ class PSM(nn.Module):
                         batched_data["cell"],
                         batched_data["is_periodic"],
                         batched_data["is_molecule"],
+                        batched_data["has_stress"],
                     )
                 else:
                     autograd_forces = None
