@@ -38,10 +38,7 @@ class GradientHead(torch.nn.Module):
         batch_size = pos.size(0)
         device = pos.device
         dtype = pos.dtype
-        if (
-            self.psm_config.supervise_autograd_stress
-            and batched_data["has_stress"].any()
-        ):
+        if self.psm_config.supervise_autograd_stress:
             cell = batched_data["cell"]
 
             self.strain = torch.zeros([batch_size, 3, 3], device=device, dtype=dtype)
@@ -67,7 +64,6 @@ class GradientHead(torch.nn.Module):
         cell,
         is_periodic,
         is_molecule,
-        has_stress,
     ):
         energy_per_atom = energy_per_atom.masked_fill(non_atom_mask, 0.0)
         energy_per_atom = torch.where(
@@ -93,7 +89,7 @@ class GradientHead(torch.nn.Module):
         energy = energy_per_atom.sum(dim=-1, keepdim=True)
         grad_outputs = [torch.ones_like(energy)]
 
-        if self.psm_config.supervise_autograd_stress and has_stress.any():
+        if self.psm_config.supervise_autograd_stress:
             grad = torch.autograd.grad(
                 outputs=energy,
                 inputs=[pos, self.strain],
@@ -124,7 +120,7 @@ class GradientHead(torch.nn.Module):
             forces,
         )
 
-        if self.psm_config.supervise_autograd_stress and has_stress.any():
+        if self.psm_config.supervise_autograd_stress:
             stress_grad = grad[1]
             volume = torch.abs(torch.linalg.det(cell))
             stress = (

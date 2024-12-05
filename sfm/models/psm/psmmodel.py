@@ -2143,10 +2143,10 @@ class PSM(nn.Module):
             - need to be defined
         """
 
-        pos = batched_data["pos"]
-
         if self.args.AutoGradForce or self.psm_config.supervise_autograd_stress:
             self.autograd_force_head.wrap_input(batched_data)
+
+        pos = batched_data["pos"]
 
         is_ddpm_for_material_when_edm = (
             self.psm_config.diffusion_mode == "edm"
@@ -2648,7 +2648,6 @@ class PSM(nn.Module):
                         batched_data["cell"],
                         batched_data["is_periodic"],
                         batched_data["is_molecule"],
-                        batched_data["has_stress"],
                     )
                 else:
                     autograd_forces = None
