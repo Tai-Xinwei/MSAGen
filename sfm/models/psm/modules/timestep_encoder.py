@@ -471,12 +471,21 @@ class DiffNoiseEDM(nn.Module):
         )
         # for non-cell corner nodes (atoms in molecules, amino acids in proteins and atoms in materials)
         # use zero-centered noise
-        noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
-        noise_center = noise.sum(dim=1, keepdim=True) / torch.sum(
-            (~non_atom_mask).long(), dim=-1
-        ).unsqueeze(-1).unsqueeze(-1)
-        noise[~is_stable_periodic] -= noise_center[~is_stable_periodic]
-        noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+        if len(pos.shape) == 3:
+            noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+            noise_center = noise.sum(dim=1, keepdim=True) / torch.sum(
+                (~non_atom_mask).long(), dim=-1
+            ).unsqueeze(-1).unsqueeze(-1)
+            noise[~is_stable_periodic] -= noise_center[~is_stable_periodic]
+            noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+        elif len(pos.shape) == 4:
+            noise = noise.masked_fill(non_atom_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
+            noise_center = noise.sum(dim=1, keepdim=True) / torch.sum(
+                (~non_atom_mask).long(), dim=-1
+            ).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            noise[~is_stable_periodic] -= noise_center[~is_stable_periodic]
+            noise = noise.masked_fill(non_atom_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
+
         # for cell corner nodes (the noise is centered so that the noised cell is centered at the original point)
         noise = self._noise_lattice_vectors(
             pos, non_atom_mask, noise, is_stable_periodic

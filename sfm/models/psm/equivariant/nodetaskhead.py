@@ -169,6 +169,21 @@ class VectorProjOutput(nn.Module):
         return x
 
 
+class AAVectorProjOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(AAVectorProjOutput, self).__init__()
+        self.output_network = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 111, bias=False),
+        )
+
+    def forward(self, x, v):
+        x = self.output_network(x)
+        return x
+
+
 class ForceVecOutput(nn.Module):
     def __init__(self, hidden_channels=768):
         super(ForceVecOutput, self).__init__()
@@ -641,28 +656,21 @@ class AADiffusionModule(nn.Module):
         # mix pos embedding
         if batched_data["is_protein"].any():
             B, L, _, _ = batched_data["pos"].shape
-            pos_embedding_res = (
-                self.residue_pos_emb(batched_data["pos"])
-                .view(B, L, -1)
-                .to(self.pos_emb.weight.dtype)
-                .masked_fill(padding_mask.unsqueeze(-1), 0.0)
-            )
-            pos_embedding_atom = (
-                self.atom_pos_emb(batched_data["pos"][:, 0, :])
-                .to(self.pos_emb.weight.dtype)
-                .masked_fill(padding_mask.unsqueeze(-1), 0.0)
-            )
+            pos_embedding_res = self.residue_pos_emb(
+                batched_data["pos"].view(B, L, -1).to(self.residue_pos_emb.weight.dtype)
+            ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
+            pos_embedding_atom = self.atom_pos_emb(
+                batched_data["pos"][:, :, 0, :].to(self.residue_pos_emb.weight.dtype)
+            ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
             pos_embedding = torch.where(
                 batched_data["is_protein"].unsqueeze(-1),
                 pos_embedding_res,
                 pos_embedding_atom,
             )
         else:
-            pos_embedding = (
-                self.atom_pos_emb(batched_data["pos"][:, 0, :])
-                .to(self.pos_emb.weight.dtype)
-                .masked_fill(padding_mask.unsqueeze(-1), 0.0)
-            )
+            pos_embedding = self.atom_pos_emb(
+                batched_data["pos"][:, :, 0, :].to(self.residue_pos_emb.weight.dtype)
+            ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         if pair_feat is not None:
             if pbc_expand_batched is not None:

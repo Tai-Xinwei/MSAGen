@@ -21,6 +21,7 @@ from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
     AADiffusionModule,
+    AAVectorProjOutput,
     ConditionVectorGatedOutput,
     DiffusionModule,
     DiffusionModule2,
@@ -711,7 +712,10 @@ class PSMModel(Model):
         """
 
         ori_pos = center_pos(batched_data, padding_mask).float()
-        ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+        if self.psm_config.all_atom:
+            ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
+        else:
+            ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         self._create_initial_pos_for_diffusion(batched_data)
 
@@ -728,9 +732,13 @@ class PSMModel(Model):
                 ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
             ).unsqueeze(1)
             if self.psm_config.all_atom:
-                ori_pos = torch.bmm(ori_pos, R) + T.unsqueeze(1)
+                B, L = ori_pos.size()[:2]
+                ori_pos = torch.bmm(ori_pos.view(B, -1, 3), R).view(
+                    B, L, 37, 3
+                ) + T.unsqueeze(1)
             else:
                 ori_pos = torch.bmm(ori_pos, R) + T
+
             batched_data["forces"] = torch.bmm(batched_data["forces"].float(), R)
             # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
             # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
@@ -1067,6 +1075,8 @@ class PSMModel(Model):
 
         if self.psm_config.diffusion_mode == "edm":
             c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(sigma)
+            if self.psm_config.all_atom:
+                c_noise = c_noise[:, :, 1, :]
         else:
             c_skip, c_out, c_in, c_noise = None, None, None, None
 
@@ -1622,13 +1632,25 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
         ).unsqueeze(-1).unsqueeze(-1)
 
     if clean_mask is None:
-        num_non_atoms = torch.sum(protein_mask.any(dim=-1), dim=-1)
-        non_periodic_center = torch.sum(
-            batched_data["pos"].masked_fill(
-                padding_mask.unsqueeze(-1) | protein_mask, 0.0
-            ),
-            dim=1,
-        ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+        if len(batched_data["protein_mask"].shape) == 3:
+            num_non_atoms = torch.sum(protein_mask.any(dim=-1), dim=-1)
+            non_periodic_center = torch.sum(
+                batched_data["pos"].masked_fill(
+                    padding_mask.unsqueeze(-1) | protein_mask, 0.0
+                ),
+                dim=1,
+            ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+        elif len(batched_data["protein_mask"].shape) == 4:
+            # TODO: needs fix here for complex, only consider protein not ligands
+            num_non_atoms = torch.sum(protein_mask.all(dim=(-1, -2)), dim=-1)
+            non_periodic_center = torch.sum(
+                batched_data["pos"][:, :, 1, :].masked_fill(
+                    padding_mask.unsqueeze(-1)
+                    | protein_mask.all(dim=(-1, -2)).unsqueeze(-1),
+                    0.0,
+                ),
+                dim=1,
+            ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
     else:
         # leave out padding tokens when calculating non-atom/non-residue tokens
         # num_non_atoms = torch.sum(
@@ -1651,17 +1673,30 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
         ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
 
     center = non_periodic_center.unsqueeze(1)
+    # print("center", center.shape, periodic_center.shape); exit()
     center[is_stable_periodic] = periodic_center
-    batched_data["pos"] -= center
 
-    batched_data["pos"] = batched_data["pos"].masked_fill(
-        padding_mask.unsqueeze(-1), 0.0
-    )
-    # TODO: filter nan/inf to zero in coords from pdb data, needs better solution
-    batched_data["pos"] = batched_data["pos"].masked_fill(protein_mask, 0.0)
-    batched_data["pos"] = batched_data["pos"].masked_fill(
-        batched_data["token_id"].eq(156).unsqueeze(-1), 0.0
-    )
+    if len(batched_data["protein_mask"].shape) == 3:
+        batched_data["pos"] -= center
+        batched_data["pos"] = batched_data["pos"].masked_fill(
+            padding_mask.unsqueeze(-1), 0.0
+        )
+        # TODO: filter nan/inf to zero in coords from pdb data, needs better solution
+        batched_data["pos"] = batched_data["pos"].masked_fill(protein_mask, 0.0)
+        batched_data["pos"] = batched_data["pos"].masked_fill(
+            batched_data["token_id"].eq(156).unsqueeze(-1), 0.0
+        )
+    elif len(batched_data["protein_mask"].shape) == 4:
+        batched_data["pos"] -= center.unsqueeze(2)
+        batched_data["pos"] = batched_data["pos"].masked_fill(
+            padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0
+        )
+        # TODO: filter nan/inf to zero in coords from pdb data, needs better solution
+        batched_data["pos"] = batched_data["pos"].masked_fill(protein_mask, 0.0)
+        batched_data["pos"] = batched_data["pos"].masked_fill(
+            batched_data["token_id"].eq(156).unsqueeze(-1).unsqueeze(-1), 0.0
+        )
+
     return batched_data["pos"]
 
 
@@ -1709,7 +1744,11 @@ def complete_cell(pos, batched_data):
 
     token_id = batched_data["token_id"]
     padding_mask = token_id.eq(0)  # B x T x 1
-    pos = pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+
+    if len(pos.shape) == 3:
+        pos = pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+    elif len(pos.shape) == 4:
+        pos = pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
 
     return pos
 
@@ -1927,10 +1966,16 @@ class PSM(nn.Module):
                     )
                     self.protein_noise_head = VectorProjOutput(psm_config.embedding_dim)
                 else:
-                    self.noise_head = VectorProjOutput(psm_config.embedding_dim)
-                    self.periodic_noise_head = VectorProjOutput(
-                        psm_config.embedding_dim
-                    )
+                    if self.psm_config.all_atom:
+                        self.noise_head = AAVectorProjOutput(psm_config.embedding_dim)
+                        self.periodic_noise_head = AAVectorProjOutput(
+                            psm_config.embedding_dim
+                        )
+                    else:
+                        self.noise_head = VectorProjOutput(psm_config.embedding_dim)
+                        self.periodic_noise_head = VectorProjOutput(
+                            psm_config.embedding_dim
+                        )
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -2494,6 +2539,7 @@ class PSM(nn.Module):
                     invariant_output = encoder_output
                 else:
                     invariant_output = decoder_x_output
+
                 if self.psm_config.separate_noise_head:
                     molecule_noise_pred = self.molecule_noise_head(
                         invariant_output, decoder_vec_output
@@ -2513,13 +2559,31 @@ class PSM(nn.Module):
                         is_protein[:, :, None], protein_noise_pred, noise_pred
                     )
                 elif self.args.backbone not in ["graphormer", "graphormer-e2"]:
-                    noise_pred = self.noise_head(invariant_output, decoder_vec_output)
-                    periodic_noise_pred = self.periodic_noise_head(
-                        invariant_output, decoder_vec_output
-                    )
-                    noise_pred = torch.where(
-                        is_periodic[:, None, None], periodic_noise_pred, noise_pred
-                    )
+                    if self.psm_config.all_atom:
+                        noise_pred = self.noise_head(
+                            invariant_output, decoder_vec_output
+                        )
+                        periodic_noise_pred = self.periodic_noise_head(
+                            invariant_output, decoder_vec_output
+                        )
+                        B, L, _ = noise_pred.size()
+                        noise_pred = noise_pred.view(B, L, 37, 3)
+                        periodic_noise_pred = periodic_noise_pred.view(B, L, 37, 3)
+                        noise_pred = torch.where(
+                            is_periodic[:, None, None, None],
+                            periodic_noise_pred,
+                            noise_pred,
+                        )
+                    else:
+                        noise_pred = self.noise_head(
+                            invariant_output, decoder_vec_output
+                        )
+                        periodic_noise_pred = self.periodic_noise_head(
+                            invariant_output, decoder_vec_output
+                        )
+                        noise_pred = torch.where(
+                            is_periodic[:, None, None], periodic_noise_pred, noise_pred
+                        )
                 else:
                     noise_pred = self.noise_head(invariant_output, decoder_vec_output)
 
@@ -2613,7 +2677,10 @@ class PSM(nn.Module):
                             ),
                         )
                     elif self.psm_config.AutoGradForce:
-                        forces = torch.zeros_like(batched_data["pos"])
+                        if self.psm_config.all_atom:
+                            forces = torch.zeros_like(batched_data["pos"].mean(dim=2))
+                        else:
+                            forces = torch.zeros_like(batched_data["pos"])
                     else:
                         forces = torch.where(
                             is_periodic.unsqueeze(-1).unsqueeze(-1),
