@@ -1298,7 +1298,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
                 psm_config.num_3d_bias_kernel * 4,
                 bias=False,
             ),
-            nn.LayerNorm(psm_config.num_3d_bias_kernel * 4),  # , bias=False),
+            nn.LayerNorm(psm_config.num_3d_bias_kernel * 4, bias=False),
             nn.ReLU(),
             nn.Linear(
                 psm_config.num_3d_bias_kernel * 4,
