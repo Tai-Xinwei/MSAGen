@@ -11,7 +11,12 @@ from torch import Tensor
 from typing_extensions import deprecated
 
 from sfm.logging import logger
-from sfm.models.psm.psm_config import DiffusionTrainingLoss, ForceLoss, StressLoss, PSMConfig
+from sfm.models.psm.psm_config import (
+    DiffusionTrainingLoss,
+    ForceLoss,
+    PSMConfig,
+    StressLoss,
+)
 
 
 class NoiseTolerentL1Loss(nn.Module):
@@ -140,7 +145,9 @@ class DiffMAE3dCriterions(nn.Module):
         elif self.args.stress_loss_type == StressLoss.SmoothL1:
             self.stress_loss = nn.SmoothL1Loss(reduction="none")
         elif self.args.stress_loss_type == StressLoss.NoiseTolerentL1:
-            self.stress_loss = NoiseTolerentL1Loss(noise_tolerance=3.0, reduction="none")
+            self.stress_loss = NoiseTolerentL1Loss(
+                noise_tolerance=3.0, reduction="none"
+            )
         else:
             raise ValueError(f"Invalid stress loss type: {self.args.stress_loss_type}")
 
@@ -311,7 +318,9 @@ class DiffMAE3dCriterions(nn.Module):
             stress_loss = stress_loss.masked_fill(~sample_mask[:, None, None], 0.0)
             stress_loss = stress_loss.sum() / (9.0 * num_samples) * stress_std
         else:
-            stress_loss = torch.tensor(0.0, device=stress_loss.device, requires_grad=True)
+            stress_loss = torch.tensor(
+                0.0, device=stress_loss.device, requires_grad=True
+            )
         return stress_loss, num_samples
 
     def calculate_pos_pred(self, model_output):
@@ -585,9 +594,7 @@ class DiffMAE3dCriterions(nn.Module):
             else None
         )
         stress_pred = (
-            model_output["stress_pred"]
-            if "stress_pred" in model_output
-            else None
+            model_output["stress_pred"] if "stress_pred" in model_output else None
         )
         energy_per_atom_pred = model_output["energy_per_atom"]
         total_energy_pred = model_output["total_energy"]
@@ -1064,7 +1071,9 @@ class DiffMAE3dCriterions(nn.Module):
                 num_autograd_force_sample = 0
 
             if autograd_stress_pred is not None:
-                unreduced_autograd_stress_loss = self.stress_loss(autograd_stress_pred, stress_label)
+                unreduced_autograd_stress_loss = self.stress_loss(
+                    autograd_stress_pred, stress_label
+                )
                 (
                     periodic_autograd_stress_loss,
                     num_periodic_autograd_stress_sample,
@@ -1336,23 +1345,46 @@ class DiffMAE3dCriterions(nn.Module):
                 )
 
             if autograd_force_pred is not None:
-                if torch.any(torch.isnan(autograd_force_loss)) or torch.any(torch.isinf(autograd_force_loss)):
-                    logger.error(f"NaN or inf detected in autograd_force_loss: {autograd_force_loss}")
-                    autograd_force_loss = torch.tensor(0.0, device=autograd_force_loss.device, requires_grad=True)
+                if torch.any(torch.isnan(autograd_force_loss)) or torch.any(
+                    torch.isinf(autograd_force_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in autograd_force_loss: {autograd_force_loss}"
+                    )
+                    autograd_force_loss = torch.tensor(
+                        0.0, device=autograd_force_loss.device, requires_grad=True
+                    )
                 else:
                     loss = loss + autograd_force_loss
 
             if autograd_stress_pred is not None:
-                if torch.any(torch.isnan(periodic_autograd_stress_loss)) or torch.any(torch.isinf(periodic_autograd_stress_loss)):
-                    logger.error(f"NaN or inf detected in periodic_autograd_stress_loss: {periodic_autograd_stress_loss}")
-                    periodic_autograd_stress_loss = torch.tensor(0.0, device=periodic_autograd_stress_loss.device, requires_grad=True)
+                if torch.any(torch.isnan(periodic_autograd_stress_loss)) or torch.any(
+                    torch.isinf(periodic_autograd_stress_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in periodic_autograd_stress_loss: {periodic_autograd_stress_loss}"
+                    )
+                    periodic_autograd_stress_loss = torch.tensor(
+                        0.0,
+                        device=periodic_autograd_stress_loss.device,
+                        requires_grad=True,
+                    )
                 else:
-                    loss = loss + periodic_autograd_stress_loss * self.args.stress_loss_factor
+                    loss = (
+                        loss
+                        + periodic_autograd_stress_loss * self.args.stress_loss_factor
+                    )
 
             if stress_pred is not None:
-                if torch.any(torch.isnan(periodic_stress_loss)) or torch.any(torch.isinf(periodic_stress_loss)):
-                    logger.error(f"NaN or inf detected in periodic_stress_loss: {periodic_stress_loss}")
-                    periodic_stress_loss = torch.tensor(0.0, device=periodic_stress_loss.device, requires_grad=True)
+                if torch.any(torch.isnan(periodic_stress_loss)) or torch.any(
+                    torch.isinf(periodic_stress_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in periodic_stress_loss: {periodic_stress_loss}"
+                    )
+                    periodic_stress_loss = torch.tensor(
+                        0.0, device=periodic_stress_loss.device, requires_grad=True
+                    )
                 else:
                     loss = loss + periodic_stress_loss * self.args.stress_loss_factor
 
@@ -1433,10 +1465,22 @@ class DiffMAE3dCriterions(nn.Module):
 
         if autograd_stress_pred is not None:
             logging_output.update(
-                {"periodic_autograd_stress_loss": (periodic_autograd_stress_loss, num_periodic_autograd_stress_sample)}
+                {
+                    "periodic_autograd_stress_loss": (
+                        periodic_autograd_stress_loss,
+                        num_periodic_autograd_stress_sample,
+                    )
+                }
             )
         if stress_pred is not None:
-            logging_output.update({"periodic_stress_loss": (periodic_stress_loss, num_periodic_stress_sample)})
+            logging_output.update(
+                {
+                    "periodic_stress_loss": (
+                        periodic_stress_loss,
+                        num_periodic_stress_sample,
+                    )
+                }
+            )
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):
             metric = model_output[metric_name]

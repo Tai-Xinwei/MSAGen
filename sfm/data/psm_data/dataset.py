@@ -1079,7 +1079,7 @@ class MatterSimDataset:
 
     @property
     def stress_mean(self):  # stress mean can be non-zero to keep equivariance
-        return -2.69278931e+01
+        return -2.69278931e01
 
     @property
     def stress_std(self):
@@ -1087,9 +1087,13 @@ class MatterSimDataset:
 
     @property
     def stress_mean_elementwise(self):
-        return np.array([[-2.69278931e+01,  0.0,  0.0],
-                         [ 0.0, -2.69278931e+01,  0.0],
-                         [ 0.0,  0.0, -2.69278931e+01]])
+        return np.array(
+            [
+                [-2.69278931e01, 0.0, 0.0],
+                [0.0, -2.69278931e01, 0.0],
+                [0.0, 0.0, -2.69278931e01],
+            ]
+        )
 
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
@@ -1207,7 +1211,10 @@ class MatterSimDataset:
 
         # get stress
         if "info" in data and "stress" in data["info"]:
-            data["stress"] = torch.tensor(data["info"]["stress"] - self.stress_mean_elementwise, dtype=torch.float64)
+            data["stress"] = torch.tensor(
+                data["info"]["stress"] - self.stress_mean_elementwise,
+                dtype=torch.float64,
+            )
         else:
             data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
 

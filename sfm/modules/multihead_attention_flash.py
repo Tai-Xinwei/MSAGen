@@ -12,7 +12,7 @@ from torch import Tensor, nn
 
 from sfm.logging import logger
 
-# # from torch.nn.attention import SDPBackend, sdpa_kernel
+# from torch.nn.attention import SDPBackend, sdpa_kernel
 
 
 try:
@@ -28,7 +28,7 @@ from .quant_noise import quant_noise
 from .rotary_embedding import RotaryEmbedding
 
 
-# @torch.compiler.disable
+@torch.compiler.disable
 def ext_flash_attn(q: Tensor, k: Tensor, v: Tensor, dropout: float) -> Tensor:
     return flash_attn_func(
         q, k, v, dropout_p=dropout, causal=False

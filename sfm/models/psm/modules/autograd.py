@@ -38,7 +38,10 @@ class GradientHead(torch.nn.Module):
         batch_size = pos.size(0)
         device = pos.device
         dtype = pos.dtype
-        if self.psm_config.supervise_autograd_stress and batched_data["has_stress"].any():
+        if (
+            self.psm_config.supervise_autograd_stress
+            and batched_data["has_stress"].any()
+        ):
             cell = batched_data["cell"]
 
             self.strain = torch.zeros([batch_size, 3, 3], device=device, dtype=dtype)
@@ -131,7 +134,7 @@ class GradientHead(torch.nn.Module):
             ) / self.periodic_stress_std
         else:
             stress = None
-        
+
         self.strain = None
 
         return forces, stress

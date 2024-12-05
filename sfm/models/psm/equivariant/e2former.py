@@ -13,7 +13,7 @@ from e3nn.util.jit import compile_mode
 # for bessel radial basis
 from fairchem.core.models.gemnet.layers.radial_basis import RadialBasis
 from torch import logical_not, nn
-# from torch.nn.attention import SDPBackend, sdpa_kernel
+from torch.nn.attention import SDPBackend, sdpa_kernel
 from torch_cluster import radius_graph
 from torch_scatter import scatter
 

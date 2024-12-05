@@ -70,7 +70,7 @@ class PSMMix3dEmbedding(nn.Module):
                     num_channels=psm_config.embedding_dim,
                 )
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def center_pos(self, expand_pos, expand_mask):
         expand_pos = expand_pos.masked_fill(expand_mask.unsqueeze(-1), 0.0)
         center_pos = torch.sum(expand_pos, dim=1, keepdim=True) / (~expand_mask).sum(
@@ -79,7 +79,7 @@ class PSMMix3dEmbedding(nn.Module):
         expand_pos = expand_pos - center_pos
         return expand_pos
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -295,7 +295,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
                     num_channels=psm_config.embedding_dim,
                 )
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -676,7 +676,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
             psm_config.num_3d_bias_kernel, psm_config.num_attention_heads
         )
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -771,7 +771,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
 
         return graph_attn_bias
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _2dedge_emb(
         self,
         adj: torch.Tensor,
@@ -956,7 +956,7 @@ class PSMLightPEmbedding(PSMMix3dDitEmbedding):
             psm_config.diffusion_time_step_encoder_type,
         )
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -1298,7 +1298,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
                 psm_config.num_3d_bias_kernel * 4,
                 bias=False,
             ),
-            nn.LayerNorm(psm_config.num_3d_bias_kernel * 4), # , bias=False),
+            nn.LayerNorm(psm_config.num_3d_bias_kernel * 4),  # , bias=False),
             nn.ReLU(),
             nn.Linear(
                 psm_config.num_3d_bias_kernel * 4,
@@ -1322,7 +1322,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
 
         self.psm_config = psm_config
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _2dedge_emb(
         self,
         adj: torch.Tensor,

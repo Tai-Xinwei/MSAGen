@@ -14,9 +14,9 @@ import torch.nn.functional as F
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
-# from sfm.models.psm.equivariant.e2former import E2former
-# from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
-# from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
+from sfm.models.psm.equivariant.e2former import E2former
+from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
+from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
@@ -353,7 +353,7 @@ class PSMModel(Model):
 
         batched_data["protein_mask"] = mask
 
-    # # @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def _protein_pretrain_mode(
         self,
         clean_mask,
@@ -1615,7 +1615,7 @@ class PSMModel(Model):
         }
 
 
-# @torch.compiler.disable(recursive=True)
+@torch.compiler.disable(recursive=True)
 def center_pos(batched_data, padding_mask, clean_mask=None):
     # get center of system positions
     is_stable_periodic = batched_data["is_stable_periodic"]  # B x 3 -> B
@@ -2265,7 +2265,6 @@ class PSM(nn.Module):
 
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
-        stress_pred = None
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
             encoder_output = self.encoder(
                 token_embedding.transpose(0, 1),
@@ -2631,7 +2630,10 @@ class PSM(nn.Module):
                         )
 
                 if (
-                    (self.args.AutoGradForce or self.psm_config.supervise_autograd_stress)
+                    (
+                        self.args.AutoGradForce
+                        or self.psm_config.supervise_autograd_stress
+                    )
                     and (clean_mask.all(dim=-1)).any()
                     and batched_data["has_forces"].any()
                     and (

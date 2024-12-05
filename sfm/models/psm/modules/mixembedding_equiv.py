@@ -49,7 +49,7 @@ class PSMMix3DEquivEmbedding(nn.Module):
         #     1, psm_config.num_3d_bias_kernel, padding_idx=None
         # )
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def center_pos(self, expand_pos, expand_mask):
         expand_pos = expand_pos.masked_fill(expand_mask.unsqueeze(-1), 0.0)
         center_pos = torch.sum(expand_pos, dim=1, keepdim=True) / (~expand_mask).sum(
@@ -58,7 +58,7 @@ class PSMMix3DEquivEmbedding(nn.Module):
         expand_pos = expand_pos - center_pos
         return expand_pos
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
