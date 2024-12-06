@@ -88,7 +88,8 @@ class PSMMixEmbedding(nn.Module):
                 dim=-2
             )  # B x T x #ATOM_FEATURE x D -> # B x T x D
             atom_feature_embedding = atom_feature_embedding.masked_fill(
-                ~is_molecule.unsqueeze(-1).unsqueeze(-1), 0.0
+                (~is_molecule.unsqueeze(-1).unsqueeze(-1)) | clean_mask.unsqueeze(-1),
+                0.0,
             )
             x += atom_feature_embedding
 
@@ -177,10 +178,16 @@ class PSMMixEmbedding(nn.Module):
 
             # TODO:(shiyu) need extra handling if considering catalyst systems
             if self.psm_config.share_attention_bias:
+                graph_2d_attention_bias[:, :, 1:, 1:] = graph_2d_attention_bias[
+                    :, :, 1:, 1:
+                ].masked_fill(clean_mask.unsqueeze(1).unsqueeze(-1), 0.0)
                 pos_attn_bias[
                     :, :, :max_num_nodes, :max_num_nodes
                 ] += graph_2d_attention_bias[:, :, 1:, 1:]
             else:
+                graph_2d_attention_bias[:, :, :, 1:, 1:] = graph_2d_attention_bias[
+                    :, :, :, 1:, 1:
+                ].masked_fill(clean_mask.unsqueeze(1).unsqueeze(1).unsqueeze(-1), 0.0)
                 pos_attn_bias[
                     :, :, :, :max_num_nodes, :max_num_nodes
                 ] += graph_2d_attention_bias[:, :, :, 1:, 1:]
