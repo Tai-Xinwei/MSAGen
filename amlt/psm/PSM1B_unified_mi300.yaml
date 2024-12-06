@@ -81,7 +81,7 @@ jobs:
   - export save_batch_interval=2500
   - export train_batch_size=1024
   - export val_batch_size=1024
-  - export gradient_accumulation_steps=4
+  - export gradient_accumulation_steps=2
   - export val_batch_interval=0
 
   - export wandb_project=psm_dev_shiyu_unified_20241119
