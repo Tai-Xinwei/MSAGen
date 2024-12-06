@@ -660,7 +660,7 @@ class AADiffusionModule(nn.Module):
                 batched_data["pos"].view(B, L, -1).to(self.residue_pos_emb.weight.dtype)
             ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
             pos_embedding_atom = self.atom_pos_emb(
-                batched_data["pos"][:, :, 0, :].to(self.residue_pos_emb.weight.dtype)
+                batched_data["pos"][:, :, 1, :].to(self.residue_pos_emb.weight.dtype)
             ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
             pos_embedding = torch.where(
                 batched_data["is_protein"].unsqueeze(-1),
