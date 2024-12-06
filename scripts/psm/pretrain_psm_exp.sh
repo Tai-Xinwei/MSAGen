@@ -248,7 +248,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 
-[ -z "${all_atom}" ] && all_atom=False
+[ -z "${all_atom}" ] && all_atom=True
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=True

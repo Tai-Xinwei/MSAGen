@@ -763,6 +763,12 @@ class PSMModel(Model):
             sigma = sigma_edm
             alpha = None
             weight = weight_edm
+            if self.psm_config.all_atom:
+                # mask all atoms in a residue that does not exit to 0.0
+                all_atom_mask = batched_data["protein_mask"] & (
+                    ~batched_data["protein_mask"][:, :, 1, :].unsqueeze(-2)
+                )
+                noise_pos = noise_pos.masked_fill(all_atom_mask, 0.0)
         elif self.psm_config.diffusion_mode == "protea":
             (
                 noise_pos,
