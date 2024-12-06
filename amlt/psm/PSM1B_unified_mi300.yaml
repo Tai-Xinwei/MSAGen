@@ -6,7 +6,7 @@
 description: psm
 
 env_defaults:
-  NODES: 16
+  NODES: 8
   GPUS_PER_NODE: 8
   WANDB_API_KEY: ${WANDB_API_KEY}
 
@@ -33,7 +33,7 @@ code:
   local_dir: ../../
 
 jobs:
-- name: psm-unified-20241206-1422
+- name: psm-unified-20241206-1431
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS_PER_NODE}-MI300-IB
   mpi: true
@@ -41,9 +41,9 @@ jobs:
   process_count_per_node: 1
   command:
   - export data_path=/tmp/psmdata/
-  - mkdir -p /psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1422/
-  - export save_dir=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1422/
-  - export sampled_structure_output_path=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1422/
+  - mkdir -p /psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1431/
+  - export save_dir=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1431/
+  - export sampled_structure_output_path=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1431/
   - export pbc_cutoff=40.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=512
@@ -81,7 +81,7 @@ jobs:
   - export save_batch_interval=2500
   - export train_batch_size=1024
   - export val_batch_size=1024
-  - export gradient_accumulation_steps=2
+  - export gradient_accumulation_steps=4
   - export val_batch_interval=0
 
   - export wandb_project=psm_dev_shiyu_unified_20241119
