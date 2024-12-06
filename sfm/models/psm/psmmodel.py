@@ -2677,8 +2677,6 @@ class PSM(nn.Module):
                                 -1
                             ),
                         )
-                    elif self.psm_config.AutoGradForce:
-                        forces = torch.zeros_like(batched_data["pos"])
                     else:
                         forces = torch.where(
                             is_periodic.unsqueeze(-1).unsqueeze(-1),

@@ -6,7 +6,7 @@
 description: psm
 
 env_defaults:
-  NODES: 8
+  NODES: 16
   GPUS_PER_NODE: 8
   WANDB_API_KEY: ${WANDB_API_KEY}
 
