@@ -89,8 +89,8 @@ jobs:
   - export WANDB_RUN_NAME=psm_unified_continue_mat_edmprot
 
   - export total_num_steps=4000000
-  - export warmup_num_steps=50000
-  - export max_lr=1e-4
+  - export warmup_num_steps=240000
+  - export max_lr=2e-4
 
   - export diffusion_mode="edm"
   - export diffusion_noise_std=1.0
@@ -114,7 +114,7 @@ jobs:
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
   - export ddpm_schedule=sigmoid
-  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/global_step47500/mp_rank_00_model_states.pt'
+  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/global_step65000/mp_rank_00_model_states.pt'
   - export psm_finetune_mode=True
   - export psm_validation_mode=False
   - export sample_in_validation=False
