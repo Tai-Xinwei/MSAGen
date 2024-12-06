@@ -33,7 +33,7 @@ code:
   local_dir: ../../
 
 jobs:
-- name: psm-unified-20241201-1848
+- name: psm-unified-20241206-1258
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS_PER_NODE}-MI300-IB@westus
   mpi: true
@@ -41,9 +41,9 @@ jobs:
   process_count_per_node: 1
   command:
   - export data_path=/psm/data/
-  - mkdir -p /psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
-  - export save_dir=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
-  - export sampled_structure_output_path=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/
+  - mkdir -p /psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/
+  - export save_dir=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/
+  - export sampled_structure_output_path=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/
   - export pbc_cutoff=40.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=512
@@ -114,7 +114,7 @@ jobs:
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
   - export ddpm_schedule=sigmoid
-  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/global_step65000/mp_rank_00_model_states.pt'
+  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/global_step67500/mp_rank_00_model_states.pt'
   - export psm_finetune_mode=True
   - export psm_validation_mode=False
   - export sample_in_validation=False
