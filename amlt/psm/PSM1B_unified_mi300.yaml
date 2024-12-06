@@ -25,7 +25,7 @@ environment:
 
 storage:
   eastus2:
-    storage_account_name: sfmdatawestus # Storage account
+    storage_account_name: sfmdataeastus2 # Storage account
     container_name: psm # Container name
     mount_dir: /psm
 
@@ -33,17 +33,17 @@ code:
   local_dir: ../../
 
 jobs:
-- name: psm-unified-20241206-1258
+- name: psm-unified-20241206-1422
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  sku: ${NODES}xG${GPUS_PER_NODE}-MI300-IB@westus
+  sku: ${NODES}xG${GPUS_PER_NODE}-MI300-IB
   mpi: true
   identity: user
   process_count_per_node: 1
   command:
-  - export data_path=/psm/data/
-  - mkdir -p /psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/
-  - export save_dir=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/
-  - export sampled_structure_output_path=/psm/psm-checkpoints/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/
+  - export data_path=/tmp/psmdata/
+  - mkdir -p /psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1422/
+  - export save_dir=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1422/
+  - export sampled_structure_output_path=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1422/
   - export pbc_cutoff=40.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=512
@@ -114,7 +114,7 @@ jobs:
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
   - export ddpm_schedule=sigmoid
-  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241206-1258/global_step67500/mp_rank_00_model_states.pt'
+  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/global_step67500/mp_rank_00_model_states.pt'
   - export psm_finetune_mode=True
   - export psm_validation_mode=False
   - export sample_in_validation=False
@@ -168,21 +168,21 @@ jobs:
   - export log_interval=100
 
   - eval "$$(conda shell.bash hook)" && conda activate sfm
-  # - bash ./scripts/psm/get_azcopy.sh
-  # - mkdir -p /tmp/psmdata/PubChemQC-B3LYP-PM6
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/PubChemQC-B3LYP-PM6/wb97xd3/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - mv /tmp/psmdata/wb97xd3 /tmp/psmdata/PubChemQC-B3LYP-PM6/
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/AFDB70-plddt70-reduce.lmdb/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-sim-15M-merged/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/20240630_PDB_Training_Data/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-gen-force-filtered/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/mattersim-30M-less200-filtered-merged/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/ESM_ATLAS_reduce.lmdb/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - mkdir -p /tmp/psmdata/MGnify
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/MGnify/mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - mv /tmp/psmdata/mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb /tmp/psmdata/MGnify
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/oc20-s2ef/<SAS>" bash ./scripts/psm/azcopydata.sh
-  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-sim-15M-correct-stress/<SAS>" bash ./scripts/psm/azcopydata.sh
+  - bash ./scripts/psm/get_azcopy.sh
+  - mkdir -p /tmp/psmdata/PubChemQC-B3LYP-PM6
+  - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/PubChemQC-B3LYP-PM6/wb97xd3/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  - mv /tmp/psmdata/wb97xd3 /tmp/psmdata/PubChemQC-B3LYP-PM6/
+  - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/AFDB70-plddt70-reduce.lmdb/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-sim-15M-merged/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/20240630_PDB_Training_Data/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-gen-force-filtered/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/mattersim-30M-less200-filtered-merged/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/ESM_ATLAS_reduce.lmdb/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  - mkdir -p /tmp/psmdata/MGnify
+  - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/MGnify/mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  - mv /tmp/psmdata/mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb /tmp/psmdata/MGnify
+  # - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/oc20-s2ef/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
+  - train_data_sas="https://sfmdataeastus2.blob.core.windows.net/psm/data/matter-sim-15M-correct-stress/?SV=2023-01-03&ST=2024-12-06T02%3A51%3A06Z&SE=2024-12-13T02%3A51%3A00Z&SKOID=48860C85-702C-48AC-BB22-1F502F55C9C0&SKTID=72F988BF-86F1-41AF-91AB-2D7CD011DB47&SKT=2024-12-06T02%3A51%3A06Z&SKE=2024-12-13T02%3A51%3A00Z&SKS=B&SKV=2023-01-03&SR=C&SP=RL&SIG=BQ%2FELGN57YY3R99K38STKJBEJLJ6ZV3MUCWVR%2BVXLA8%3D" bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm.sh
   submit_args:
     env:
