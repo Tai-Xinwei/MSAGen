@@ -232,6 +232,7 @@ class PSMConfig(GraphormerConfig):
     equivar_use_linear_bias: bool = False
     equivar_use_attention_bias: bool = False
     use_smooth_softmax: bool = False
+    use_no_pre_cutoff_softmax: bool = False
     smooth_factor: float = 20.0
     use_smooth_equviariant_norm: bool = False
     no_rotary_embedding_for_vector: bool = False

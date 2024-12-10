@@ -82,6 +82,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             use_memory_efficient_attention=psm_config.use_memory_efficient_attention,
             use_smooth_softmax=psm_config.use_smooth_softmax,
             smooth_factor=psm_config.smooth_factor,
+            use_no_pre_cutoff_softmax=psm_config.use_no_pre_cutoff_softmax,
         )
 
         self.fc1 = self.build_fc1(
@@ -125,6 +126,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         use_memory_efficient_attention=False,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax: bool = False,
     ):
         if use_memory_efficient_attention:
             if self.psm_config.only_use_rotary_embedding_for_protein:
@@ -151,6 +153,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             add_rope=True,
             use_smooth_softmax=use_smooth_softmax,
             smooth_factor=smooth_factor,
+            use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
         )
 
     def forward(

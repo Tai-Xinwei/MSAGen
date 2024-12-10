@@ -41,6 +41,7 @@ class MemEffAttn(nn.Module):
         add_quant_noise=False,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax=False,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -93,6 +94,7 @@ class MemEffAttn(nn.Module):
         self.rot_emb = None
         if add_rope:
             self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
+        self.use_no_pre_cutoff_softmax = use_no_pre_cutoff_softmax
 
     def prepare_for_onnx_export_(self):
         raise NotImplementedError
@@ -260,6 +262,8 @@ class MemEffAttn(nn.Module):
                 attn_weights = (
                     attn_weights + self.smooth_factor
                 ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            elif self.use_no_pre_cutoff_softmax:
+                pass
             else:
                 attn_weights = attn_weights.masked_fill(
                     local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
@@ -267,15 +271,6 @@ class MemEffAttn(nn.Module):
 
             if attn_mask is not None:
                 attn_weights += attn_mask
-
-            if self.use_smooth_softmax:
-                attn_weights = (
-                    attn_weights + self.smooth_factor
-                ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
-            else:
-                attn_weights = attn_weights.masked_fill(
-                    local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
-                )
 
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 

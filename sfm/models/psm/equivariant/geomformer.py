@@ -175,6 +175,7 @@ class EquivariantLayerNorm(nn.Module):
         device=None,
         dtype=None,
         use_smooth_norm=False,
+        add_vec_bias=False,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super(EquivariantLayerNorm, self).__init__()
@@ -193,7 +194,7 @@ class EquivariantLayerNorm(nn.Module):
 
         self.reset_parameters()
         self.use_smooth_norm = use_smooth_norm
-        if self.use_smooth_norm:
+        if self.use_smooth_norm and add_vec_bias:
             self.eps = self.eps**2
 
     def reset_parameters(self) -> None:
@@ -274,6 +275,7 @@ class MemEffInvariantAttention(nn.Module):
         add_rope=True,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax: bool = False,
     ):
         super().__init__()
         self.hidden_channels = hidden_channels
@@ -288,6 +290,7 @@ class MemEffInvariantAttention(nn.Module):
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
+        self.use_no_pre_cutoff_softmax = use_no_pre_cutoff_softmax
 
         self.reset_parameters(1)
 
@@ -403,9 +406,10 @@ class MemEffInvariantAttention(nn.Module):
                             float("-inf"),
                         )
                 else:
-                    attn_weights = attn_weights.masked_fill(
-                        (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
-                    )
+                    if not self.use_no_pre_cutoff_softmax:
+                        attn_weights = attn_weights.masked_fill(
+                            (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
+                        )
 
             attn_probs_float = F.dropout(
                 F.softmax(attn_weights, dim=-1, dtype=torch.float32),
@@ -456,6 +460,8 @@ class MemEffEquivariantAttention(nn.Module):
         use_smooth_equviariant_norm=False,
         smooth_factor=0.0,
         add_rope=True,
+        use_no_pre_cutoff_softmax: bool = False,
+        add_vec_bias=False,
     ):
         super().__init__()
         self.hidden_channels = hidden_channels
@@ -464,7 +470,9 @@ class MemEffEquivariantAttention(nn.Module):
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.dropout = dropout
         self.attn_ln = EquivariantLayerNorm(
-            hidden_channels, use_smooth_norm=use_smooth_equviariant_norm
+            hidden_channels,
+            use_smooth_norm=use_smooth_equviariant_norm,
+            add_vec_bias=add_vec_bias,
         )
         self.scaling = ((self.head_dim / (d_tilde * 3)) ** 0.5) / self.head_dim
 
@@ -474,6 +482,7 @@ class MemEffEquivariantAttention(nn.Module):
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
+        self.use_no_pre_cutoff_softmax = use_no_pre_cutoff_softmax
 
         self.reset_parameters(1)
 
@@ -620,9 +629,10 @@ class MemEffEquivariantAttention(nn.Module):
                             float("-inf"),
                         )
                 else:
-                    attn_weights = attn_weights.masked_fill(
-                        (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
-                    )
+                    if not self.use_no_pre_cutoff_softmax:
+                        attn_weights = attn_weights.masked_fill(
+                            (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
+                        )
             attn_probs_float = F.dropout(
                 F.softmax(attn_weights, dim=-1, dtype=torch.float32),
                 self.dropout,
@@ -676,6 +686,7 @@ class InvariantAttention(nn.Module):
         add_rope=True,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax: bool = False,
     ):
         super().__init__()
         self.hidden_channels = hidden_channels
@@ -699,6 +710,7 @@ class InvariantAttention(nn.Module):
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
+        self.use_no_pre_cutoff_softmax = use_no_pre_cutoff_softmax
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -777,6 +789,8 @@ class InvariantAttention(nn.Module):
                 attn_weights = (
                     attn_weights + self.smooth_factor
                 ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            elif self.use_no_pre_cutoff_softmax:
+                pass
             else:
                 attn_weights = attn_weights.masked_fill(
                     (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
@@ -825,6 +839,8 @@ class EquivariantAttention(nn.Module):
         use_smooth_softmax=False,
         smooth_factor=0.0,
         add_rope=True,
+        use_no_pre_cutoff_softmax: bool = False,
+        add_vec_bias=False,
     ):
         super().__init__()
         self.hidden_channels = hidden_channels
@@ -833,7 +849,9 @@ class EquivariantAttention(nn.Module):
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.dropout = dropout
         self.attn_ln = EquivariantLayerNorm(
-            hidden_channels, use_smooth_norm=use_smooth_equviariant_norm
+            hidden_channels,
+            use_smooth_norm=use_smooth_equviariant_norm,
+            add_vec_bias=add_vec_bias,
         )
         self.scaling = ((self.head_dim / (d_tilde * 3)) ** 0.5) / self.head_dim
 
@@ -845,6 +863,7 @@ class EquivariantAttention(nn.Module):
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
+        self.use_no_pre_cutoff_softmax = use_no_pre_cutoff_softmax
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -960,6 +979,8 @@ class EquivariantAttention(nn.Module):
                 attn_weights = (
                     attn_weights + self.smooth_factor
                 ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            elif self.use_no_pre_cutoff_softmax:
+                pass
             else:
                 attn_weights = attn_weights.masked_fill(
                     (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
@@ -1015,6 +1036,7 @@ class InvariantSelfAttention(nn.Module):
         use_memory_efficient_attention=True,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax: bool = False,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -1030,6 +1052,7 @@ class InvariantSelfAttention(nn.Module):
                 dropout,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
             )
         else:
             self.invariant_attention = InvariantAttention(
@@ -1039,6 +1062,7 @@ class InvariantSelfAttention(nn.Module):
                 use_linear_bias=use_linear_bias,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
             )
 
         self.reset_parameters(1)
@@ -1093,6 +1117,8 @@ class EquivariantSelfAttention(nn.Module):
         use_smooth_softmax=False,
         smooth_factor=0.0,
         add_rope=True,
+        use_no_pre_cutoff_softmax: bool = False,
+        add_vec_bias=False,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -1108,6 +1134,7 @@ class EquivariantSelfAttention(nn.Module):
                 use_smooth_equviariant_norm=use_smooth_equviariant_norm,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
             )
         else:
             self.equiariant_attention = EquivariantAttention(
@@ -1118,6 +1145,8 @@ class EquivariantSelfAttention(nn.Module):
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
                 add_rope=add_rope,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
+                add_vec_bias=add_vec_bias,
             )
 
         self.reset_parameters(1)
@@ -1165,6 +1194,7 @@ class Invariant2EquivariantAttention(nn.Module):
         use_memory_efficient_attention=True,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax: bool = False,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -1182,6 +1212,7 @@ class Invariant2EquivariantAttention(nn.Module):
                 dropout,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
             )
         else:
             self.invariant_attention = InvariantAttention(
@@ -1190,6 +1221,7 @@ class Invariant2EquivariantAttention(nn.Module):
                 dropout,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
             )
 
         self.reset_parameters(1)
@@ -1255,6 +1287,8 @@ class Equivariant2InvariantAttention(nn.Module):
         use_smooth_softmax=False,
         smooth_factor=0.0,
         add_rope=True,
+        use_no_pre_cutoff_softmax: bool = False,
+        add_vec_bias=False,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -1282,6 +1316,8 @@ class Equivariant2InvariantAttention(nn.Module):
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
                 add_rope=add_rope,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
+                add_vec_bias=add_vec_bias,
             )
         else:
             self.equiariant_attention = EquivariantAttention(
@@ -1292,6 +1328,8 @@ class Equivariant2InvariantAttention(nn.Module):
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
                 add_rope=add_rope,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
+                add_vec_bias=add_vec_bias,
             )
 
         self.reset_parameters(1)
@@ -1432,6 +1470,8 @@ class EncoderLayer(nn.Module):
         use_smooth_softmax=False,
         no_rotary_embedding_for_vector=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax: bool = False,
+        add_vec_bias=False,
     ):
         super().__init__()
 
@@ -1451,6 +1491,7 @@ class EncoderLayer(nn.Module):
                 use_linear_bias=use_linear_bias,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
             )
             self.equivariant_self_attention = EquivariantSelfAttention(
                 hidden_channels,
@@ -1462,6 +1503,8 @@ class EncoderLayer(nn.Module):
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
                 add_rope=(not no_rotary_embedding_for_vector),
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
+                add_vec_bias=add_vec_bias,
             )
         else:
             self.invariant2equivariant_attention = Invariant2EquivariantAttention(
@@ -1473,6 +1516,7 @@ class EncoderLayer(nn.Module):
                 use_linear_bias=use_linear_bias,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
             )
             self.equivaiant2invariant_attention = Equivariant2InvariantAttention(
                 hidden_channels,
@@ -1487,11 +1531,15 @@ class EncoderLayer(nn.Module):
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
                 add_rope=(not no_rotary_embedding_for_vector),
+                use_no_pre_cutoff_softmax=use_no_pre_cutoff_softmax,
+                add_vec_bias=add_vec_bias,
             )
 
         self.invariant_attn_layer_norm = nn.LayerNorm(hidden_channels)
         self.equivariant_attn_layer_norm = EquivariantLayerNorm(
-            hidden_channels, use_smooth_norm=use_smooth_equviariant_norm
+            hidden_channels,
+            use_smooth_norm=use_smooth_equviariant_norm,
+            add_vec_bias=add_vec_bias,
         )
 
         self.activation_fn = gelu
@@ -1513,12 +1561,16 @@ class EncoderLayer(nn.Module):
 
         self.invariant_ffn_layer_norm = nn.LayerNorm(hidden_channels)
         self.equivariant_ffn_layer_norm = EquivariantLayerNorm(
-            hidden_channels, use_smooth_norm=use_smooth_equviariant_norm
+            hidden_channels,
+            use_smooth_norm=use_smooth_equviariant_norm,
+            add_vec_bias=add_vec_bias,
         )
 
         self.invariant_ffn_layer_norm_2 = nn.LayerNorm(ffn_embedding_dim)
         self.equivariant_ffn_layer_norm_2 = EquivariantLayerNorm(
-            ffn_embedding_dim, use_smooth_norm=use_smooth_equviariant_norm
+            ffn_embedding_dim,
+            use_smooth_norm=use_smooth_equviariant_norm,
+            add_vec_bias=add_vec_bias,
         )
 
         self.dropout = dropout
@@ -1685,6 +1737,7 @@ class GeomFormer(nn.Module):
                 use_smooth_softmax=psm_config.use_smooth_softmax,
                 smooth_factor=psm_config.smooth_factor,
                 no_rotary_embedding_for_vector=psm_config.no_rotary_embedding_for_vector,
+                use_no_pre_cutoff_softmax=psm_config.use_no_pre_cutoff_softmax,
             )
             self.unified_encoder_layers.append(layer)
 
@@ -1730,7 +1783,12 @@ class GeomFormer(nn.Module):
         )
 
         self.unified_final_equivariant_ln = EquivariantLayerNorm(
-            embedding_dim, use_smooth_norm=self.psm_config.use_smooth_equviariant_norm
+            embedding_dim,
+            use_smooth_norm=self.psm_config.use_smooth_equviariant_norm,
+            add_vec_bias=(
+                self.psm_config.equivar_vec_init
+                == VecInitApproach.RELATIVE_POS_VEC_BIAS
+            ),
         )
 
         self.unified_final_invariant_ln = nn.LayerNorm(embedding_dim)
