@@ -6,7 +6,7 @@
 description: psm
 
 env_defaults:
-  NODES: 8
+  NODES: 16
   GPUS_PER_NODE: 8
   WANDB_API_KEY: ${WANDB_API_KEY}
 
@@ -49,6 +49,7 @@ jobs:
   - export pbc_expanded_token_cutoff=512
   - export pbc_multigraph_cutoff=7.0
   - export pbc_use_local_attention=True
+  - export use_no_pre_cutoff_softmax=True
 
   - export backbone=seq-dit-geom
   - export layers=14
@@ -73,10 +74,10 @@ jobs:
   # - export dataset_split_raito='1.0'
   # - export dataset_micro_batch_size="8"
 
-  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-correct-stress,MGnify,20240630_PDB_Training_Data,AFDB70-plddt70-reduce.lmdb'
-  - export dataset_name_list='pm6-wb97xd3,mattersim,mgnify,pdbcomplexmultimer,esm'
-  - export dataset_split_raito='0.2,0.3,0.1,0.15,0.35'
-  - export dataset_micro_batch_size="12,6,16,16,16"
+  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-correct-stress,AFDB70-plddt70-reduce.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,mgnify4to10,20240630_PDB_Training_Data'
+  - export dataset_name_list='pm6-wb97xd3,mattersim,esm,esm,mgnify,esm,pdbcomplexmultimer'
+  - export dataset_split_raito='0.2,0.3,0.2,0.05,0.05,0.1,0.1'
+  - export dataset_micro_batch_size="12,6,16,16,16,16,16"
 
   - export save_batch_interval=2500
   - export train_batch_size=1024

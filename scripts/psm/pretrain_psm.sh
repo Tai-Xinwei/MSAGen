@@ -93,6 +93,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
+[ -z "${use_no_pre_cutoff_softmax}" ] && use_no_pre_cutoff_softmax=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 
 # material diffusion settings
@@ -330,4 +331,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_graphormer_path_edge_feature=$use_graphormer_path_edge_feature \
           ifresume=True \
           supervise_autograd_stress=$supervise_autograd_stress \
-          stress_loss_factor=$stress_loss_factor
+          stress_loss_factor=$stress_loss_factor \
+          use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax

@@ -49,6 +49,7 @@ jobs:
   - export pbc_expanded_token_cutoff=512
   - export pbc_multigraph_cutoff=7.0
   - export pbc_use_local_attention=True
+  - export use_no_pre_cutoff_softmax=True
 
   - export backbone=seq-dit-geom
   - export layers=14
