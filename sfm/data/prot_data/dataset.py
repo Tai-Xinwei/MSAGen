@@ -1194,13 +1194,13 @@ class BatchedDataDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         dataset,
-        vocab,
+        # vocab,
         args=None,
     ):
         super().__init__()
         self.dataset = dataset
         self.args = args
-        self.vocab = vocab
+        # self.vocab = vocab
         self.collate_fn = dataset.collate
 
         self.sequence_length = args.max_length

@@ -100,18 +100,18 @@ def load_batched_dataset(args):
     train_data = BatchedDataDataset(
         trainset,
         args=args,
-        vocab=trainset.vocab,
+        # vocab=trainset.vocab,
     )
     val_data = BatchedDataDataset(
         valset,
         args=args,
-        vocab=trainset.vocab,
+        # vocab=trainset.vocab,
     )
     testset_dict = {
         k: BatchedDataDataset(
             v,
             args=args,
-            vocab=trainset.vocab,
+            # vocab=trainset.vocab,
         )
         for k, v in testset_dict.items()
     }
