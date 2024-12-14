@@ -145,7 +145,7 @@ class SingleSequenceModel(Model):
         if self.n_sequence == 1:
             # x: (B, L, C)
             result_dict = self.model(batch_data)
-            x = result_dict["decoder_x_output"]
+            x = result_dict["encoder_output"]
 
             if not self.return_residue_emb:
                 x = x[:, 0, :].squeeze(1)
@@ -243,7 +243,7 @@ class SingleSequenceModel(Model):
             log_output={"loss": loss.item()},
         )
 
-    def config_optimizer(self):
+    def config_optimizer(self, model=None):
         optimizer = myAdam(
             self,
             lr=self.args.max_lr,

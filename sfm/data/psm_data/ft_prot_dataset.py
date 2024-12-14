@@ -409,6 +409,8 @@ class ProteinDownstreamDataset(FoundationModelDataset):
             data["edge_input"] = edge_input
             data["spatial_pos"] = spatial_pos
 
+        data["sample_type"] = 5
+
         return data
 
     def __getitem__(self, index: int) -> dict:
@@ -554,6 +556,8 @@ class ProteinDownstreamDataset(FoundationModelDataset):
 
 from sfm.data.psm_data.collator import (
     convert_to_single_emb,
+    pad_1d_chain_ids_unsqueeze,
+    pad_1d_confidence_unsqueeze,
     pad_1d_unsqueeze,
     pad_2d_unsqueeze,
     pad_3d_unsqueeze,
@@ -588,8 +592,19 @@ def collate_fn_protein_downstream(
             item["num_atoms"] = item["x"].size()[0]
         if not preprocess_2d_bond_features_with_cuda:
             item["edge_input"] = item["edge_input"][:, :, :multi_hop_max_dist, :]
+        if "position_ids" not in item:
+            item["position_ids"] = torch.arange(
+                0, item["token_type"].shape[0], dtype=torch.long
+            )
+        if "confidence" not in item:
+            item["confidence"] = -100 * torch.ones(item["token_type"].shape[0])
+        if "chain_ids" not in item:
+            item["chain_ids"] = torch.ones(
+                item["token_type"].shape[0], dtype=torch.long
+            )
 
     idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
+    sample_type = torch.tensor([i["sample_type"] for i in items], dtype=torch.long)
     max_node_num = max(i["token_type"].shape[0] for i in items)
     energy = [i["energy"] for i in items]
     energy_per_atom = [i["energy_per_atom"] for i in items]
@@ -600,6 +615,15 @@ def collate_fn_protein_downstream(
     energy_per_atom = torch.cat(energy_per_atom)
 
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
+    position_ids = torch.cat(
+        [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
+    )
+    chain_ids = torch.cat(
+        [pad_1d_chain_ids_unsqueeze(i["chain_ids"], max_node_num) for i in items]
+    )
+    confidence = torch.cat(
+        [pad_1d_confidence_unsqueeze(i["confidence"], max_node_num) for i in items]
+    )
 
     attn_bias = torch.cat(
         [pad_attn_bias_unsqueeze(i["attn_bias"], max_node_num + 1) for i in items]
@@ -672,6 +696,7 @@ def collate_fn_protein_downstream(
 
     batched_data = dict(
         idx=idx,
+        sample_type=sample_type,
         attn_bias=attn_bias,
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph
@@ -688,6 +713,9 @@ def collate_fn_protein_downstream(
         cell=cell,
         num_atoms=num_atoms,
         is_stable_periodic=is_stable_periodic,
+        position_ids=position_ids,
+        chain_ids=chain_ids,
+        confidence=confidence,
     )
 
     if preprocess_2d_bond_features_with_cuda:

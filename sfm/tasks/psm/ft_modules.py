@@ -309,3 +309,74 @@ class PerResidueLDDTCaPredictor(nn.Module):
         logging_output["lddt_label"] = lddt_label
         logging_output = {**logging_output, **lddt_stats}
         return loss, logging_output
+
+
+# @PSM_FT_REGISTER.register("protein_understanding_head")
+# class PerResidueLDDTCaPredictor(nn.Module):
+#     def __init__(self, args, no_bins=50, c_hidden=128):
+#         super(PerResidueLDDTCaPredictor, self).__init__()
+
+#         self.no_bins = no_bins
+#         self.c_in = args.encoder_embed_dim
+#         self.c_hidden = c_hidden
+
+
+#         self.n_sequence = (
+#             2 if args.task_name in ["yeast_ppi", "human_ppi", "ppi_affinity"] else 1
+#         )
+#         self.n_classes = n_classes
+#         self.head = torch.nn.Sequential(
+#             torch.nn.Dropout(args.head_dropout),
+#             torch.nn.Linear(
+#                 args.encoder_embed_dim * self.n_sequence, args.encoder_embed_dim
+#             ),
+#             torch.nn.GELU(),
+#             nn.LayerNorm(args.encoder_embed_dim),
+#             torch.nn.Linear(args.encoder_embed_dim, n_classes),
+#         )
+#         self.return_residue_emb = (
+#             True if args.task_name == "secondary_structure" else False
+#         )
+
+#     def update_batched_data(self, samples, batched_data):
+#         return batched_data
+
+#     def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+#         s = result_dict["decoder_x_output"]
+#         s = self.layer_norm(s)
+#         s = self.linear_1(s)
+#         s = self.relu(s)
+#         s = self.linear_2(s)
+#         s = self.relu(s)
+#         s = self.linear_3(s)
+#         result_dict["plddt_logits"] = s
+#         with torch.no_grad():
+#             result_dict["plddt"] = compute_plddt(s)
+#             # calculate mean pLDDT score corresponding to the mask
+#             result_dict["mean_plddt"] = result_dict["plddt"][
+#                 result_dict["is_protein"]
+#             ].mean()
+#         return result_dict
+
+#     def update_loss(self, loss, logging_output, model_output, batched_data):
+#         pos_pred = model_output["pred_pos_sample"]
+#         pos_orig = model_output["orig_pos_sample"]
+
+#         resolution = torch.ones(
+#             batched_data["is_protein"].shape[0],
+#             device=pos_pred.device,
+#             dtype=pos_pred.dtype,
+#         )
+#         lddt_loss_output, lddt_label, lddt_acc, lddt_stats = lddt_loss(
+#             model_output["plddt_logits"],
+#             pos_pred,
+#             pos_orig,
+#             batched_data["is_protein"],
+#             resolution,
+#         )
+#         loss += lddt_loss_output
+#         logging_output["lddt_loss"] = lddt_loss_output
+#         logging_output["lddt_acc"] = lddt_acc
+#         logging_output["lddt_label"] = lddt_label
+#         logging_output = {**logging_output, **lddt_stats}
+#         return loss, logging_output

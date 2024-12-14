@@ -1025,27 +1025,38 @@ class PSMModel(Model):
                 noise_mode = self.psm_config.psm_finetune_valid_noise_mode
 
             if noise_mode == "T":
-                time_step = torch.ones_like(time_step)
+                if self.psm_config.diffusion_mode == "edm":
+                    noise_step = torch.ones_like(noise_step) * 4.19
+                    time_step = None
+                else:
+                    noise_step = None
+                    time_step = torch.ones_like(time_step)
+
                 clean_mask = torch.zeros_like(clean_mask)
                 # batched_data["pos"] = torch.zeros_like(batched_data["pos"])
             elif noise_mode == "zero":
-                time_step = torch.zeros_like(time_step)
-                noise_step = torch.ones_like(noise_step) * -4.42
+                if self.psm_config.diffusion_mode == "edm":
+                    noise_step = torch.ones_like(noise_step) * -4.42
+                    time_step = None
+                else:
+                    noise_step = None
+                    time_step = torch.zeros_like(time_step)
+
                 clean_mask = torch.ones_like(clean_mask)
             elif noise_mode == "T_zero":
                 # 50% zero, 50% T, set clean_mask=True to 0
-                time_step = torch.ones_like(time_step)
-                time_step = time_step.masked_fill(clean_mask, 0.0)
+                if self.psm_config.diffusion_mode == "edm":
+                    noise_step = torch.ones_like(noise_step) * 4.19
+                    noise_step = noise_step.masked_fill(clean_mask, -4.42)
+                    time_step = None
+                else:
+                    time_step = torch.ones_like(time_step)
+                    time_step = time_step.masked_fill(clean_mask, 0.0)
+                    noise_step = None
+
                 batched_data["pos"] = batched_data["pos"].masked_fill(
                     ~clean_mask.unsqueeze(-1), 0.0
                 )
-            elif noise_mode == "T_Diff":
-                # 50% diffusion, 50% T, set clean_mask=True to T
-                time_step = time_step.masked_fill(clean_mask, 1.0)
-                batched_data["pos"] = batched_data["pos"].masked_fill(
-                    clean_mask.unsqueeze(-1), 0.0
-                )
-                clean_mask = torch.zeros_like(clean_mask)
             else:
                 assert noise_mode == "diffusion"
 

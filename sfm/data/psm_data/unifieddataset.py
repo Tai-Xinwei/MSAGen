@@ -35,10 +35,11 @@ from sfm.data.psm_data.ft_mol_dataset import (
     PCQM4Mv2LMDBDataset,
     PubChemQCB3LYPLMDBDataset,
 )
-from sfm.data.psm_data.ft_prot_dataset import ComplexDataset
+from sfm.data.psm_data.ft_prot_dataset import ComplexDataset, ProteinDownstreamDataset
 from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
+from SFM_framework.sfm import data
 
 try:
     from sfm.data.prot_data.token_block_utils_fast import (
@@ -253,6 +254,11 @@ class UnifiedPSMDataset(FoundationModelDataset):
                     validation_ratio=0.01
                 )
                 len_total = len(dataset)
+            elif dataset_name == "protein_understanding":
+                dataset_dict = ProteinDownstreamDataset.load_dataset(args)
+                train_dataset = dataset_dict["train"]
+                valid_dataset = dataset_dict["valid"]
+                len_total = len(train_dataset) + len(valid_dataset)
             else:
                 raise ValueError(f"Invalid dataset name:{dataset_name}")
 
