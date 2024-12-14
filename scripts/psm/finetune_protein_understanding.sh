@@ -12,12 +12,20 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${seed}" ] && seed=666
 
-[ -z "${layers}" ] && layers=26
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+# [ -z "${layers}" ] && layers=26
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+# [ -z "${num_head}" ] && num_head=32
+
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
 [ -z "${num_head}" ] && num_head=32
 
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -41,16 +49,17 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=6e-5
+[ -z "${epochs}" ] && epochs=200
 [ -z "${total_num_steps}" ] && total_num_steps=20000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=200
-[ -z "${train_batch_size}" ] && train_batch_size=64
-[ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+
+[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${val_batch_size}" ] && val_batch_size=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2000
+[ -z "${save_batch_interval}" ] && save_batch_interval=2000000
 [ -z "${log_interval}" ] && log_interval=20
-[ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0' #'0.2,0.7,0.1'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0'
@@ -79,17 +88,12 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=False
+[ -z "${fp16}" ] && fp16=True
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage1_mi300_2/checkpoints/global_step50000/mp_rank_00_model_states.pt'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/exp3_1b_prot_ft'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_4/checkpoints/global_step45000/mp_rank_00_model_states.pt'
 
-[ -z "${wandb_group}" ] && wandb_group=psm_finetune_EC
-[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_protein_finetune
-[ -z "${wandb_key}" ] && wandb_key=local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -146,7 +150,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
 [ -z "${data_basepath}" ] && data_basepath='/fastdata/peiran/psm/bfm_benchmark'
-[ -z "${task_name}" ] && task_name='EnzymeCommission'
+[ -z "${task_name}" ] && task_name='GeneOntology_cc' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc
+[ -z "${save_dir}" ] && save_dir="/data/peiran/output/exp3_3b_prot_${task_name}"
+
+[ -z "${wandb_group}" ] && wandb_group="psm_finetune_${task_name}"
+[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${wandb_project}" ] && wandb_project=psm_protein_finetune
+[ -z "${wandb_key}" ] && wandb_key=local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385
 
 [ -z "${early_stopping}" ] && early_stopping=False
 [ -z "${early_stopping_patience}" ] && early_stopping_patience=5
