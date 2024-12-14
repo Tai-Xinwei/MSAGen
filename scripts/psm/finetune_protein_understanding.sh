@@ -49,7 +49,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=6e-5
-[ -z "${epochs}" ] && epochs=200
+[ -z "${epochs}" ] && epochs=100
 [ -z "${total_num_steps}" ] && total_num_steps=20000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=200
 
