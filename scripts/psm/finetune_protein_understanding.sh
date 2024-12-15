@@ -50,7 +50,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=6e-5
 [ -z "${epochs}" ] && epochs=100
-[ -z "${total_num_steps}" ] && total_num_steps=20000
+[ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=200
 
 [ -z "${train_batch_size}" ] && train_batch_size=32
@@ -151,14 +151,14 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_basepath}" ] && data_basepath='/fastdata/peiran/psm/bfm_benchmark'
 [ -z "${task_name}" ] && task_name='GeneOntology_cc' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc
-[ -z "${save_dir}" ] && save_dir="/data/peiran/output/exp3_3b_prot_${task_name}"
+[ -z "${save_dir}" ] && save_dir="/data/peiran/output/exp3_3b_prot_${task_name}" #_${train_batch_size}_lr${max_lr}"
 
 [ -z "${wandb_group}" ] && wandb_group="psm_finetune_${task_name}"
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_protein_finetune
 [ -z "${wandb_key}" ] && wandb_key=local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385
 
-[ -z "${early_stopping}" ] && early_stopping=False
+[ -z "${early_stopping}" ] && early_stopping=True
 [ -z "${early_stopping_patience}" ] && early_stopping_patience=5
 [ -z "${early_stopping_metric}" ] && early_stopping_metric="f1_max"
 [ -z "${early_stopping_mode}" ] && early_stopping_mode="max"
@@ -294,73 +294,82 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_protein_understanding.py \
           psm_finetune_noise_mode=$psm_finetune_noise_mode psm_finetune_valid_noise_mode=$psm_finetune_valid_noise_mode \
 
 
-RESULT=$?
-if [ $RESULT -eq 0 ]; then
-  echo "Training finished successfully"
-else
-  echo "Training finished with error, not continue"
-  exit 1
-fi
+# RESULT=$?
+# if [ $RESULT -eq 0 ]; then
+#   echo "Training finished successfully"
+# else
+#   echo "Training finished with error, not continue"
+#   exit 1
+# fi
 
-strategy=Single
-python sfm/tasks/psm/test_protein_understanding.py \
+
+DISTRIBUTED_ARGS="--nproc_per_node 1 --master_port $MASTER_PORT"
+
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/test_protein_understanding.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=exp3 \
+          backbone=$backbone \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
+          num_pred_attn_layer=$num_pred_attn_layer \
           encoder_ffn_embed_dim=$ffn_size \
           encoder_embed_dim=$hidden_size \
+          decoder_hidden_dim=$decoder_hidden_dim \
+          decoder_ffn_dim=$decoder_ffn_dim \
           droppath_prob=$droppath_prob \
           attn_dropout=$attn_dropout \
           act_dropout=$act_dropout \
           dropout=$dropout \
           weight_decay=$weight_decay \
           sandwich_ln=True \
-          add_3d=True \
           data_path=$data_path \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=${seed} \
-          ifresume=False \
+          seed=7778 \
           mask_ratio=$mask_ratio \
-          noise_scale=$noise_scale \
-          num_pred_attn_layer=$num_pred_attn_layer \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
+          diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
-          use_2d_atom_features=True use_2d_bond_features=True \
+          complex_mode_prob=\"$complex_mode_prob\" \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
           gradient_accumulation_steps=$gradient_accumulation_steps \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-          save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$save_dir/checkpoint_best.pt \
+          save_batch_interval=$save_batch_interval log_interval=$log_interval \
           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
-          diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+          diffusion_noise_std=$diffusion_noise_std diffusion_rescale_coeff=$diffusion_rescale_coeff \
+          fp16=$fp16 use_memory_efficient_attention=$use_memory_efficient_attention \
+          psm_validation_mode=$psm_validation_mode num_edges=$num_edges num_3d_bias_kernel=$num_3d_bias_kernel \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
-          sample_in_validation=$sample_in_validation \
-          sampled_structure_output_path=$sampled_structure_output_path \
-          psm_validation_mode=$psm_validation_mode \
-          num_sampling_time=$num_sampling_time \
-          psm_finetune_mode=$psm_finetune_mode \
-          psm_sample_structure_in_finetune=$psm_sample_structure_in_finetune \
-          psm_finetune_reset_head=$psm_finetune_reset_head \
-          rescale_loss_with_std=$rescale_loss_with_std \
-          only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-          use_memory_efficient_attention=$use_memory_efficient_attention \
-          decoder_ffn_dim=$decoder_ffn_dim \
+          use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline \
+          molecule_energy_loss_ratio=$molecule_energy_loss_ratio molecule_force_loss_ratio=$molecule_force_loss_ratio \
+          material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
+          energy_per_atom_label_scale=$energy_per_atom_label_scale molecule_energy_per_atom_std_override=1.0 \
+          preprocess_2d_bond_features_with_cuda=True use_smooth_equviariant_norm=$use_smooth_equviariant_norm \
+          AutoGradForce=$AutoGradForce force_head_type=$force_head_type psm_finetune_mode=$psm_finetune_mode \
+          only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
+          diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+          mm_tensorcore=$mm_tensorcore compile=$compile disable_data_aug=$disable_data_aug \
+          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
+          NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
+          rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
+          loadcheck_path=$save_dir/checkpoint_best.pt encoderfeat4noise=$encoderfeat4noise \
+          molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
+          max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size plddt_threshold=$plddt_threshold \
+          unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
           task_name=$task_name \
           data_basepath=$data_basepath \
           head_dropout=0.1 \

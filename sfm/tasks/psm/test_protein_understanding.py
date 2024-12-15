@@ -63,8 +63,8 @@ def test(args, trainer):
 
     for idx, batch_data in enumerate(trainer.valid_data_loader):
         trainer.model.eval()
-        trainer.model.to(trainer.accelerator.device)
-        batch_data = move_to_device(batch_data, trainer.accelerator.device)
+        trainer.model.cuda()
+        batch_data = move_to_device(batch_data, trainer.accelerator.local_rank)
         with torch.no_grad():
             output = trainer.model(batch_data)
             pred.append(output.to(torch.float32).squeeze().detach().cpu())
@@ -234,4 +234,11 @@ def test_checkpoint(args) -> None:
 
 
 if __name__ == "__main__":
-    test_checkpoint()
+    try:
+        test_checkpoint()
+    except KeyboardInterrupt:
+        wandb.finish()  # support to finish wandb logging
+        logger.info("KeyboardInterrupt!")
+    finally:
+        wandb.finish()  # support to finish wandb logging
+        logger.info("wandb finish logging!")
