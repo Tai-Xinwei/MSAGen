@@ -84,6 +84,7 @@ class PSMModel(Model):
         periodic_energy_per_atom_std=1.0,
         molecule_force_std=1.0,
         periodic_force_std=1.0,
+        reload_checkpoint=True,
     ):
         """
         Initialize the PSMModel class.
@@ -116,7 +117,9 @@ class PSMModel(Model):
         )
 
         self.psm_finetune_head = psm_finetune_head
-        self.checkpoint_loaded = self.reload_checkpoint()
+
+        if reload_checkpoint:
+            self.checkpoint_loaded = self.reload_checkpoint()
 
         if self.psm_config.diffusion_mode == "edm":
             self.diffnoise = DiffNoiseEDM(self.psm_config)

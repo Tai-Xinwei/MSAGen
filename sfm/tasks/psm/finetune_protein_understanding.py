@@ -315,7 +315,7 @@ class SingleSequenceModel(Model):
 def init_model(args):
     # seems model loading require this parameter
     args.ft = True
-    basemodel = PSMModel(args, loss_fn=DiffMAE3dCriterions)
+    basemodel = PSMModel(args, loss_fn=DiffMAE3dCriterions, reload_checkpoint=False)
 
     if ProteinDownstreamDataset.TASKINFO[args.task_name]["type"] == "regression":
         n_classes = 1
