@@ -39,7 +39,6 @@ from sfm.data.psm_data.ft_prot_dataset import ComplexDataset, ProteinDownstreamD
 from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
-from SFM_framework.sfm import data
 
 try:
     from sfm.data.prot_data.token_block_utils_fast import (

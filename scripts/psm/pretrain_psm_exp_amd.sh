@@ -233,6 +233,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${encoderfeat4noise}" ] && encoderfeat4noise=False
+[ -z "${encoderfeat4mlm}" ] && encoderfeat4mlm=True
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
