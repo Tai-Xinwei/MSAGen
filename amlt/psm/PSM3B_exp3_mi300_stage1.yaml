@@ -13,7 +13,8 @@ env_defaults:
 
 target:
   service: sing
-  name: whitney02
+  # name: whitney02
+  name: msroctobasicvc
   workspace_name: sfm-ws
 
 environment:
@@ -44,7 +45,7 @@ code:
 jobs:
 - name: psmv1_dit_v20_1b_stage1
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  sku: ${NODES}xG${GPUS}-MI300@westus
+  sku: ${NODES}xG${GPUS}-MI300 #@westus
   mpi: true
   identity: managed
   process_count_per_node: 1
@@ -134,4 +135,4 @@ jobs:
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
     container_args:
       shm_size: 1024G
-  preemptible: false
+  # preemptible: false

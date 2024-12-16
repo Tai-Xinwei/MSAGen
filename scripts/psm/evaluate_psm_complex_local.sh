@@ -3,10 +3,10 @@
 # Licensed under the MIT License.
 
 num_sampling_time=10
-MODEL_CONFIG=PSM1B_exp3
+MODEL_CONFIG=PSM3B_exp3
 
-global_step=global_step35000
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp3_v22_1b_stage1_ps_stage2_h100_2/checkpoints
+global_step=global_step60000
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_4/checkpoints
 
 # global_step=global_step80000
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241112-lr2e-5-bsz2-steps400000-warm25000-holo/
@@ -14,8 +14,8 @@ ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm
 # global_step=global_step8848
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241105-lr2e-5-bsz2-steps400000-warm25000-holo
 
-global_step=global_step47304
-ckpt_folder_path=/data/peiran/output/dit300m/
+# global_step=global_step47304
+# ckpt_folder_path=/data/peiran/output/dit300m/
 
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/complex/$global_step/prediction

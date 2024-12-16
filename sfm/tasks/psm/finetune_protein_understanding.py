@@ -255,13 +255,14 @@ class SingleSequenceModel(Model):
         total_num_steps = (
             self.args.total_num_epochs * TRAINLENTH / self.args.train_batch_size + 1
         )
+
         logger.info(f"Manually set total num steps: {total_num_steps}")
         lr_scheduler = groupWarmupDecayLR(
             optimizer,
             total_num_steps=total_num_steps,
             warmup_max_lr=self.args.max_lr,
             warmup_num_steps=int(0.1 * total_num_steps),
-            d_tilde=0.1,  # this is the ratio of the lr of the encoder to the head
+            d_tilde=0.5,  # this is the ratio of the lr of the encoder to the head
             decay_type=DECAY_COSINE_RATE,
         )
         return optimizer, lr_scheduler
