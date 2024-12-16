@@ -170,21 +170,9 @@ export MKL_THREADING_LAYER='GNU'
 echo -e "\n\n"
 echo "==================================MP==========================================="
 
-# define the env is cuda or rocm
-if command -v nvidia-smi &> /dev/null
-then
-  echo "CUDA environment detected"
-  [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-elif command -v rocm-smi &> /dev/null
-then
-  echo "ROCm environment detected"
-  [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
-else
-  echo "No compatible GPU environment detected"
-fi
 
 # [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-# [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
+[ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
 
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
