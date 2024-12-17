@@ -68,6 +68,7 @@ def test(args, trainer):
         with torch.no_grad():
             output = trainer.model(batch_data)
             pred.append(output.to(torch.float32).squeeze().detach().cpu())
+
         if (
             ProteinDownstreamDataset.TASKINFO[args.task_name]["type"]
             == "multi_classification"
