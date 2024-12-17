@@ -125,10 +125,12 @@ def test(args, trainer):
 
     else:
         raise NotImplementedError()
+
     # assert pred.shape == true.shape
     results = dict()
     for fn in test_fns:
         results[fn.__name__] = fn(pred, true).item()
+
     # logger.info(f"Checkpoint: {args.loadcheck_path}; Test results: {results}")
     metric_logger.log(results, "test")
     return results

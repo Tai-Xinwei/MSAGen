@@ -119,7 +119,7 @@ jobs:
   - export align_x0_in_diffusion_loss=True
   - export decoder_feat4energy=False
   - export encoderfeat4noise=False
-  - export encoderfeat4mlm=False
+  - export encoderfeat4mlm=True
   - export only_use_rotary_embedding_for_protein=True
   - export use_memory_efficient_attention=False
   - export if_total_energy=False

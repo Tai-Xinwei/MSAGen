@@ -134,7 +134,7 @@ class SingleSequenceModel(Model):
                 args.encoder_embed_dim * self.n_sequence, args.encoder_embed_dim
             ),
             torch.nn.GELU(),
-            LayerNorm(args.encoder_embed_dim),
+            torch.nn.LayerNorm(args.encoder_embed_dim),
             torch.nn.Linear(args.encoder_embed_dim, n_classes),
         )
         self.return_residue_emb = (
@@ -262,7 +262,7 @@ class SingleSequenceModel(Model):
             total_num_steps=total_num_steps,
             warmup_max_lr=self.args.max_lr,
             warmup_num_steps=int(0.1 * total_num_steps),
-            d_tilde=0.5,  # this is the ratio of the lr of the encoder to the head
+            d_tilde=0.1,  # this is the ratio of the lr of the encoder to the head
             decay_type=DECAY_COSINE_RATE,
         )
         return optimizer, lr_scheduler
@@ -335,6 +335,7 @@ def init_model(args):
         n_classes = len(ProteinDownstreamDataset.TASKINFO[args.task_name]["classes"])
     else:
         raise NotImplementedError()
+
     model = SingleSequenceModel(args, basemodel, n_classes=n_classes)
     return model
 

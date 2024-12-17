@@ -43,7 +43,7 @@ def process_param(
     param_groups[1]["params"] = []
 
     for name, param in net.named_parameters():
-        if name.find("energy_head") != -1 or name.find("forces_head") != -1:
+        if name.find("head") != -1:
             param_groups[1]["params"].append(param)
         else:
             param_groups[0]["params"].append(param)
