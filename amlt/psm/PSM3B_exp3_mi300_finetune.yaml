@@ -51,7 +51,7 @@ search:
   job_template:
     name: psmv1_dit_v20_1b_stage1
     tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-    sku: ${NODES}xG${GPUS}-MI300 #@westus
+    sku: ${NODES}xG${GPUS}-MI300@westus
     mpi: true
     identity: managed
     process_count_per_node: 1

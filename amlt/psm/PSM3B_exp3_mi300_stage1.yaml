@@ -45,7 +45,7 @@ code:
 jobs:
 - name: psmv1_dit_v20_1b_stage1
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  sku: ${NODES}xG${GPUS}-MI300 #@westus
+  sku: ${NODES}xG${GPUS}-MI300@westus
   mpi: true
   identity: managed
   process_count_per_node: 1
@@ -92,13 +92,14 @@ jobs:
   - export max_residue_num=768
   - export ligand_crop_size=20.0
   - export plddt_threshold=70.0
-  - export gradient_accumulation_steps=4
+  - export gradient_accumulation_steps=8
   - export log_interval=100
 
   - export data_path=/psm/data/
   - export data_path_list='MGnify,UniProt-updated-plddt70-reduce.lmdb,AFDB90-plddt70-reduce.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
   - export dataset_name_list='mgnify,esm,esm,pdbcomplexmultimer' #,geom'
   - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
+  # - export dataset_micro_batch_size='16,16,16,16'
   - export dataset_micro_batch_size='4,4,4,4'
 
   - export fp16=False
@@ -123,7 +124,7 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export use_memory_efficient_attention=False
   - export if_total_energy=False
-  - export save_batch_interval=5000
+  - export save_batch_interval=2500
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_4/checkpoints/global_step65000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=True
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5/checkpoints
