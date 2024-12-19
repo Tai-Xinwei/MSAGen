@@ -13,8 +13,8 @@ env_defaults:
 
 target:
   service: sing
-  name: whitney02
-  # name: msroctobasicvc
+  # name: whitney02
+  name: msroctobasicvc
   workspace_name: sfm-ws
 
 environment:
