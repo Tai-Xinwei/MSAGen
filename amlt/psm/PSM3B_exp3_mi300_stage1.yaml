@@ -13,8 +13,8 @@ env_defaults:
 
 target:
   service: sing
-  # name: whitney02
-  name: msroctobasicvc
+  name: whitney02
+  # name: msroctobasicvc
   workspace_name: sfm-ws
 
 environment:
@@ -35,7 +35,7 @@ storage:
   #   container_name: psm # Container name
   #   mount_dir: /psm
   westus:
-    storage_account_name: sfmdatawestusprem # Storage account
+    storage_account_name: sfmdatawestus # Storage account
     container_name: psm # Container name
     mount_dir: /psm
 
@@ -126,7 +126,7 @@ jobs:
   - export if_total_energy=False
   - export save_batch_interval=2500
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_4/checkpoints/global_step65000/mp_rank_00_model_states.pt
-  - export psm_finetune_mode=True
+  - export psm_finetune_mode=False
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
