@@ -35,7 +35,7 @@ storage:
   #   container_name: psm # Container name
   #   mount_dir: /psm
   westus:
-    storage_account_name: sfmdatawestus # Storage account
+    storage_account_name: sfmdatawestusprem # Storage account
     container_name: psm # Container name
     mount_dir: /psm
 
