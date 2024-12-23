@@ -1288,6 +1288,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
+        self.seqid40 = None
 
         if keys is not None:
             self._env = lmdb.open(
@@ -1313,6 +1314,14 @@ class AFDBLMDBDataset(FoundationModelDataset):
         )
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
+        metadata2 = self.txn.get("__metadata2__".encode())
+        if metadata2 is not None:
+            metadata2 = bstr2obj(metadata2)
+            self.seqid40 = metadata2["seqid40"]
+            self.cluster_size = len(self.seqid40)
+        else:
+            self.seqid40 = None
+
         self._sizes, self._keys = metadata["sizes"], metadata["keys"]
 
     def _close_db(self):
@@ -1368,7 +1377,12 @@ class AFDBLMDBDataset(FoundationModelDataset):
         return selected_indices
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
+        if self.seqid40 is None:
+            key = self.keys[idx]
+        else:
+            cluster_id = np.random.randint(0, self.cluster_size)
+            key = random.choice(self.seqid40[cluster_id])
+
         value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
@@ -1581,7 +1595,12 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
 class ESMDataset(AFDBLMDBDataset):
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
+        if self.seqid40 is None:
+            key = self.keys[idx]
+        else:
+            cluster_id = np.random.randint(0, self.cluster_size)
+            key = random.choice(self.seqid40[cluster_id])
+
         value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
@@ -1711,7 +1730,12 @@ class MGnifyDataset(AFDBLMDBDataset):
             self._sizes = sizes
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
+        if self.seqid40 is None:
+            key = self.keys[idx]
+        else:
+            cluster_id = np.random.randint(0, self.cluster_size)
+            key = random.choice(self.seqid40[cluster_id])
+
         value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
