@@ -242,8 +242,8 @@ export MKL_THREADING_LAYER='GNU'
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
-# [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
-[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
+[ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
+# [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
