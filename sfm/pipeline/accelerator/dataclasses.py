@@ -304,6 +304,7 @@ class TrainerState:
     epoch: int = 0
     batch: int = 0
     sample: int = 0
+    total_acc_sample: int = 0
 
 
 @dataclass

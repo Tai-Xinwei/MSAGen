@@ -123,7 +123,7 @@ class MetricAccumulator(object):
 
 
 class LogAccumulator(object):
-    def __init__(self, world_size=1, allreduce_fn=None):
+    def __init__(self, world_size=1, allreduce_fn=None, total_acc_sample=0):
         self.sum = 0
         self.num_examples = 0
         self.extra_log = {}
@@ -131,7 +131,7 @@ class LogAccumulator(object):
         self.start_time = time.time()
         self.allreduce_fn = allreduce_fn
         self.world_size = world_size
-        self.extra_log["total_acc_sample"] = 0
+        self.extra_log["total_acc_sample"] = total_acc_sample
 
     def add(self, loss, num_examples, extra_log=None):
         if loss is None:
@@ -424,7 +424,9 @@ class Trainer(object):
     def resume(self):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self._load_checkpoint(self.save_dir)
-        self.start_iteration = self._load_rng_and_iter_state(self.save_dir)
+        self.start_iteration, self.total_acc_sample = self._load_rng_and_iter_state(
+            self.save_dir
+        )
         logger.info(f"self.start_iteration = {self.start_iteration}.")
 
     def finetune_from_checkpoint(self):
@@ -614,7 +616,9 @@ class Trainer(object):
 
                 loss_accumulator = LossAccumulator()
                 interval_loss_accumulator = LogAccumulator(
-                    self.accelerator.world_size, self.accelerator._allreducelog
+                    self.accelerator.world_size,
+                    self.accelerator._allreducelog,
+                    total_acc_sample=self.state.total_acc_sample,
                 )
 
                 # skip first batches
@@ -659,6 +663,9 @@ class Trainer(object):
                             checkpoint_name = (
                                 f"checkpoint_E{self.state.epoch}_B{self.state.batch}.pt"
                             )
+                            self.state.total_acc_sample = (
+                                interval_loss_accumulator.extra_log["total_acc_sample"]
+                            )
                             self.save_checkpoint(checkpoint_name, self.state)
 
                         if self.args.profiling:
@@ -674,6 +681,7 @@ class Trainer(object):
                 metric_logger.log(log_output, "train", self.state.global_step)
 
                 self.state.batch = 0
+                self.state.total_acc_sample = 0
 
                 self.accelerator.barrier()
                 if self.should_save_epoch_checkpoint():
@@ -872,6 +880,7 @@ class Trainer(object):
             ),
             "iteration": self.state.batch,
             "epoch": self.state.epoch,
+            "total_acc_sample": self.state.total_acc_sample,
         }
 
         if self.accelerator.world_size > 1:
@@ -953,8 +962,9 @@ class Trainer(object):
             self.state.epoch = checkpoint_rng_state["epoch"]
 
         start_iteration = checkpoint_rng_state["iteration"]
+        total_acc_sample = checkpoint_rng_state["total_acc_sample"]
 
-        return start_iteration
+        return start_iteration, total_acc_sample
 
     def skip_first_batches(self, data_iterator, start_iteration=None):
         """
