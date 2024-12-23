@@ -962,7 +962,11 @@ class Trainer(object):
             self.state.epoch = checkpoint_rng_state["epoch"]
 
         start_iteration = checkpoint_rng_state["iteration"]
-        total_acc_sample = checkpoint_rng_state["total_acc_sample"]
+
+        if "total_acc_sample" in checkpoint_rng_state:
+            total_acc_sample = checkpoint_rng_state["total_acc_sample"]
+        else:
+            total_acc_sample = 0
 
         return start_iteration, total_acc_sample
 
