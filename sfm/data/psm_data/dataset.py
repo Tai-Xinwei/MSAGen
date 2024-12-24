@@ -1303,6 +1303,15 @@ class AFDBLMDBDataset(FoundationModelDataset):
             self._keys = keys
             self._sizes = sizes
 
+            metadata2 = self.txn.get("__metadata2__".encode())
+            if metadata2 is not None:
+                metadata2 = bstr2obj(metadata2)
+                self.seqid40 = metadata2["seqid40"]
+                self.cluster_size = len(self.seqid40)
+            else:
+                self.seqid40 = None
+                logger.info("No seqid40 found in the dataset")
+
     def _init_db(self):
         self._env = lmdb.open(
             str(self.lmdb_path),
@@ -1315,12 +1324,14 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         metadata2 = self.txn.get("__metadata2__".encode())
+
         if metadata2 is not None:
             metadata2 = bstr2obj(metadata2)
             self.seqid40 = metadata2["seqid40"]
             self.cluster_size = len(self.seqid40)
         else:
             self.seqid40 = None
+            logger.info("No seqid40 found in the dataset")
 
         self._sizes, self._keys = metadata["sizes"], metadata["keys"]
 
@@ -1610,29 +1621,6 @@ class ESMDataset(AFDBLMDBDataset):
 
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            # if np.random.rand() < 0.25:
-            #     confidence = data["confidence"]
-            #     indices = np.arange(confidence.shape[0])
-            #     nonNan_indices = indices[confidence > 60]
-
-            #     # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            #     random_center = np.random.choice(nonNan_indices)
-            #     random_start = random_center - self.args.max_length // 2
-            #     if random_start > len(data["aa"]) - self.args.max_length:
-            #         random_start = len(data["aa"]) - self.args.max_length
-            #     elif random_start < 0:
-            #         random_start = 0
-
-            #     data["aa"] = data["aa"][
-            #         random_start : random_start + self.args.max_length
-            #     ]
-            #     coords = data["pos"][
-            #         random_start : random_start + self.args.max_length, :
-            #     ]
-            #     confidence = data["confidence"][
-            #         random_start : random_start + self.args.max_length
-            #     ]
-            #     position_ids = range(random_start, random_start + self.args.max_length)
             if np.random.rand() < 0.25:
                 random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
                 data["aa"] = data["aa"][
