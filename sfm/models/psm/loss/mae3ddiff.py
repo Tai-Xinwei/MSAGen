@@ -1220,7 +1220,7 @@ class DiffMAE3dCriterions(nn.Module):
                     decoder_logits,
                     atomic_numbers[aa_mask],
                 )
-                (
+                decoder_aa_acc = (
                     (
                         decoder_logits.view(-1, decoder_logits.size(-1)).argmax(dim=-1)
                         == atomic_numbers[aa_mask]
@@ -1240,6 +1240,7 @@ class DiffMAE3dCriterions(nn.Module):
             )
 
             aa_acc = 0.0
+            decoder_aa_acc = 0.0
             num_aa_mask_token = 0.0
 
             num_decoder_aa_mask_token = 0.0
@@ -1484,6 +1485,7 @@ class DiffMAE3dCriterions(nn.Module):
                 int(num_decoder_aa_mask_token),
             ),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
+            "decoder_aa_acc": (float(decoder_aa_acc), int(num_decoder_aa_mask_token)),
             "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
             # "contact_acc": (float(contact_acc), int(num_contact_losss)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
