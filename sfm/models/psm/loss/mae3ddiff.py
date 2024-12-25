@@ -1231,6 +1231,12 @@ class DiffMAE3dCriterions(nn.Module):
                 num_decoder_aa_mask_token = torch.sum(
                     aa_mask.to(dtype=decoder_mlm_loss.dtype)
                 )
+            else:
+                decoder_mlm_loss = torch.tensor(
+                    0.0, device=atomic_numbers.device, requires_grad=True
+                )
+                decoder_aa_acc = 0.0
+                num_decoder_aa_mask_token = 0.0
         else:
             aa_mlm_loss = torch.tensor(
                 0.0, device=atomic_numbers.device, requires_grad=True
