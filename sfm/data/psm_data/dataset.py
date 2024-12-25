@@ -218,7 +218,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(12345).shuffle(indices)
+        # random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
         max_validation_samples = getattr(self.args, "max_validation_samples", None)
@@ -895,7 +895,7 @@ class SmallMolDataset(FoundationModelDataset):
         num_samples = self.num_samples
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(12345).shuffle(indices)
+        # random.Random(12345).shuffle(indices)
         assert (
             training_ratio + validation_ratio <= 1.0
         ), f"Invalid training_ratio '{training_ratio}' and validation_ratio '{validation_ratio}'"
@@ -931,9 +931,9 @@ class SmallMolDataset(FoundationModelDataset):
         num_samples = self.num_samples
 
         indices = list(range(num_samples))
-        # Shuffle the indices and split them into training and validation sets
-        if shuffle:
-            random.Random(12345).shuffle(indices)
+        # # Shuffle the indices and split them into training and validation sets
+        # if shuffle:
+        #     random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * ratio_list[1])
         num_test_samples = int(num_samples * ratio_list[2])
@@ -1480,12 +1480,12 @@ class AFDBLMDBDataset(FoundationModelDataset):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(12345).shuffle(indices)
+        # random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
 
-        training_indices = indices[:num_training_samples]
+        training_indices = indices  # [:num_training_samples]
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
@@ -2062,12 +2062,12 @@ class UR50LMDBDataset(FoundationModelDataset):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(12345).shuffle(indices)
+        # random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
 
-        training_indices = indices[:num_training_samples]
+        training_indices = indices  # [:num_training_samples]
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
@@ -2641,7 +2641,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(12345).shuffle(indices)
+        # random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples

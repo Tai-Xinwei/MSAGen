@@ -2079,6 +2079,15 @@ class PSM(nn.Module):
                 nn.Linear(psm_config.embedding_dim, 160, bias=False),
             )
 
+            # decoder aa mask predict head
+            self.decoder_aa_mask_head = nn.Sequential(
+                nn.Linear(
+                    psm_config.embedding_dim, psm_config.embedding_dim, bias=False
+                ),
+                nn.SiLU(),
+                nn.Linear(psm_config.embedding_dim, 160, bias=False),
+            )
+
             if self.args.AutoGradForce:
                 self.autograd_force_head = GradientHead(
                     molecule_energy_per_atom_std=molecule_energy_per_atom_std,
@@ -2730,12 +2739,13 @@ class PSM(nn.Module):
                 )
             ) and self.psm_config.encoderfeat4mlm:
                 aa_logits = self.aa_mask_head(encoder_output)
+                decoder_aa_logits = self.decoder_aa_mask_head(decoder_x_output)
                 # q, k = self.pair_proj(encoder_output).chunk(2, dim=-1)
                 # dist_map = torch.einsum("bld,bkd->blkd", q, k)
                 # dist_map = self.dist_head(dist_map)
             else:
                 aa_logits = self.aa_mask_head(decoder_x_output)
-
+                decoder_aa_logits = None
                 # q, k = self.pair_proj(decoder_x_output).chunk(2, dim=-1)
                 # pair_feat = torch.einsum("bld,bkd->blkd", q, k)
                 # dist_map = self.dist_head(dist_map)
@@ -2745,6 +2755,7 @@ class PSM(nn.Module):
             "total_energy": total_energy,
             "forces": forces,
             "aa_logits": aa_logits,
+            "decoder_aa_logits": decoder_aa_logits,
             "time_step": time_step,
             "noise_pred": noise_pred,
             "non_atom_mask": non_atom_mask,

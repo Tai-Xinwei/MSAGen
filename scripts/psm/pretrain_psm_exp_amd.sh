@@ -233,7 +233,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${encoderfeat4noise}" ] && encoderfeat4noise=False
-[ -z "${encoderfeat4mlm}" ] && encoderfeat4mlm=False
+[ -z "${encoderfeat4mlm}" ] && encoderfeat4mlm=True
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
@@ -336,7 +336,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=7780 \
+          seed=7781 \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \

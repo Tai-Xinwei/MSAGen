@@ -2,6 +2,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from json import decoder
+
 import torch
 import torch.nn as nn
 
@@ -1210,12 +1212,37 @@ class DiffMAE3dCriterions(nn.Module):
                 .mean()
             )
             num_aa_mask_token = torch.sum(aa_mask.to(dtype=aa_mlm_loss.dtype))
+
+            decoder_aa_logits = model_output["decoder_aa_logits"]
+            if decoder_aa_logits is not None:
+                decoder_logits = model_output["decoder_aa_logits"][aa_mask]
+                decoder_mlm_loss = self.aa_mlm_loss(
+                    decoder_logits,
+                    atomic_numbers[aa_mask],
+                )
+                (
+                    (
+                        decoder_logits.view(-1, decoder_logits.size(-1)).argmax(dim=-1)
+                        == atomic_numbers[aa_mask]
+                    )
+                    .to(torch.float32)
+                    .mean()
+                )
+                num_decoder_aa_mask_token = torch.sum(
+                    aa_mask.to(dtype=decoder_mlm_loss.dtype)
+                )
         else:
             aa_mlm_loss = torch.tensor(
                 0.0, device=atomic_numbers.device, requires_grad=True
             )
+            decoder_mlm_loss = torch.tensor(
+                0.0, device=atomic_numbers.device, requires_grad=True
+            )
+
             aa_acc = 0.0
             num_aa_mask_token = 0.0
+
+            num_decoder_aa_mask_token = 0.0
 
         if not is_seq_only.all():
             loss = torch.tensor(0.0, device=atomic_numbers.device, requires_grad=True)
@@ -1282,6 +1309,19 @@ class DiffMAE3dCriterions(nn.Module):
                 num_aa_mask_token = 0
             else:
                 loss = loss + aa_mlm_loss
+
+            if torch.any(torch.isnan(decoder_mlm_loss)) or torch.any(
+                torch.isinf(decoder_mlm_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in decoder_mlm_loss: {decoder_mlm_loss}"
+                )
+                decoder_mlm_loss = torch.tensor(
+                    0.0, device=decoder_mlm_loss.device, requires_grad=True
+                )
+                num_aa_mask_token = 0
+            else:
+                loss = loss + decoder_mlm_loss
 
             if torch.any(torch.isnan(contact_loss)) or torch.any(
                 torch.isinf(contact_loss)
@@ -1439,6 +1479,10 @@ class DiffMAE3dCriterions(nn.Module):
                 int(num_complex_noise_sample),
             ),
             "aa_mlm_loss": (float(aa_mlm_loss.detach()), int(num_aa_mask_token)),
+            "decoder_mlm_loss": (
+                float(decoder_mlm_loss.detach()),
+                int(num_decoder_aa_mask_token),
+            ),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
             # "contact_acc": (float(contact_acc), int(num_contact_losss)),
