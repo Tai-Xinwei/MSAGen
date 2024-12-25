@@ -3,6 +3,8 @@ amlt_test
 READY
 mock.py
 .tmp
+barrier.py
+barrier_amd.py
 
 __pycache__/
 .ruff_cache

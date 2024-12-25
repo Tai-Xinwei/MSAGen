@@ -2,6 +2,8 @@ __pycache__
 .ruff_cache
 READY
 tdc_data
+barrier.py
+barrier_amd.py
 
 # Build + installation data
 build/
