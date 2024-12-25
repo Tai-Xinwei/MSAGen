@@ -8,19 +8,19 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=exp3
 
-# [ -z "${layers}" ] && layers=32
-# [ -z "${hidden_size}" ] && hidden_size=2048
-# [ -z "${ffn_size}" ] && ffn_size=8192
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
-# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
 
-[ -z "${layers}" ] && layers=26
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+# [ -z "${layers}" ] && layers=26
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
