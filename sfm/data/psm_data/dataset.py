@@ -1392,7 +1392,10 @@ class AFDBLMDBDataset(FoundationModelDataset):
             key = self.keys[idx]
         else:
             cluster_id = idx % self.cluster_size
-            key = self.seqid40[cluster_id][idx % len(self.seqid40[cluster_id])]
+            key_id = (idx + np.random.randint(0, self.cluster_size)) % len(
+                self.seqid40[cluster_id]
+            )
+            key = self.seqid40[cluster_id][key_id]
 
         value = self.txn.get(key.encode())
         if value is None:
@@ -1610,7 +1613,10 @@ class ESMDataset(AFDBLMDBDataset):
             key = self.keys[idx]
         else:
             cluster_id = idx % self.cluster_size
-            key = self.seqid40[cluster_id][idx % len(self.seqid40[cluster_id])]
+            key_id = (idx + np.random.randint(0, self.cluster_size)) % len(
+                self.seqid40[cluster_id]
+            )
+            key = self.seqid40[cluster_id][key_id]
 
         value = self.txn.get(key.encode())
         if value is None:
@@ -1722,7 +1728,10 @@ class MGnifyDataset(AFDBLMDBDataset):
             key = self.keys[idx]
         else:
             cluster_id = idx % self.cluster_size
-            key = self.seqid40[cluster_id][idx % len(self.seqid40[cluster_id])]
+            key_id = (idx + np.random.randint(0, self.cluster_size)) % len(
+                self.seqid40[cluster_id]
+            )
+            key = self.seqid40[cluster_id][key_id]
 
         value = self.txn.get(key.encode())
         if value is None:
