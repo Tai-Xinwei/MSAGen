@@ -1281,6 +1281,9 @@ class AFDBLMDBDataset(FoundationModelDataset):
         lmdb_path: Optional[str],
         keys: Optional[List[str]] = None,
         sizes: Optional[List[int]] = None,
+        env: Optional[lmdb.Environment] = None,
+        txn: Optional[lmdb.Transaction] = None,
+        seqid40: Optional[List[List[str]]] = None,
     ):
         self.lmdb_path = lmdb_path
         self.args = args
@@ -1291,26 +1294,35 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self.seqid40 = None
 
         if keys is not None:
-            self._env = lmdb.open(
-                str(self.lmdb_path),
-                subdir=True,
-                readonly=True,
-                lock=False,
-                readahead=False,
-                meminit=False,
-            )
-            self._txn = self._env.begin(write=False)
+            if env is not None:
+                self._env = env
+                self._txn = txn
+            else:
+                self._env = lmdb.open(
+                    str(self.lmdb_path),
+                    subdir=True,
+                    readonly=True,
+                    lock=False,
+                    readahead=False,
+                    meminit=False,
+                )
+                self._txn = self._env.begin(write=False)
+
             self._keys = keys
             self._sizes = sizes
 
-            metadata2 = self.txn.get("__metadata2__".encode())
-            if metadata2 is not None:
-                metadata2 = bstr2obj(metadata2)
-                self.seqid40 = metadata2["seqid40"]
-                self.cluster_size = len(self.seqid40)
+            if seqid40 is None:
+                metadata2 = self.txn.get("__metadata2__".encode())
+                if metadata2 is not None:
+                    metadata2 = bstr2obj(metadata2)
+                    self.seqid40 = metadata2["seqid40"]
+                    self.cluster_size = len(self.seqid40)
+                else:
+                    self.seqid40 = None
+                    logger.info("No seqid40 found in the dataset")
             else:
-                self.seqid40 = None
-                logger.info("No seqid40 found in the dataset")
+                self.seqid40 = seqid40
+                self.cluster_size = len(self.seqid40)
 
     def _init_db(self):
         self._env = lmdb.open(
@@ -1488,15 +1500,20 @@ class AFDBLMDBDataset(FoundationModelDataset):
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
 
-        training_indices = indices  # [:num_training_samples]
+        # training_indices = indices[:num_training_samples]
         validation_indices = indices[num_training_samples:]
+
+        self._init_db()
 
         # Create training and validation datasets
         dataset_train = self.__class__(
             self.args,
             self.lmdb_path,
-            keys=[self._keys[idx] for idx in training_indices],
-            sizes=[self._sizes[idx] for idx in training_indices],
+            keys=self._keys,  # [self._keys[idx] for idx in training_indices],
+            sizes=self._sizes,  # [self._sizes[idx] for idx in training_indices],
+            env=self._env,
+            txn=self._txn,
+            seqid40=self.seqid40,
         )
 
         dataset_val = self.__class__(
@@ -1504,6 +1521,9 @@ class AFDBLMDBDataset(FoundationModelDataset):
             self.lmdb_path,
             keys=[self._keys[idx] for idx in validation_indices],
             sizes=[self._sizes[idx] for idx in validation_indices],
+            env=self._env,
+            txn=self._txn,
+            seqid40=self.seqid40,
         )
 
         return dataset_train, dataset_val

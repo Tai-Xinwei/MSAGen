@@ -135,7 +135,7 @@ search:
     preemptible: false
   type: grid
   max_trials: 999
-  parallel_trials: 8
+  parallel_trials: 4
   params:
     - name: task_name
       spec: discrete

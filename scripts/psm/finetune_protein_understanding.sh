@@ -53,9 +53,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=200
 
-[ -z "${train_batch_size}" ] && train_batch_size=16
-[ -z "${val_batch_size}" ] && val_batch_size=16
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${val_batch_size}" ] && val_batch_size=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000000
@@ -92,7 +92,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_4/checkpoints/global_step65000/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5/checkpoints/global_step30000/mp_rank_00_model_states.pt'
 
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -150,7 +150,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
 [ -z "${data_basepath}" ] && data_basepath='/fastdata/peiran/psm/bfm_benchmark'
-[ -z "${task_name}" ] && task_name='GeneOntology_bp' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc, stability
+[ -z "${task_name}" ] && task_name='EnzymeCommission' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc, stability
 [ -z "${save_dir}" ] && save_dir="/data/peiran/output/exp3_3b_prot_${task_name}" #_${train_batch_size}_lr${max_lr}"
 
 [ -z "${wandb_group}" ] && wandb_group="psm_finetune_${task_name}"
@@ -171,8 +171,8 @@ echo -e "\n\n"
 echo "==================================MP==========================================="
 
 
-# [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-[ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
+[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
+# [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
 
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
