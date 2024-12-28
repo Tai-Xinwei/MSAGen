@@ -60,12 +60,12 @@ jobs:
   - mkdir ./output
   - export path=run.sh
   - export backbone=exp3
-  - export num_pred_attn_layer=16
+  - export num_pred_attn_layer=48
   - export layers=32
-  - export hidden_size=2048
-  - export ffn_size=8192
-  - export decoder_hidden_dim=2048
-  - export decoder_ffn_dim=8192
+  - export hidden_size=3072
+  - export ffn_size=12288
+  - export decoder_hidden_dim=3072
+  - export decoder_ffn_dim=12288
   - export num_head=32
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
@@ -80,7 +80,7 @@ jobs:
   - export complex_mode_prob='0.9,0.0,0.1,0.0'
 
   - export d_tilde=1.0
-  - export max_lr=8e-5
+  - export max_lr=1e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=200000
@@ -88,8 +88,8 @@ jobs:
   - export train_batch_size=2048
   - export val_batch_size=512
   - export max_tokens=16000
-  - export max_length=768
-  - export max_residue_num=768
+  - export max_length=384
+  - export max_residue_num=384
   - export ligand_crop_size=20.0
   - export plddt_threshold=70.0
   - export gradient_accumulation_steps=8
@@ -97,11 +97,11 @@ jobs:
 
   - export data_path=/psm/data/
 
-  # - export data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb,20240630_PDB_Training_Data'
-  # - export dataset_name_list='esm,pdbcomplexmultimer'
-  # - export dataset_split_raito='0.5,0.5'
+  # - export data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb,geom_drugs_full.lmdb,20240630_PDB_Training_Data'
+  # - export dataset_name_list='esm,geom,pdbcomplexmultimer'
+  # - export dataset_split_raito='0.5,0.3,0.2'
   # # - export dataset_micro_batch_size='16,16,16,16'
-  # - export dataset_micro_batch_size='4,4'
+  # - export dataset_micro_batch_size='4,32,4'
 
   - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
   - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'
@@ -135,7 +135,7 @@ jobs:
   - export save_batch_interval=2500
   - export loadcheck_path=/blob/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints/global_step15000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/blob/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints
+  - export save_dir=/blob/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_10b_p_stage1/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/psm/pretrain_psm_exp_amd.sh
