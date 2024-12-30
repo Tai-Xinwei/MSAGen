@@ -5,7 +5,7 @@
 num_sampling_time=10
 MODEL_CONFIG=PSM3B_exp3
 
-global_step=global_step15000
+global_step=global_step35000
 ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5/checkpoints
 
 # global_step=global_step80000
