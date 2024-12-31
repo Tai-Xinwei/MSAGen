@@ -141,6 +141,8 @@ class SingleSequenceModel(Model):
             True if args.task_name == "secondary_structure" else False
         )
 
+        self.load_pretrained_weights(args, args.loadcheck_path)
+
     def forward(self, batch_data):
         if self.n_sequence == 1:
             # x: (B, L, C)

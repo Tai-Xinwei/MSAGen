@@ -695,6 +695,7 @@ class UnifiedDataSampler(WeightedDistributedSampler):
         return iter(all_batches)
 
     def set_epoch(self, epoch) -> None:
+        self.num_skip_batches = None
         return super().set_epoch(epoch)
 
 
