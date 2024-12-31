@@ -92,7 +92,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints/global_step45000/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints/global_step50000/mp_rank_00_model_states.pt'
 
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -150,7 +150,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
 [ -z "${data_basepath}" ] && data_basepath='/fastdata/peiran/psm/bfm_benchmark'
-[ -z "${task_name}" ] && task_name='EnzymeCommission' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc, stability
+[ -z "${task_name}" ] && task_name='GeneOntology_cc' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc, stability
 [ -z "${save_dir}" ] && save_dir="/data/peiran/output/exp3_3b_prot_${task_name}" #_${train_batch_size}_lr${max_lr}"
 
 [ -z "${wandb_group}" ] && wandb_group="psm_finetune_${task_name}"
