@@ -224,6 +224,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_edges}" ] && num_edges=25600
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
 
+random_number=$((RANDOM))
+echo "Random number: ${random_number}"
+[ -z "${seed}" ] && seed=$seed
+
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
@@ -336,7 +340,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=7781 \
+          seed=$seed \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \

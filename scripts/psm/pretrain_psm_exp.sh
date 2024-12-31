@@ -193,6 +193,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
+random_number=$((RANDOM))
+echo "Random number: ${random_number}"
+[ -z "${seed}" ] && seed=$random_number
+
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
@@ -336,7 +340,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=7782 \
+          seed=$seed \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \
