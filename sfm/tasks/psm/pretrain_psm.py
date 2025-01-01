@@ -153,6 +153,8 @@ def main(args: DictConfig) -> None:
                     dataset.molecule_force_std,
                     dataset.periodic_force_mean,
                     dataset.periodic_force_std,
+                    dataset.periodic_stress_mean,
+                    dataset.periodic_stress_std,
                 )
 
     else:

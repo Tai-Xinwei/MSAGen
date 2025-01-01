@@ -424,7 +424,7 @@ class Trainer(object):
     def resume(self):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self._load_checkpoint(self.save_dir)
-        self.start_iteration = self._load_rng_and_iter_state(self.save_dir)
+        self.start_iteration = 0 # self._load_rng_and_iter_state(self.save_dir)
         logger.info(f"self.start_iteration = {self.start_iteration}.")
 
     def finetune_from_checkpoint(self):
@@ -909,7 +909,7 @@ class Trainer(object):
                 )
                 return
 
-        checkpoint_rng_state = torch.load(rng_file)
+        checkpoint_rng_state = torch.load(rng_file, weights_only=False)
         try:
             random.setstate(checkpoint_rng_state["python"])
         except:

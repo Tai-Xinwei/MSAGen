@@ -5,6 +5,7 @@ from typing import Optional
 
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 
+import torch
 
 class VecInitApproach(Enum):
     ZERO_CENTERED_POS: str = "ZERO_CENTERED_POS"
@@ -15,6 +16,7 @@ class VecInitApproach(Enum):
     def __str__(self):
         return self.value
 
+torch.serialization.add_safe_globals([VecInitApproach])
 
 class DiffusionTrainingLoss(Enum):
     L1: str = "L1"
@@ -25,6 +27,7 @@ class DiffusionTrainingLoss(Enum):
     def __str__(self):
         return self.value
 
+torch.serialization.add_safe_globals([DiffusionTrainingLoss])
 
 class ForceLoss(Enum):
     L1: str = "L1"
@@ -37,6 +40,8 @@ class ForceLoss(Enum):
         return self.value
 
 
+torch.serialization.add_safe_globals([ForceLoss])
+
 class StressLoss(Enum):
     L1: str = "L1"
     L2: str = "L2"
@@ -48,12 +53,17 @@ class StressLoss(Enum):
         return self.value
 
 
+torch.serialization.add_safe_globals([StressLoss])
+
+
 class DiffusionTimeStepEncoderType(Enum):
     DISCRETE_LEARNABLE: str = "DISCRETE_LEARNABLE"
     POSITIONAL: str = "POSITIONAL"
 
     def __str__(self):
         return self.value
+
+torch.serialization.add_safe_globals([DiffusionTimeStepEncoderType])
 
 
 class ForceHeadType(Enum):
@@ -65,13 +75,17 @@ class ForceHeadType(Enum):
         return self.value
 
 
+torch.serialization.add_safe_globals([ForceHeadType])
+
 class GaussianFeatureNodeType(Enum):
     EXCHANGABLE: str = "EXCHANGABLE"
     NON_EXCHANGABLE: str = "NON_EXCHANGABLE"
+    NON_EXCHANGABLE_DIFF_SELF_EDGE: str = "NON_EXCHANGABLE_DIFF_SELF_EDGE"
 
     def __str__(self) -> str:
         return self.value
 
+torch.serialization.add_safe_globals([GaussianFeatureNodeType])
 
 class SequenceEncoderOption(Enum):
     PAIR_PLAIN: str = "PAIR_PLAIN"
@@ -80,6 +94,8 @@ class SequenceEncoderOption(Enum):
     def __str__(self) -> str:
         return self.value
 
+
+torch.serialization.add_safe_globals([SequenceEncoderOption])
 
 class StructureEncoderOption(Enum):
     GRAPHORMER: str = "GRAPHORMER"
@@ -90,6 +106,8 @@ class StructureEncoderOption(Enum):
         return self.value
 
 
+torch.serialization.add_safe_globals([StructureEncoderOption])
+
 class StructureDecoderOption(Enum):
     GEOMFORMER: str = "GEOMFORMER"
     NONE: str = "NONE"
@@ -97,6 +115,8 @@ class StructureDecoderOption(Enum):
     def __str__(self) -> str:
         return self.value
 
+
+torch.serialization.add_safe_globals([StructureDecoderOption])
 
 @dataclass
 class PSMConfig(GraphormerConfig):

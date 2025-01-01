@@ -114,6 +114,8 @@ class PSMModel(Model):
             periodic_energy_per_atom_std=periodic_energy_per_atom_std,
             molecule_force_std=molecule_force_std,
             periodic_force_std=periodic_force_std,
+            periodic_stress_mean=periodic_stress_mean,
+            periodic_stress_std=periodic_stress_std,
         )
 
         self.psm_finetune_head = psm_finetune_head
@@ -2104,6 +2106,8 @@ class PSM(nn.Module):
         if (
             self.psm_config.node_type_edge_method
             == GaussianFeatureNodeType.NON_EXCHANGABLE
+            or self.psm_config.node_type_edge_method
+            == GaussianFeatureNodeType.NON_EXCHANGABLE_DIFF_SELF_EDGE
         ):
             node_type_edge = masked_token_type_i * self.num_vocab + masked_token_type_j
         else:
@@ -2210,6 +2214,34 @@ class PSM(nn.Module):
                 )
             else:
                 pbc_expand_batched = None
+
+            if (
+                self.psm_config.node_type_edge_method
+                == GaussianFeatureNodeType.NON_EXCHANGABLE_DIFF_SELF_EDGE
+            ):
+                self_node_type_edge = (
+                    self.num_vocab * self.num_vocab + batched_data["masked_token_type"]
+                )
+                eye_mask = torch.eye(n_nodes, device=pos.device, dtype=torch.bool)
+                eye_mask = eye_mask[None, :, :, None].repeat(n_graphs, 1, 1, 1)
+                batched_data["node_type_edge"][eye_mask] = self_node_type_edge.view(-1)
+                if pbc_expand_batched is not None:
+                    eye_mask = torch.eye(n_nodes, device=pos.device, dtype=torch.bool)
+                    eye_mask = torch.cat(
+                        [
+                            eye_mask,
+                            torch.zeros(
+                                [n_nodes, pbc_expand_batched["outcell_index"].size(-1)],
+                                dtype=torch.bool,
+                                device=pos.device,
+                            ),
+                        ],
+                        dim=-1,
+                    )
+                    eye_mask = eye_mask[None, :, :, None].repeat(n_graphs, 1, 1, 1)
+                    pbc_expand_batched["expand_node_type_edge"][
+                        eye_mask
+                    ] = self_node_type_edge.view(-1)
 
             if self.args.backbone in [
                 "vanillatransformer",

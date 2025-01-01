@@ -1785,10 +1785,11 @@ class GeomFormer(nn.Module):
         self.unified_final_equivariant_ln = EquivariantLayerNorm(
             embedding_dim,
             use_smooth_norm=self.psm_config.use_smooth_equviariant_norm,
-            add_vec_bias=(
-                self.psm_config.equivar_vec_init
-                == VecInitApproach.RELATIVE_POS_VEC_BIAS
-            ),
+            add_vec_bias=False,
+            # (
+            #     self.psm_config.equivar_vec_init
+            #     == VecInitApproach.RELATIVE_POS_VEC_BIAS
+            # ),
         )
 
         self.unified_final_invariant_ln = nn.LayerNorm(embedding_dim)

@@ -33,23 +33,25 @@ code:
   local_dir: ../../
 
 jobs:
-- name: psm-unified-20241216-1027
+- name: psm-unified-20241228-0909
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS_PER_NODE}-MI300-IB@westus
   mpi: true
   identity: user
   process_count_per_node: 1
   command:
-  - export data_path=/psm/data/
-  - mkdir -p /psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241216-1027/
-  - export save_dir=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241216-1027/
-  - export sampled_structure_output_path=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241216-1027/
+  - export data_path=/tmp/psmdata/
+  - mkdir -p /psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909/
+  - export save_dir=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909/
+  - export sampled_structure_output_path=/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909/
   - export pbc_cutoff=40.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=512
   - export pbc_multigraph_cutoff=7.0
   - export pbc_use_local_attention=True
   - export use_no_pre_cutoff_softmax=True
+  - export align_x0_in_diffusion_loss=True
+  - export diffusion_training_loss=L2
 
   - export backbone=seq-dit-geom
   - export layers=14
@@ -79,7 +81,7 @@ jobs:
   - export dataset_split_raito='0.2,0.3,0.1,0.1,0.2,0.1'
   - export dataset_micro_batch_size="12,6,16,16,16,16"
 
-  - export save_batch_interval=2500
+  - export save_batch_interval=1000
   - export train_batch_size=1024
   - export val_batch_size=1024
   - export gradient_accumulation_steps=2
@@ -90,14 +92,14 @@ jobs:
   - export WANDB_RUN_NAME=psm_unified_continue_mat_edmprot
 
   - export total_num_steps=4000000
-  - export warmup_num_steps=24000
+  - export warmup_num_steps=1000
   - export max_lr=1e-4
 
   - export diffusion_mode="edm"
   - export diffusion_noise_std=1.0
   - export edm_diffusion_noise_std=1.0
   - export equivar_vec_init=RELATIVE_POS_VEC_BIAS
-  - export strategy=Zero1
+  - export strategy=DDP
   - export fp16=False
   - export clean_sample_ratio=0.5
   - export mode_prob='0.0,1.0,0.0'
@@ -115,7 +117,7 @@ jobs:
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=2e-3
   - export ddpm_schedule=sigmoid
-  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241201-1848/global_step67500/mp_rank_00_model_states.pt'
+  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909/checkpoint_E1_B80151.pt'
   - export psm_finetune_mode=False
   - export psm_validation_mode=False
   - export sample_in_validation=False
@@ -169,6 +171,8 @@ jobs:
   - export wandb_run_name="continue_v0_training"
 
   - export log_interval=100
+
+  - export seed=12348
 
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - bash ./scripts/psm/get_azcopy.sh

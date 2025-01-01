@@ -17,7 +17,7 @@ def check(num_workers, rank):
                 other_ready = bool(
                     int(
                         subprocess.check_output(
-                            f"ssh worker-{other_rank} 'ls {abs_path}/READY | wc -l'",
+                            f"ssh node-{other_rank} 'ls {abs_path}/READY | wc -l'",
                             shell=True,
                         )
                         .decode()
