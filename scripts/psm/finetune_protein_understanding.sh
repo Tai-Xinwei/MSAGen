@@ -48,7 +48,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=5e-6
+[ -z "${max_lr}" ] && max_lr=1e-5
 [ -z "${epochs}" ] && epochs=100
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=200
@@ -153,9 +153,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${task_name}" ] && task_name='GeneOntology_cc' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc, stability
 [ -z "${save_dir}" ] && save_dir="/data/peiran/output/exp3_3b_prot_${task_name}" #_${train_batch_size}_lr${max_lr}"
 
-[ -z "${wandb_group}" ] && wandb_group="psm_finetune_${task_name}"
+[ -z "${wandb_group}" ] && wandb_group="psm_finetune_${task_name}" #_${train_batch_size}_lr${max_lr}"
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_protein_finetune
+[ -z "${wandb_run_name}" ] && wandb_run_name="psm_finetune_${task_name}_${train_batch_size}_lr${max_lr}"
+[ -z "${wandb_run_name_test}" ] && wandb_run_name_test="psm_finetune_${task_name}_${train_batch_size}_lr${max_lr}_test"
 [ -z "${wandb_key}" ] && wandb_key=local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385
 
 [ -z "${early_stopping}" ] && early_stopping=True
@@ -269,7 +271,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_protein_understanding.py \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
           use_dali_pipeline=$use_dali_pipeline \
           molecule_energy_loss_ratio=$molecule_energy_loss_ratio molecule_force_loss_ratio=$molecule_force_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
@@ -357,7 +359,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/test_protein_understanding.py \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name_test \
           use_dali_pipeline=$use_dali_pipeline \
           molecule_energy_loss_ratio=$molecule_energy_loss_ratio molecule_force_loss_ratio=$molecule_force_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
