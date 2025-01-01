@@ -226,7 +226,7 @@ export MKL_THREADING_LAYER='GNU'
 
 random_number=$((RANDOM))
 echo "Random number: ${random_number}"
-[ -z "${seed}" ] && seed=$seed
+[ -z "${seed}" ] && seed=$random_number
 
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
