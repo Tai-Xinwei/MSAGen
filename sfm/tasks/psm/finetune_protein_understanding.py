@@ -120,7 +120,7 @@ def load_batched_dataset(args):
 
 
 class SingleSequenceModel(Model):
-    def __init__(self, args, model, n_classes):
+    def __init__(self, args, model, n_classes, loadckpt=True):
         super().__init__()
         self.args = args
         self.model = model
@@ -141,7 +141,8 @@ class SingleSequenceModel(Model):
             True if args.task_name == "secondary_structure" else False
         )
 
-        self.load_pretrained_weights(args, args.loadcheck_path)
+        if loadckpt:
+            self.load_pretrained_weights(args, args.loadcheck_path)
 
     def forward(self, batch_data):
         if self.n_sequence == 1:

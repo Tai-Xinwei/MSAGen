@@ -177,7 +177,7 @@ def test_checkpoint(args) -> None:
 
     train_data, val_data, testset_dict = load_batched_dataset(args)
 
-    model = init_model(args)
+    model = init_model(args, loadckpt=False)
 
     for idx, checkpoint in enumerate(checkpoints):
         checkpoints_state = torch.load(checkpoint, map_location="cpu")

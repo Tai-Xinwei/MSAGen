@@ -714,7 +714,7 @@ class PSMModel(Model):
         set diffusion noise here
         """
 
-        ori_pos = center_pos(batched_data, padding_mask).float()
+        ori_pos = center_pos(batched_data, padding_mask, clean_mask=clean_mask).float()
         if self.psm_config.all_atom:
             ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
         else:
