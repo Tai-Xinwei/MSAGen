@@ -315,7 +315,7 @@ class SingleSequenceModel(Model):
 
 
 # NOTE: set self.psm_config.psm_finetune_mode to load ckpt from args.loadcheck_path
-def init_model(args):
+def init_model(args, loadckpt=True):
     # seems model loading require this parameter
     args.ft = True
     basemodel = PSMModel(args, loss_fn=DiffMAE3dCriterions, reload_checkpoint=False)
@@ -339,7 +339,7 @@ def init_model(args):
     else:
         raise NotImplementedError()
 
-    model = SingleSequenceModel(args, basemodel, n_classes=n_classes)
+    model = SingleSequenceModel(args, basemodel, n_classes=n_classes, loadckpt=loadckpt)
     return model
 
 

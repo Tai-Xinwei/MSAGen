@@ -2,11 +2,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-num_sampling_time=10
+num_sampling_time=50
 MODEL_CONFIG=PSM3B_exp3
 
-global_step=global_step35000
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5/checkpoints
+global_step=global_step90000
+ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints
 
 # global_step=global_step80000
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/kaiyuan/psm-dit/ft-edm-20241112-lr2e-5-bsz2-steps400000-warm25000-holo/
@@ -20,7 +20,7 @@ ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi3
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/complex/$global_step/prediction
 
-DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py \
+DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node 1 sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
   psm_validation_mode=true \
   sample_in_validation=true \
@@ -37,8 +37,8 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   val_batch_size=1 \
   val_batch_log_interval=1 \
   gradient_accumulation_steps=1 \
-  diffusion_sampling=edm \
-  num_timesteps_stepsize=-500 \
+  diffusion_sampling=dpm_edm \
+  num_timesteps_stepsize=-250 \
   num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
@@ -47,7 +47,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   ligand_crop_size=10000 \
   diffusion_mode=edm \
   use_memory_efficient_attention=false \
-  # sample_ligand_only=true \
+  sample_ligand_only=true \
 
 pocket_boundary=-1
 result_path=$SMPL_PATH/../result.csv
