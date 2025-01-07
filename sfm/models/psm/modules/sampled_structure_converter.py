@@ -418,26 +418,38 @@ class ProteinConverter(BaseConverter):
 @CONVERTER_REGISTER.register("complex")
 class ComplexConverter(BaseConverter):
     def convert(self, batched_data: Dict[str, Tensor], poses: Tensor):
+        def _num2str(num: int) -> str:
+            if 0 <= num - 1 < 26:
+                return chr(ord("A") + num - 1 - 0)
+            elif 26 <= num - 1 < 52:
+                return chr(ord("a") + num - 1 - 26)
+            elif 52 <= num - 1 < 62:
+                return chr(ord("0") + num - 1 - 52)
+            else:
+                raise ValueError("More than 62 chains.")
+
         num_atoms = batched_data["num_atoms"].cpu().numpy()
         batch_size = num_atoms.shape[0]
         structures: List[Optional[List[str]]] = []
         keys = batched_data.get("key", ["TEMP"] * batch_size)
         for i in range(batch_size):
+            pdb_lines = [f"HEADER    {keys[i]}\n"]
             try:
                 pos = poses[i][: num_atoms[i]].cpu().numpy()
                 tok = batched_data["token_id"][i][: num_atoms[i]].cpu().numpy()
                 msk = batched_data["is_protein"][i][: num_atoms[i]].cpu().numpy()
+                ids = batched_data["chain_ids"][i][: num_atoms[i]].cpu().numpy()
                 pdb_lines = [f"HEADER    {keys[i]}\n"]
                 atomidx = 0
                 chainid = "A"
                 resnumb = 0
                 ligatom = collections.defaultdict(int)
                 for idx, (x, y, z) in enumerate(pos):
-                    if tok[idx] == 156:
+                    if _num2str(ids[idx]) != chainid:
                         pdb_lines.append("TER\n")
-                        chainid = chr(ord(chainid) + 1)
+                        chainid = _num2str(ids[idx])
                         resnumb = 0
-                        continue
+                        ligatom = collections.defaultdict(int)
                     if msk[idx]:
                         record = "ATOM  "
                         symbol = "C"
@@ -461,10 +473,9 @@ class ComplexConverter(BaseConverter):
                         f"  1.00  0.00          {symbol}  \n"
                     )
                 pdb_lines.append("END\n")
-                structures.append(pdb_lines)
             except Exception as e:
                 logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
-                structures.append(None)
+        structures.append(pdb_lines)
         return structures
 
     def match(
