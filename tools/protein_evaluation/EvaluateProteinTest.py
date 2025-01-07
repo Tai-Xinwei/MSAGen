@@ -98,7 +98,7 @@ def evaluate_predicted_structure(
 
 def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
     CATEGORY = {
-        "CAMEO Full": ["Easy", "Medium", "Hard"],
+        "CAMEO  Full": ["Easy", "Medium", "Hard"],
         "CASP14 Full": ["MultiDom"],
         "CASP15 Full": ["MultiDom"],
         "CAMEO  Easy": ["Easy"],
@@ -160,11 +160,10 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3 and len(sys.argv) != 5:
-        sys.exit(f"Usage: {sys.argv[0]} <proteintest_lmdb> <prediction_directory> [max_model_num=1]")
-    inplmdb, preddir = sys.argv[1:3]
-    global_step = sys.argv[4]
-    max_model_num = int(sys.argv[3]) if len(sys.argv) == 5 else 1
+    if len(sys.argv) != 5:
+        sys.exit(f"Usage: {sys.argv[0]} <proteintest_lmdb> <prediction_directory> <max_model_num> <global_step>")
+    inplmdb, preddir, max_model_num, global_step = sys.argv[1:5]
+    max_model_num = int(max_model_num)
 
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 

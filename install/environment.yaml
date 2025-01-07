@@ -29,6 +29,7 @@ dependencies:
   - defaults::cython
   - bioconda::tmalign
   - bioconda::lddt
+  - bioconda::usalign
   - pip:
       # torch-geometric and additional libs from pyg
       # pyg 2.5.3 is not available in conda pyg channel yet
@@ -46,6 +47,6 @@ dependencies:
       - flash-attn==2.6.3
       - hydra-core
       - e3nn
-      - fairchem-core
+      - fairchem-core==1.0.0
       - ase
       - nvidia-dali-cuda120
