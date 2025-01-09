@@ -1445,8 +1445,6 @@ class PSMModel(Model):
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
 
-        orig_pos = center_pos(batched_data, padding_mask)
-
         self._create_initial_pos_for_diffusion(batched_data)
 
         clean_mask = torch.zeros_like(token_id, dtype=torch.bool, device=device)
@@ -1458,6 +1456,8 @@ class PSMModel(Model):
         clean_mask = clean_mask.masked_fill(
             batched_data["protein_mask"].any(dim=-1), False
         )
+
+        orig_pos = center_pos(batched_data, padding_mask)  # , clean_mask=clean_mask)
 
         batched_data["pos"] = self.diffnoise.get_sampling_start(
             batched_data["init_pos"],
