@@ -153,6 +153,8 @@ def main(args: DictConfig) -> None:
                     dataset.molecule_force_std,
                     dataset.periodic_force_mean,
                     dataset.periodic_force_std,
+                    dataset.periodic_stress_mean,
+                    dataset.periodic_stress_std,
                 )
 
     else:
@@ -169,6 +171,8 @@ def main(args: DictConfig) -> None:
         periodic_energy_per_atom_std=dataset.periodic_energy_per_atom_std,
         molecule_force_std=dataset.molecule_force_std,
         periodic_force_std=dataset.periodic_force_std,
+        periodic_stress_mean=dataset.periodic_stress_mean,
+        periodic_stress_std=dataset.periodic_stress_std,
     )
     # define optimizer here
     if args.group_optimizer:

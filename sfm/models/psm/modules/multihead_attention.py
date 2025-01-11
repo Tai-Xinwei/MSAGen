@@ -149,6 +149,8 @@ class MultiheadAttentionWithProteinRotaryEmbedding(MultiheadAttention):
                 attn_weights = (
                     attn_weights + self.smooth_factor
                 ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            elif self.use_no_pre_cutoff_softmax:
+                pass
             else:
                 attn_weights = attn_weights.masked_fill(
                     local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
@@ -361,6 +363,8 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
                     attn_weights = (
                         attn_weights + self.smooth_factor
                     ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+                elif self.use_no_pre_cutoff_softmax:
+                    pass
                 else:
                     attn_weights = attn_weights.masked_fill(
                         local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")

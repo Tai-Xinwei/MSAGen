@@ -43,6 +43,9 @@ class TrainStrategy(str, Enum):
     NNScaler = "NNScaler"
 
 
+torch.serialization.add_safe_globals([TrainStrategy])
+
+
 @dataclass
 class TrainerConfig:
     """

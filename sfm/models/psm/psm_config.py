@@ -3,6 +3,8 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Optional
 
+import torch
+
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 
 
@@ -16,6 +18,9 @@ class VecInitApproach(Enum):
         return self.value
 
 
+torch.serialization.add_safe_globals([VecInitApproach])
+
+
 class DiffusionTrainingLoss(Enum):
     L1: str = "L1"
     L2: str = "L2"
@@ -24,6 +29,9 @@ class DiffusionTrainingLoss(Enum):
 
     def __str__(self):
         return self.value
+
+
+torch.serialization.add_safe_globals([DiffusionTrainingLoss])
 
 
 class ForceLoss(Enum):
@@ -37,12 +45,32 @@ class ForceLoss(Enum):
         return self.value
 
 
+torch.serialization.add_safe_globals([ForceLoss])
+
+
+class StressLoss(Enum):
+    L1: str = "L1"
+    L2: str = "L2"
+    MSE: str = "MSE"
+    SmoothL1: str = "SmoothL1"
+    NoiseTolerentL1: str = "NoiseTolerentL1"
+
+    def __str__(self):
+        return self.value
+
+
+torch.serialization.add_safe_globals([StressLoss])
+
+
 class DiffusionTimeStepEncoderType(Enum):
     DISCRETE_LEARNABLE: str = "DISCRETE_LEARNABLE"
     POSITIONAL: str = "POSITIONAL"
 
     def __str__(self):
         return self.value
+
+
+torch.serialization.add_safe_globals([DiffusionTimeStepEncoderType])
 
 
 class ForceHeadType(Enum):
@@ -54,12 +82,53 @@ class ForceHeadType(Enum):
         return self.value
 
 
+torch.serialization.add_safe_globals([ForceHeadType])
+
+
 class GaussianFeatureNodeType(Enum):
     EXCHANGABLE: str = "EXCHANGABLE"
     NON_EXCHANGABLE: str = "NON_EXCHANGABLE"
+    NON_EXCHANGABLE_DIFF_SELF_EDGE: str = "NON_EXCHANGABLE_DIFF_SELF_EDGE"
 
     def __str__(self) -> str:
         return self.value
+
+
+torch.serialization.add_safe_globals([GaussianFeatureNodeType])
+
+
+class SequenceEncoderOption(Enum):
+    PAIR_PLAIN: str = "PAIR_PLAIN"
+    NONE: str = "NONE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+torch.serialization.add_safe_globals([SequenceEncoderOption])
+
+
+class StructureEncoderOption(Enum):
+    GRAPHORMER: str = "GRAPHORMER"
+    DIT: str = "DIT"
+    NONE: str = "NONE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+torch.serialization.add_safe_globals([StructureEncoderOption])
+
+
+class StructureDecoderOption(Enum):
+    GEOMFORMER: str = "GEOMFORMER"
+    NONE: str = "NONE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+torch.serialization.add_safe_globals([StructureDecoderOption])
 
 
 @dataclass
@@ -72,7 +141,10 @@ class PSMConfig(GraphormerConfig):
     num_residues: int = 32
     max_num_aa: int = 1024
 
+    num_structure_encoder_layer: int = 4
     encoder_pair_embed_dim: int = 32
+    structure_ffn_dim: int = 2028
+    structure_hidden_dim: int = 512
     decoder_ffn_dim: int = 2048
     decoder_hidden_dim: int = 512
 
@@ -99,6 +171,7 @@ class PSMConfig(GraphormerConfig):
     diff_init_lattice_size: float = 10.0
     use_fixed_init_lattice_size: bool = False
     add_unit_cell_virtual_node: bool = False
+    use_ddpm_for_material: bool = False
 
     # for protein and complex
     crop_radius: float = 50.0
@@ -179,18 +252,21 @@ class PSMConfig(GraphormerConfig):
     af3_sample_gamma_min: float = 1.0
     af3_sample_step_scale: float = 1.5
     noise_embedding: str = "fourier"
-    # for force
+    # for force and stress
     force_loss_type: ForceLoss = ForceLoss.L1
     force_head_type: ForceHeadType = ForceHeadType.GATED_EQUIVARIANT
     node_type_edge_method: GaussianFeatureNodeType = (
         GaussianFeatureNodeType.NON_EXCHANGABLE
     )
+    stress_loss_type: StressLoss = StressLoss.L1
+    stress_loss_factor: float = 0.1
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
     equivar_use_linear_bias: bool = False
     equivar_use_attention_bias: bool = False
     use_smooth_softmax: bool = False
+    use_no_pre_cutoff_softmax: bool = False
     smooth_factor: float = 20.0
     use_smooth_equviariant_norm: bool = False
     no_rotary_embedding_for_vector: bool = False
@@ -201,6 +277,7 @@ class PSMConfig(GraphormerConfig):
     # for 2D information
     use_2d_atom_features: bool = False
     use_2d_bond_features: bool = False
+    use_graphormer_path_edge_feature: bool = True
     preprocess_2d_bond_features_with_cuda: bool = True
     share_attention_bias: bool = False
 
@@ -220,6 +297,7 @@ class PSMConfig(GraphormerConfig):
     encoderfeat4mlm: bool = True
     AutoGradForce: bool = False
     supervise_force_from_head_when_autograd: bool = False
+    supervise_autograd_stress: bool = False
     NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False

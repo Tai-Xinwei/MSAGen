@@ -8,7 +8,12 @@ import torch
 import torch.nn as nn
 
 from sfm.logging import logger
-from sfm.models.psm.psm_config import DiffusionTrainingLoss, ForceLoss, PSMConfig
+from sfm.models.psm.psm_config import (
+    DiffusionTrainingLoss,
+    ForceLoss,
+    PSMConfig,
+    StressLoss,
+)
 
 
 class NoiseTolerentL1Loss(nn.Module):
@@ -104,6 +109,8 @@ class DiffMAE3dCriterions(nn.Module):
         molecule_force_std: float = 1.0,
         periodic_force_mean: float = 0.0,
         periodic_force_std: float = 1.0,
+        periodic_stress_mean: float = 0.0,
+        periodic_stress_std: float = 1.0,
     ) -> None:
         super().__init__()
         self.args = args
@@ -125,6 +132,21 @@ class DiffMAE3dCriterions(nn.Module):
             self.force_loss = NoiseTolerentL1Loss(noise_tolerance=3.0, reduction="none")
         else:
             raise ValueError(f"Invalid force loss type: {self.args.force_loss_type}")
+
+        if self.args.stress_loss_type == StressLoss.L1:
+            self.stress_loss = nn.L1Loss(reduction="none")
+        elif self.args.stress_loss_type == StressLoss.L2:
+            self.stress_loss = nn.MSELoss(reduction="none")
+        elif self.args.stress_loss_type == StressLoss.MSE:
+            self.stress_loss = nn.MSELoss(reduction="none")
+        elif self.args.stress_loss_type == StressLoss.SmoothL1:
+            self.stress_loss = nn.SmoothL1Loss(reduction="none")
+        elif self.args.stress_loss_type == StressLoss.NoiseTolerentL1:
+            self.stress_loss = NoiseTolerentL1Loss(
+                noise_tolerance=3.0, reduction="none"
+            )
+        else:
+            raise ValueError(f"Invalid stress loss type: {self.args.stress_loss_type}")
 
         if self.args.diffusion_training_loss == DiffusionTrainingLoss.L1:
             self.noise_loss = nn.L1Loss(reduction="none")
@@ -154,6 +176,8 @@ class DiffMAE3dCriterions(nn.Module):
         self.molecule_force_std = molecule_force_std
         self.periodic_force_mean = periodic_force_mean
         self.periodic_force_std = periodic_force_std
+        self.periodic_stress_mean = periodic_stress_mean
+        self.periodic_stress_std = periodic_stress_std
 
         self.material_force_loss_ratio = args.material_force_loss_ratio
         self.material_energy_loss_ratio = args.material_energy_loss_ratio
@@ -302,6 +326,18 @@ class DiffMAE3dCriterions(nn.Module):
                 0.0, device=force_or_noise_loss.device, requires_grad=True
             )
         return force_or_noise_loss, num_samples
+
+    def _reduce_stress_loss(self, stress_loss, sample_mask, stress_std):
+        stress_loss = stress_loss.clone()
+        num_samples = int(torch.sum(sample_mask.long()))
+        if num_samples > 0:
+            stress_loss = stress_loss.masked_fill(~sample_mask[:, None, None], 0.0)
+            stress_loss = stress_loss.sum() / (9.0 * num_samples) * stress_std
+        else:
+            stress_loss = torch.tensor(
+                0.0, device=stress_loss.device, requires_grad=True
+            )
+        return stress_loss, num_samples
 
     def calculate_pos_pred(self, model_output):
         noise_pred = model_output["noise_pred"]
@@ -587,12 +623,21 @@ class DiffMAE3dCriterions(nn.Module):
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
+        stress_label = model_output["stress_label"]
         pos_label = model_output["ori_pos"]
         force_pred = model_output["forces"]
         autograd_force_pred = (
             model_output["autograd_forces"]
             if "autograd_forces" in model_output
             else None
+        )
+        autograd_stress_pred = (
+            model_output["autograd_stress"]
+            if "autograd_stress" in model_output
+            else None
+        )
+        stress_pred = (
+            model_output["stress_pred"] if "stress_pred" in model_output else None
         )
         energy_per_atom_pred = model_output["energy_per_atom"]
         total_energy_pred = model_output["total_energy"]
@@ -627,6 +672,7 @@ class DiffMAE3dCriterions(nn.Module):
 
         energy_mask = total_clean & batched_data["has_energy"]
         force_mask = total_clean & batched_data["has_forces"]
+        stress_mask = total_clean & batched_data["has_stress"]
 
         if not self.seq_only:
             # diffussion loss
@@ -1146,6 +1192,31 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=energy_per_atom_label.device, requires_grad=True
                 )
                 num_autograd_force_sample = 0
+
+            if autograd_stress_pred is not None:
+                unreduced_autograd_stress_loss = self.stress_loss(
+                    autograd_stress_pred, stress_label
+                )
+                (
+                    periodic_autograd_stress_loss,
+                    num_periodic_autograd_stress_sample,
+                ) = self._reduce_stress_loss(
+                    unreduced_autograd_stress_loss,
+                    stress_mask & is_periodic,
+                    self.periodic_stress_std,
+                )
+
+            if stress_pred is not None:
+                unreduced_stress_loss = self.stress_loss(stress_pred, stress_label)
+                (
+                    periodic_stress_loss,
+                    num_periodic_stress_sample,
+                ) = self._reduce_stress_loss(
+                    unreduced_stress_loss,
+                    stress_mask & is_periodic,
+                    self.periodic_stress_std,
+                )
+
         else:
             energy_loss = torch.tensor(
                 0.0, device=energy_per_atom_label.device, requires_grad=True
@@ -1440,6 +1511,51 @@ class DiffMAE3dCriterions(nn.Module):
                 loss = torch.tensor(
                     0.0, device=atomic_numbers.device, requires_grad=True
                 )
+
+            if autograd_force_pred is not None:
+                if torch.any(torch.isnan(autograd_force_loss)) or torch.any(
+                    torch.isinf(autograd_force_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in autograd_force_loss: {autograd_force_loss}"
+                    )
+                    autograd_force_loss = torch.tensor(
+                        0.0, device=autograd_force_loss.device, requires_grad=True
+                    )
+                else:
+                    loss = loss + autograd_force_loss
+
+            if autograd_stress_pred is not None:
+                if torch.any(torch.isnan(periodic_autograd_stress_loss)) or torch.any(
+                    torch.isinf(periodic_autograd_stress_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in periodic_autograd_stress_loss: {periodic_autograd_stress_loss}"
+                    )
+                    periodic_autograd_stress_loss = torch.tensor(
+                        0.0,
+                        device=periodic_autograd_stress_loss.device,
+                        requires_grad=True,
+                    )
+                else:
+                    loss = (
+                        loss
+                        + periodic_autograd_stress_loss * self.args.stress_loss_factor
+                    )
+
+            if stress_pred is not None:
+                if torch.any(torch.isnan(periodic_stress_loss)) or torch.any(
+                    torch.isinf(periodic_stress_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in periodic_stress_loss: {periodic_stress_loss}"
+                    )
+                    periodic_stress_loss = torch.tensor(
+                        0.0, device=periodic_stress_loss.device, requires_grad=True
+                    )
+                else:
+                    loss = loss + periodic_stress_loss * self.args.stress_loss_factor
+
         elif not torch.any(torch.isnan(aa_mlm_loss)):
             loss = aa_mlm_loss
         else:
@@ -1517,6 +1633,25 @@ class DiffMAE3dCriterions(nn.Module):
                         periodic_autograd_force_loss,
                         num_periodic_autograd_force_sample,
                     ),
+                }
+            )
+
+        if autograd_stress_pred is not None:
+            logging_output.update(
+                {
+                    "periodic_autograd_stress_loss": (
+                        periodic_autograd_stress_loss,
+                        num_periodic_autograd_stress_sample,
+                    )
+                }
+            )
+        if stress_pred is not None:
+            logging_output.update(
+                {
+                    "periodic_stress_loss": (
+                        periodic_stress_loss,
+                        num_periodic_stress_sample,
+                    )
                 }
             )
 
@@ -1657,6 +1792,8 @@ class DiffProteaCriterions(DiffMAE3dCriterions):
         molecule_force_std: float = 1.0,
         periodic_force_mean: float = 0.0,
         periodic_force_std: float = 1.0,
+        periodic_stress_mean: float = 0.0,
+        periodic_stress_std: float = 1.0,
     ) -> None:
         super(DiffProteaCriterions, self).__init__(
             args,
@@ -1672,6 +1809,8 @@ class DiffProteaCriterions(DiffMAE3dCriterions):
             molecule_force_std,
             periodic_force_mean,
             periodic_force_std,
+            periodic_stress_mean,
+            periodic_stress_std,
         )
 
         self.aa_diff_loss = nn.L1Loss(reduction="none")

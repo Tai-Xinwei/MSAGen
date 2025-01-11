@@ -1,6 +1,6 @@
 __pycache__
 .ruff_cache
-READY
+
 tdc_data
 barrier.py
 barrier_amd.py
@@ -206,5 +206,18 @@ log/
 
 bace/
 divided_data/
-
-*.whl
+core
+.cube*
+tb_profile*
+azcopy_linux_amd64_10.21.2.tar.gz
+temp/
+rank_*.txt
+READY
+tensorboard
+sampled_protein
+cameo_*sample*
+model_dict*.json
+debug/
+mattergen-relax-unified-20241119-2150
+cameo-easy-unified-20241119-2150
+mattergen-relax-unified-20241121-2125

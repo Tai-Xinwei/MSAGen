@@ -42,6 +42,7 @@ class MultiheadAttention(nn.Module):
         layer_norm=False,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        use_no_pre_cutoff_softmax=False,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -98,6 +99,7 @@ class MultiheadAttention(nn.Module):
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
+        self.use_no_pre_cutoff_softmax = use_no_pre_cutoff_softmax
 
     def prepare_for_onnx_export_(self):
         raise NotImplementedError
@@ -256,6 +258,8 @@ class MultiheadAttention(nn.Module):
                 attn_weights = (
                     attn_weights + self.smooth_factor
                 ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            elif self.use_no_pre_cutoff_softmax:
+                pass
             else:
                 attn_weights = attn_weights.masked_fill(
                     local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")

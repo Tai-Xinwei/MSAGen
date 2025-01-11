@@ -313,6 +313,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         else:
             data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
             data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -706,6 +707,7 @@ class SmallMolDataset(FoundationModelDataset):
             * self.unit,  # this is used from model training, mean/ref is removed.
             "has_energy": torch.tensor([self.has_energy], dtype=torch.bool),
             "has_forces": torch.tensor([self.has_forces], dtype=torch.bool),
+            "has_stress": torch.tensor([0], dtype=torch.bool),
             "data_name": self.data_name,
         }
         if self.is_pbc:
@@ -796,6 +798,7 @@ class SmallMolDataset(FoundationModelDataset):
                 "edge_index",
                 "has_energy",
                 "has_forces",
+                "has_stress",
                 "sample_type",
                 "data_name",
             ]:
@@ -1074,6 +1077,24 @@ class MatterSimDataset:
     def force_std(self):
         return 2.155674863803223
 
+    @property
+    def stress_mean(self):  # stress mean can be non-zero to keep equivariance
+        return -2.69278931e01
+
+    @property
+    def stress_std(self):
+        return 162.15763102
+
+    @property
+    def stress_mean_elementwise(self):
+        return np.array(
+            [
+                [-2.69278931e01, 0.0, 0.0],
+                [0.0, -2.69278931e01, 0.0],
+                [0.0, 0.0, -2.69278931e01],
+            ]
+        )
+
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
         if self.dataset_type == "single structure file":
@@ -1190,7 +1211,10 @@ class MatterSimDataset:
 
         # get stress
         if "info" in data and "stress" in data["info"]:
-            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+            data["stress"] = torch.tensor(
+                data["info"]["stress"] - self.stress_mean_elementwise,
+                dtype=torch.float64,
+            )
         else:
             data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
 
@@ -1198,9 +1222,17 @@ class MatterSimDataset:
             data["energy"] = data["energy"] / self.energy_std
             data["energy_per_atom"] = data["energy_per_atom"] / self.energy_per_atom_std
             data["forces"] = data["forces"] / self.force_std
+            data["stress"] = data["stress"] / self.stress_std
 
         data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+        if is_stable_periodic:
+            data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        else:
+            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+        if is_stable_periodic:
+            data["has_stress"] = torch.tensor([0], dtype=torch.bool)
+        else:
+            data["has_stress"] = torch.tensor([1], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -1483,6 +1515,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -1701,6 +1734,7 @@ class ESMDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -1816,6 +1850,7 @@ class MGnifyDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -1922,6 +1957,7 @@ class PDBDataset(AFDBLMDBDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int64)
 
         data = self.generate_2dgraphfeat(data)
@@ -2080,6 +2116,7 @@ class UR50LMDBDataset(FoundationModelDataset):
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -2230,7 +2267,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.rmfarligfull.lmdb"
         # version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
-        version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
+        # version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
+        version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.lmdb"
         testflag = "ComplexTest"
 
         self.crop_radius = args.crop_radius
@@ -2650,6 +2688,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_stress"] = torch.tensor([0], dtype=torch.bool)
         data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
         data["energy"] = torch.tensor([0.0], dtype=torch.float64)
         data["in_degree"] = adj.long().sum(dim=1).view(-1)

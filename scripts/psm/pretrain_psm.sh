@@ -8,12 +8,17 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+[ -z "${backbone}" ] && backbone=seq-dit-geom
 [ -z "${layers}" ] && layers=22
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=4
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=1536
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
 [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
 [ -z "${num_head}" ] && num_head=32
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=384
@@ -50,30 +55,30 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path_list}" ] && data_path_list='MGnify'
-[ -z "${dataset_name_list}" ] && dataset_name_list='mgnify'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+[ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
+# [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+[ -z "${data_path_list}" ] && data_path_list='AFDB70-plddt70-reduce.lmdb,20240630_PDB_Training_Data,MGnify,matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='esm,pdbcomplexmultimer,mgnify,mattersim,mattersim,pm6-wb97xd3'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.1,0.2,0.2,0.2'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2,2,2,8,2,1"
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0' # '0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/mattergen-debug-20241018-1304/global_step205053/mp_rank_00_model_states.pt'
-# [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240927-1041'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/psm-unified-20241201-1848/global_step47500/mp_rank_00_model_states.pt'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
+# [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=psm_dev_shiyu_mattergen_debug_20241017
+[ -z "${wandb_group}" ] && wandb_group=psm_dev_shiyu_seq_dit_geom_20241127
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_dev_shiyu_mattergen_debug_20241017
-# [ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
+[ -z "${wandb_project}" ] && wandb_project=psm_dev_shiyu_seq_dit_geom_20241127
+[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 [ -z "${wandb_run_name}" ] && wandb_run_name=mattergen_adaptive_noise
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -82,13 +87,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
+[ -z "${use_no_pre_cutoff_softmax}" ] && use_no_pre_cutoff_softmax=True
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 
 # material diffusion settings
 [ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=False
@@ -97,7 +103,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${periodic_lattice_diffusion_noise_std}" ] && periodic_lattice_diffusion_noise_std=0.5
 [ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=True
 [ -z "${periodic_diffusion_noise_std_factor}" ] && periodic_diffusion_noise_std_factor=1.0531306506190654
+[ -z "${use_ddpm_for_material}" ] && use_ddpm_for_material=True
 
+[ -z "${use_graphormer_path_edge_feature}" ] && use_graphormer_path_edge_feature=False
 [ -z "${share_attention_bias}" ] && share_attention_bias=True
 [ -z "${separate_noise_head}" ] && separate_noise_head=True
 
@@ -121,7 +129,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${sample_in_validation}" ] && sample_in_validation=False
 [ -z "${num_sampling_time}" ] && num_sampling_time=1
 [ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=False
 [ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=False
@@ -144,7 +152,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_rotary_embedding_for_vector}" ] && no_rotary_embedding_for_vector=False
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
-[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=False
+[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 [ -z "${unified_data_num_workers}" ] && unified_data_num_workers=0
@@ -156,6 +164,8 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=True
+[ -z "${supervise_autograd_stress}" ] && supervise_autograd_stress=True
+[ -z "${stress_loss_factor}" ] && stress_loss_factor=0.1
 
 [ -z "${molecule_ref_energy_source}" ] && molecule_ref_energy_source='PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train'
 [ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms=''
@@ -163,6 +173,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${relax_after_sampling_structure}" ] && relax_after_sampling_structure=False
 [ -z "${structure_relax_step_size}" ] && structure_relax_step_size=1e-3
 [ -z "${use_autograd_force_for_relaxation_and_md}" ] && use_autograd_force_for_relaxation_and_md=True
+
+[ -z "${seed}" ] && seed=12347
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -214,10 +226,12 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
+cp sfm/utils/barrier.py . && touch READY && python barrier.py $OMPI_COMM_WORLD_SIZE $OMPI_COMM_WORLD_RANK
+
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=graphormer \
+          backbone=$backbone \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           encoder_ffn_embed_dim=$ffn_size \
@@ -233,7 +247,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=12345 \
+          seed=$seed \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
           num_pred_attn_layer=$num_pred_attn_layer \
@@ -313,4 +327,13 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_autograd_force_for_relaxation_and_md=$use_autograd_force_for_relaxation_and_md \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size plddt_threshold=$plddt_threshold \
           diffusion_mode=$diffusion_mode \
-          # ifresume=True \
+          decoder_hidden_dim=$decoder_hidden_dim \
+          use_ddpm_for_material=$use_ddpm_for_material \
+          num_structure_encoder_layer=$num_structure_encoder_layer \
+          structure_ffn_dim=$structure_ffn_dim \
+          structure_hidden_dim=$structure_hidden_dim \
+          use_graphormer_path_edge_feature=$use_graphormer_path_edge_feature \
+          ifresume=True \
+          supervise_autograd_stress=$supervise_autograd_stress \
+          stress_loss_factor=$stress_loss_factor \
+          use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax

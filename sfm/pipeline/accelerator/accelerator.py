@@ -1078,6 +1078,12 @@ class DeepSpeedAccelerator(Accelerator):
                 optimizer=self.optimizer,
                 lr_scheduler=self.lr_scheduler,
             )
+
+            if self.model.checkpoint_loaded:
+                logger.info(
+                    "Reloading checkpoint after DeepSpeed Zero to ensure correctness."
+                )
+                self.model_engine.module.reload_checkpoint()
         self.build_data_loader(self.train_data, self.valid_data)
 
     @property

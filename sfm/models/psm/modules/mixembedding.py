@@ -1413,7 +1413,15 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         else:
             x = torch.matmul(batched_data["one_hot_token_id"], self.embed.weight)
 
-        if self.psm_config.diffusion_mode == "edm":
+        is_ddpm_for_material_when_edm = (
+            self.psm_config.diffusion_mode == "edm"
+            and self.psm_config.use_ddpm_for_material
+            and batched_data["is_periodic"].all()
+        )
+
+        if self.psm_config.diffusion_mode == "edm" and (
+            not is_ddpm_for_material_when_edm
+        ):
             noise_embed_edm = self.noise_cond_embed_edm(
                 batched_data["c_noise"].to(x.dtype).flatten()
             ).to(x.dtype)

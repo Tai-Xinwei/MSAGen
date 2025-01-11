@@ -924,7 +924,7 @@ class Trainer(object):
                 )
                 return
 
-        checkpoint_rng_state = torch.load(rng_file)
+        checkpoint_rng_state = torch.load(rng_file, weights_only=False)
         try:
             random.setstate(checkpoint_rng_state["python"])
         except:
