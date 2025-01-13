@@ -1,0 +1,189 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# train a chemical generalist
+
+description: psm
+
+env_defaults:
+  NODES: 8
+  GPUS_PER_NODE: 8
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+
+target:
+  service: sing
+  name: whitney02
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm/amd:20241022.151209
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+  setup:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+
+storage:
+  blob:
+    storage_account_name: sfmdatawestus # Storage account
+    container_name: psm # Container name
+    mount_dir: /blob
+  westus:
+    storage_account_name: sfmdatawestusprem # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: psm-test
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS_PER_NODE}-MI300-IB@westus
+  mpi: true
+  identity: managed
+  process_count_per_node: 1
+  command:
+  - export WANDB_TEAM=peiranjin
+  - export wandb_group=psm_exp_v22
+  - export wandb_project=psm_VT
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+
+  - export HSA_ENABLE_SDMA=0
+  - export NCCL_IB_PCI_RELAXED_ORDERING=1
+  - export NCCL_NET_GDR_LEVEL=3
+
+  - export pbc_cutoff=40.0
+  - export pbc_expanded_num_cell_per_direction=5
+  - export pbc_expanded_token_cutoff=512
+  - export pbc_multigraph_cutoff=7.0
+  - export pbc_use_local_attention=True
+  - export use_no_pre_cutoff_softmax=True
+  - export align_x0_in_diffusion_loss=True
+  - export diffusion_training_loss=L2
+
+  - export backbone=seq-dit-geom
+  - export layers=14
+  - export hidden_size=2048
+  - export ffn_size=8192
+  - export num_structure_encoder_layer=16
+  - export structure_ffn_dim=2048
+  - export structure_hidden_dim=8192
+  - export num_pred_attn_layer=4
+  - export decoder_ffn_dim=2048
+  - export num_head=32
+
+  - export max_length=384
+  - export max_residue_num=384
+  - export ligand_crop_size=20.0
+
+  - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'
+  - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
+  - export dataset_micro_batch_size='16,16,16,16'
+
+  - export save_batch_interval=1000
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=4
+  - export val_batch_interval=0
+
+  - export wandb_project=psm_dev_shiyu_unified_20241119
+  - export wandb_group=psm_dev_shiyu_20241015
+  - export WANDB_RUN_NAME=psm_unified_continue_mat_edmprot
+
+  - export total_num_steps=400000
+  - export warmup_num_steps=1000
+  - export max_lr=1e-4
+
+  - export diffusion_mode="edm"
+  - export diffusion_noise_std=1.0
+  - export edm_diffusion_noise_std=1.0
+  - export equivar_vec_init=RELATIVE_POS_VEC_BIAS
+  - export strategy=Zero1
+  - export fp16=False
+  - export clean_sample_ratio=0.5
+  - export mode_prob='0.0,1.0,0.0'
+  - export complex_mode_prob='1.0,0.0,0.0,0.0'
+  - export mask_ratio=0.0
+
+  - export use_graphormer_path_edge_feature=False
+  - export use_ddpm_for_material=True
+  - export diff_init_lattice_size=10.0
+  - export wrap_in_periodic_diffusion=False
+  - export recompute_noise_after_wrap=False
+  - export periodic_lattice_diffusion_noise_std=0.5
+  - export diffusion_sampling="ddpm"
+  - export num_timesteps=5000
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=2e-3
+  - export ddpm_schedule=sigmoid
+
+  - export data_path=/psm/data/
+  - export save_dir=/blob/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c/checkpoints
+  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909/checkpoint_E1_B80151.pt'
+  - export psm_finetune_mode=False
+
+  - export psm_validation_mode=False
+  - export sample_in_validation=False
+  - export psm_finetune_reset_head=False
+  - export mm_tensorcore=fp32
+
+  - export equivar_use_linear_bias=True
+  - export equivar_use_attention_bias=True
+
+  - export use_unified_batch_sampler=True
+  - export rescale_loss_with_std=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export use_memory_efficient_attention=False
+  - export unified_data_num_workers=4
+  - export use_fp32_in_decoder=False
+  - export material_force_loss_ratio=1.0
+  - export material_energy_loss_ratio=1.0
+  - export molecule_energy_loss_ratio=1.0
+  - export energy_per_atom_label_scale=1.0
+  - export mlm_from_decoder_feature=True
+  - export num_3d_bias_kernel=32
+
+  - export diffusion_training_loss=L2
+
+  - export use_protein_relative_pos=False
+  - export use_protein_rotary_embedding=True
+  - export num_protein_relative_pos_bin=32
+  - export share_attention_bias=True
+  - export attention_bias_in_decoder=True
+
+  - export molecule_ref_energy_source='PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train'
+  - export molecule_outlier_energy_atoms=''
+
+  - export use_fixed_init_lattice_size=False
+  - export diff_init_lattice_size=10.0
+  - export diff_init_lattice_size_factor=2.859496852322873
+  - export periodic_lattice_diffusion_noise_std=0.5
+  - export use_adaptive_noise_std_for_periodic=True
+  - export periodic_diffusion_noise_std_factor=1.0531306506190654
+  - export supervise_prediction_stress=False
+  - export supervise_autograd_stress=True
+  - export stress_loss_factor=0.1
+
+  - export separate_noise_head=True
+  - export if_total_energy=False
+
+  - export AutoGradForce=True
+  - export supervise_force_from_head_when_autograd=True
+  - export n_gpu=${GPUS_PER_NODE}
+
+  - export wandb_run_name="v0_training"
+
+  - export log_interval=100
+
+  - export seed=12348
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - bash ./scripts/psm/pretrain_psm.sh
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 0.9
+      AMLT_DOCKERFILE_TEMPLATE: "none"
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+  sla_tier: Premium

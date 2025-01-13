@@ -25,7 +25,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_residue_num}" ] && max_residue_num=384
 [ -z "${ligand_crop_size}" ] && ligand_crop_size=20.0
 [ -z "${max_tokens}" ] && max_tokens=2000
-[ -z "${plddt_threshold}" ] && plddt_threshold=60.0
+[ -z "${plddt_threshold}" ] && plddt_threshold=70.0
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
