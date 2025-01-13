@@ -18,7 +18,7 @@ class VecInitApproach(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([VecInitApproach])
+# torch.serialization.add_safe_globals([VecInitApproach])
 
 
 class DiffusionTrainingLoss(Enum):
@@ -31,7 +31,7 @@ class DiffusionTrainingLoss(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([DiffusionTrainingLoss])
+# torch.serialization.add_safe_globals([DiffusionTrainingLoss])
 
 
 class ForceLoss(Enum):
@@ -45,7 +45,7 @@ class ForceLoss(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([ForceLoss])
+# torch.serialization.add_safe_globals([ForceLoss])
 
 
 class StressLoss(Enum):
@@ -59,7 +59,7 @@ class StressLoss(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([StressLoss])
+# torch.serialization.add_safe_globals([StressLoss])
 
 
 class DiffusionTimeStepEncoderType(Enum):
@@ -70,7 +70,7 @@ class DiffusionTimeStepEncoderType(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([DiffusionTimeStepEncoderType])
+# torch.serialization.add_safe_globals([DiffusionTimeStepEncoderType])
 
 
 class ForceHeadType(Enum):
@@ -82,7 +82,7 @@ class ForceHeadType(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([ForceHeadType])
+# torch.serialization.add_safe_globals([ForceHeadType])
 
 
 class GaussianFeatureNodeType(Enum):
@@ -94,7 +94,7 @@ class GaussianFeatureNodeType(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([GaussianFeatureNodeType])
+# torch.serialization.add_safe_globals([GaussianFeatureNodeType])
 
 
 class SequenceEncoderOption(Enum):
@@ -105,7 +105,7 @@ class SequenceEncoderOption(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([SequenceEncoderOption])
+# torch.serialization.add_safe_globals([SequenceEncoderOption])
 
 
 class StructureEncoderOption(Enum):
@@ -117,7 +117,7 @@ class StructureEncoderOption(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([StructureEncoderOption])
+# torch.serialization.add_safe_globals([StructureEncoderOption])
 
 
 class StructureDecoderOption(Enum):
@@ -128,7 +128,7 @@ class StructureDecoderOption(Enum):
         return self.value
 
 
-torch.serialization.add_safe_globals([StructureDecoderOption])
+# torch.serialization.add_safe_globals([StructureDecoderOption])
 
 
 @dataclass

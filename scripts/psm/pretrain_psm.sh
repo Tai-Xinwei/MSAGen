@@ -9,15 +9,15 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=seq-dit-geom
-[ -z "${layers}" ] && layers=22
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=4
-[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=1536
-[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+[ -z "${layers}" ] && layers=16
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=20
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=8192
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=2048
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=8192
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -55,12 +55,20 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path_list}" ] && data_path_list='AFDB70-plddt70-reduce.lmdb,20240630_PDB_Training_Data,MGnify,matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6'
-[ -z "${dataset_name_list}" ] && dataset_name_list='esm,pdbcomplexmultimer,mgnify,mattersim,mattersim,pm6-wb97xd3'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.1,0.2,0.2,0.2'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2,2,2,8,2,1"
+# [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
+# # [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+# [ -z "${data_path_list}" ] && data_path_list='AFDB70-plddt70-reduce.lmdb,20240630_PDB_Training_Data,MGnify,matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='esm,pdbcomplexmultimer,mgnify,mattersim,mattersim,pm6-wb97xd3'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.1,0.2,0.2,0.2'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2,2,2,8,2,1"
+
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+
+[ -z "${data_path_list}" ] && data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='esm'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0' # '0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
@@ -68,8 +76,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/psm-unified-20241201-1848/global_step47500/mp_rank_00_model_states.pt'
-[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
-# [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
+# [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3B'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -174,7 +182,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${structure_relax_step_size}" ] && structure_relax_step_size=1e-3
 [ -z "${use_autograd_force_for_relaxation_and_md}" ] && use_autograd_force_for_relaxation_and_md=True
 
-[ -z "${seed}" ] && seed=12347
+
+random_number=$((RANDOM))
+echo "Random number: ${random_number}"
+[ -z "${seed}" ] && seed=$random_number
+# [ -z "${seed}" ] && seed=12347
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -226,7 +238,7 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-cp sfm/utils/barrier.py . && touch READY && python barrier.py $OMPI_COMM_WORLD_SIZE $OMPI_COMM_WORLD_RANK
+# cp sfm/utils/barrier.py . && touch READY && python barrier.py $OMPI_COMM_WORLD_SIZE $OMPI_COMM_WORLD_RANK
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \

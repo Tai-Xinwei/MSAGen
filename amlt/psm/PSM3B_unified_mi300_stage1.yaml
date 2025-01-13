@@ -6,7 +6,7 @@
 description: psm
 
 env_defaults:
-  NODES: 8
+  NODES: 16
   GPUS_PER_NODE: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -44,7 +44,7 @@ jobs:
   identity: managed
   process_count_per_node: 1
   command:
-  - export WANDB_TEAM=peiranjin
+  - export wandb_team=peiranjin
   - export wandb_group=psm_exp_v22
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
@@ -63,14 +63,14 @@ jobs:
   - export diffusion_training_loss=L2
 
   - export backbone=seq-dit-geom
-  - export layers=14
+  - export layers=16
   - export hidden_size=2048
   - export ffn_size=8192
-  - export num_structure_encoder_layer=16
-  - export structure_ffn_dim=2048
-  - export structure_hidden_dim=8192
+  - export num_structure_encoder_layer=20
+  - export structure_ffn_dim=8192
+  - export structure_hidden_dim=2048
   - export num_pred_attn_layer=4
-  - export decoder_ffn_dim=2048
+  - export decoder_ffn_dim=8192
   - export num_head=32
 
   - export max_length=384
