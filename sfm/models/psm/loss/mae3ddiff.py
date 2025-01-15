@@ -621,6 +621,8 @@ class DiffMAE3dCriterions(nn.Module):
         energy_per_atom_label = batched_data["energy_per_atom"]
         total_energy_label = batched_data["energy"]
         atomic_numbers = batched_data["token_id"]
+        batched_data["adj"]
+
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
         stress_label = model_output["stress_label"]

@@ -588,7 +588,7 @@ class DiffusionModule3(nn.Module):
                 ifbackprop=ifbackprop,
             )
 
-        return pos_embedding
+        return pos_embedding, None
 
 
 class AADiffusionModule(nn.Module):

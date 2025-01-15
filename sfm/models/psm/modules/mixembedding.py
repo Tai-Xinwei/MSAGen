@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from re import X
 from typing import Dict, Optional
 
 import torch
@@ -1329,6 +1330,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         molecule_mask: torch.Tensor,
         padding_mask: torch.Tensor,
         batched_data: torch.Tensor,
+        clean_mask: torch.Tensor,
         pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ):
         # if molecule_mask.any() or batched_data["is_complex"].any():
@@ -1359,6 +1361,14 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             )
 
             graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
+
+            if clean_mask is not None:
+                graph_attn_bias = graph_attn_bias.masked_fill(
+                    clean_mask.unsqueeze(1).unsqueeze(-1), 0.0
+                )
+                graph_attn_bias = graph_attn_bias.masked_fill(
+                    clean_mask.unsqueeze(1).unsqueeze(2), 0.0
+                )
         # else:
         #     graph_attn_bias = None
 
@@ -1385,6 +1395,8 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         chain_id = batched_data["chain_ids"]
         padding_mask = token_id.eq(0)  # B x T x 1
         is_periodic = batched_data["is_periodic"]
+        is_molecule = batched_data["is_molecule"]
+
         molecule_mask = (
             (token_id <= 129) & (token_id > 1) & (~is_periodic.unsqueeze(-1))
         )
@@ -1436,8 +1448,14 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
                 dim=-2
             )  # B x T x #ATOM_FEATURE x D -> # B x T x D
             atom_feature_embedding = atom_feature_embedding.masked_fill(
-                ~molecule_mask.unsqueeze(-1), 0.0
+                (~is_molecule.unsqueeze(-1).unsqueeze(-1)),
+                0.0,
             )
+            if clean_mask is not None:
+                atom_feature_embedding = atom_feature_embedding.masked_fill(
+                    clean_mask.unsqueeze(-1),
+                    0.0,
+                )
 
             x += atom_feature_embedding
 
@@ -1450,6 +1468,7 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             molecule_mask,
             padding_mask,
             batched_data,
+            clean_mask,
             pbc_expand_batched,
         )
 

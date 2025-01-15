@@ -45,10 +45,9 @@ jobs:
   process_count_per_node: 1
   command:
   - export wandb_team=peiranjin
-  - export wandb_group=psm_unified_v23_stage1
-  - export wandb_project=psm_unified_v23
+  - export wandb_group=psm_exp_v22
+  - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
-  - export wandb_run_name="unify_3b_training"
 
   - export HSA_ENABLE_SDMA=0
   - export NCCL_IB_PCI_RELAXED_ORDERING=1
@@ -74,20 +73,24 @@ jobs:
   - export decoder_ffn_dim=8192
   - export num_head=32
 
-  - export max_length=384
-  - export max_residue_num=384
+  - export max_length=768
+  - export max_residue_num=768
   - export ligand_crop_size=20.0
 
   - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
   - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'
   - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
-  - export dataset_micro_batch_size='16,16,16,16'
+  - export dataset_micro_batch_size='4,4,4,4'
 
-  - export save_batch_interval=2500
+  - export save_batch_interval=1000
   - export train_batch_size=1024
   - export val_batch_size=1024
   - export gradient_accumulation_steps=4
   - export val_batch_interval=0
+
+  - export wandb_project=psm_dev_shiyu_unified_20241119
+  - export wandb_group=psm_dev_shiyu_20241015
+  - export WANDB_RUN_NAME=psm_unified_continue_mat_edmprot
 
   - export total_num_steps=400000
   - export warmup_num_steps=1000
@@ -100,8 +103,8 @@ jobs:
   - export strategy=Zero1
   - export fp16=False
   - export clean_sample_ratio=0.5
-  - export mode_prob='0.0,1.0,0.0'
-  - export complex_mode_prob='1.0,0.0,0.0,0.0'
+  - export mode_prob='0.1,0.9,0.0'
+  - export complex_mode_prob='0.9,0.0,0.1,0.0'
   - export mask_ratio=0.0
 
   - export use_graphormer_path_edge_feature=False
@@ -170,8 +173,11 @@ jobs:
   - export supervise_force_from_head_when_autograd=True
   - export n_gpu=${GPUS_PER_NODE}
 
+  - export wandb_run_name="v0_training"
+
   - export log_interval=100
 
+  - export seed=12348
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/psm/pretrain_psm.sh

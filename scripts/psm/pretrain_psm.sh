@@ -186,7 +186,6 @@ export MKL_THREADING_LAYER='GNU'
 random_number=$((RANDOM))
 echo "Random number: ${random_number}"
 [ -z "${seed}" ] && seed=$random_number
-# [ -z "${seed}" ] && seed=12347
 
 echo -e "\n\n"
 echo "==================================MP==========================================="

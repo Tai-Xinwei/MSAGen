@@ -927,6 +927,17 @@ class PSMModel(Model):
     def sample_and_calc_match_metric(self, batched_data):
         match_results = {}
         self.net.eval()
+        sampled_paths = [
+            os.path.join(
+                self.psm_config.sampled_structure_output_path, f"{_k}-{_+1}.pdb"
+            )
+            for _k in batched_data["key"]
+            for _ in range(self.psm_config.num_sampling_time)
+        ]
+        if all(os.path.exists(_) for _ in sampled_paths):
+            logger.warning("Structures already predicted, skip %s", batched_data["key"])
+            return {}
+
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
             original_cell = batched_data["cell"].clone()
