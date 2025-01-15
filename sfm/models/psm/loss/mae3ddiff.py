@@ -621,7 +621,7 @@ class DiffMAE3dCriterions(nn.Module):
         energy_per_atom_label = batched_data["energy_per_atom"]
         total_energy_label = batched_data["energy"]
         atomic_numbers = batched_data["token_id"]
-        batched_data["adj"]
+        adj = batched_data["adj"]
 
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
@@ -788,8 +788,11 @@ class DiffMAE3dCriterions(nn.Module):
                 contact_loss = torch.tensor(
                     0.0, device=noise_label.device, requires_grad=True
                 )
+                bond_loss = torch.tensor(
+                    0.0, device=noise_label.device, requires_grad=True
+                )
                 num_contact_losss = 0
-
+                num_bond_loss = 0
             elif self.diffusion_mode == "x0":
                 # x0 pred loss, noise pred is x0 pred here
                 unreduced_noise_loss = self.noise_loss(
@@ -858,6 +861,48 @@ class DiffMAE3dCriterions(nn.Module):
                         num_inter_dist_loss = 0
                         num_contact_losss = 0
 
+                    if (
+                        is_molecule.any()
+                        or (
+                            is_complex
+                            & ((atomic_numbers > 2) & (atomic_numbers < 129)).any(
+                                dim=-1
+                            )
+                        ).any()
+                    ):
+                        molecule_mask = (
+                            ((atomic_numbers > 2) & (atomic_numbers < 129))
+                            & (~is_periodic).unsqueeze(-1)
+                            & (~protein_mask.any(dim=-1))
+                        )
+                        bond_loss_mask = (
+                            adj
+                            & molecule_mask.unsqueeze(-1)
+                            & molecule_mask.unsqueeze(1)
+                        )
+                        if bond_loss_mask.any():
+                            ori_pos = model_output["ori_pos"]
+                            pair_pos_label = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
+                            pair_pos_pred = pos_pred.unsqueeze(
+                                1
+                            ) - noise_pred.unsqueeze(2)
+
+                            bond_loss = (
+                                pair_pos_label[bond_loss_mask]
+                                - pair_pos_pred[bond_loss_mask]
+                            ).mean()
+                            num_bond_loss = 1
+                        else:
+                            bond_loss = torch.tensor(
+                                0.0, device=noise_label.device, requires_grad=True
+                            )
+                            num_bond_loss = 0
+                    else:
+                        bond_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        num_bond_loss = 0
+
                     if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         if self.all_atom:
                             pos_label = torch.einsum(
@@ -907,6 +952,10 @@ class DiffMAE3dCriterions(nn.Module):
                     contact_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True
                     )
+                    bond_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    num_bond_loss = 0
                     num_pddt_loss = 0
                     num_inter_dist_loss = 0
                     num_contact_losss = 0
@@ -1506,6 +1555,17 @@ class DiffMAE3dCriterions(nn.Module):
                 else:
                     loss = loss + (self.hard_dist_loss_raito * inter_dist_loss)
 
+            if self.args.use_bond_loss:
+                if torch.any(torch.isnan(bond_loss)) or torch.any(
+                    torch.isinf(bond_loss)
+                ):
+                    logger.error(f"NaN or inf detected in bond_loss: {bond_loss}")
+                    bond_loss = torch.tensor(
+                        0.0, device=bond_loss.device, requires_grad=True
+                    )
+                else:
+                    loss = loss + bond_loss
+
             if torch.any(torch.isnan(loss)) or torch.any(torch.isinf(loss)):
                 logger.error(
                     f"NaN or inf detected in loss: {loss}, molecule_energy_loss: {molecule_energy_loss}, molecule_force_loss: {molecule_force_loss}, periodic_energy_loss: {periodic_energy_loss}, periodic_force_loss: {periodic_force_loss}, molecule_noise_loss: {molecule_noise_loss}, periodic_noise_loss: {periodic_noise_loss}, protein_noise_loss: {protein_noise_loss}, complex_noise_loss: {complex_noise_loss}, noise_loss: {noise_loss}, aa_mlm_loss: {aa_mlm_loss}"
@@ -1611,7 +1671,7 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "decoder_aa_acc": (float(decoder_aa_acc), int(num_decoder_aa_mask_token)),
             "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
-            # "contact_acc": (float(contact_acc), int(num_contact_losss)),
+            "bond_loss": (float(bond_loss), int(num_bond_loss)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
             "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),
             "inter_dist_loss": (

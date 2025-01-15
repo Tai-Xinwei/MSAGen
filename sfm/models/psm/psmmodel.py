@@ -938,6 +938,8 @@ class PSMModel(Model):
             logger.warning("Structures already predicted, skip %s", batched_data["key"])
             return {}
 
+        self._create_protein_mask(batched_data)
+
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
             original_cell = batched_data["cell"].clone()
@@ -2315,7 +2317,7 @@ class PSM(nn.Module):
         if self.args.AutoGradForce or self.psm_config.supervise_autograd_stress:
             self.autograd_force_head.wrap_input(batched_data)
 
-        pos = batched_data["pos"]
+        pos_raw = batched_data["pos"]
 
         is_ddpm_for_material_when_edm = (
             self.psm_config.diffusion_mode == "edm"
@@ -2326,10 +2328,32 @@ class PSM(nn.Module):
         if self.psm_config.diffusion_mode == "edm" and (
             not is_ddpm_for_material_when_edm
         ):
-            pos_noised_no_c_in = batched_data["pos"].clone()
-            batched_data["pos"] = pos * batched_data["c_in"]
+            # pos_noised_no_c_in = batched_data["pos"].clone()
+            # batched_data["pos"] = pos * batched_data["c_in"]
+            batched_data["pos"] = batched_data["pos"].clone() * batched_data["c_in"]
+            # CL: update "cell" to match the scaled "pos"!
+            batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        n_graphs, n_nodes = pos.size()[:2]
+            init_pos_raw = batched_data["init_pos"]
+            batched_data["init_pos"] = batched_data["init_pos"].clone()
+            if self.psm_config.edm_x_init_treatment_from == "ve":
+                pass
+            elif self.psm_config.edm_x_init_treatment_from == "vp":
+                batched_data["init_pos"] = (
+                    batched_data["init_pos"]
+                    * (1.0 + batched_data["sigma_edm"] ** 2) ** 0.5
+                )
+            elif self.psm_config.edm_x_init_treatment_from == "fm":
+                batched_data["init_pos"] = (
+                    batched_data["init_pos"] * batched_data["sigma_edm"]
+                )
+            else:
+                raise ValueError(
+                    f"unknown `edm_x_init_treatment_from` '{self.psm_config.edm_x_init_treatment_from}'"
+                )
+            batched_data["init_pos"] = batched_data["init_pos"] * batched_data["c_in"]
+
+        n_graphs, n_nodes = pos_raw.size()[:2]
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
         is_protein = batched_data["is_protein"]
@@ -2387,18 +2411,20 @@ class PSM(nn.Module):
                 self_node_type_edge = (
                     self.num_vocab * self.num_vocab + batched_data["masked_token_type"]
                 )
-                eye_mask = torch.eye(n_nodes, device=pos.device, dtype=torch.bool)
+                eye_mask = torch.eye(n_nodes, device=pos_raw.device, dtype=torch.bool)
                 eye_mask = eye_mask[None, :, :, None].repeat(n_graphs, 1, 1, 1)
                 batched_data["node_type_edge"][eye_mask] = self_node_type_edge.view(-1)
                 if pbc_expand_batched is not None:
-                    eye_mask = torch.eye(n_nodes, device=pos.device, dtype=torch.bool)
+                    eye_mask = torch.eye(
+                        n_nodes, device=pos_raw.device, dtype=torch.bool
+                    )
                     eye_mask = torch.cat(
                         [
                             eye_mask,
                             torch.zeros(
                                 [n_nodes, pbc_expand_batched["outcell_index"].size(-1)],
                                 dtype=torch.bool,
-                                device=pos.device,
+                                device=pos_raw.device,
                             ),
                         ],
                         dim=-1,
@@ -2726,7 +2752,7 @@ class PSM(nn.Module):
 
         # atom mask to leave out unit cell corners for periodic systems
         non_atom_mask = torch.arange(
-            n_nodes, dtype=torch.long, device=pos.device
+            n_nodes, dtype=torch.long, device=pos_raw.device
         ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
 
         with (
@@ -2817,7 +2843,7 @@ class PSM(nn.Module):
                     not is_ddpm_for_material_when_edm
                 ):
                     noise_pred = (
-                        batched_data["c_skip"] * pos_noised_no_c_in
+                        batched_data["c_skip"] * pos_raw
                         + batched_data["c_out"] * noise_pred
                     )
                 else:
@@ -2858,7 +2884,7 @@ class PSM(nn.Module):
                     autograd_forces, autograd_stress = self.autograd_force_head(
                         energy_per_atom,
                         non_atom_mask,
-                        pos,
+                        pos_raw,
                         batched_data["cell"],
                         batched_data["is_periodic"],
                         batched_data["is_molecule"],
@@ -2935,6 +2961,12 @@ class PSM(nn.Module):
                 # q, k = self.pair_proj(decoder_x_output).chunk(2, dim=-1)
                 # pair_feat = torch.einsum("bld,bkd->blkd", q, k)
                 # dist_map = self.dist_head(dist_map)
+
+        if self.psm_config.diffusion_mode == "edm" and (
+            not is_ddpm_for_material_when_edm
+        ):
+            batched_data["pos"] = pos_raw
+            batched_data["init_pos"] = init_pos_raw
 
         result_dict = {
             "energy_per_atom": energy_per_atom,

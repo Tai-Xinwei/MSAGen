@@ -71,6 +71,7 @@ jobs:
   - export structure_ffn_dim=8192
   - export structure_hidden_dim=2048
   - export num_pred_attn_layer=4
+  - export decoder_hidden_dim=2048
   - export decoder_ffn_dim=8192
   - export num_head=32
 

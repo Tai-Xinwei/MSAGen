@@ -1369,8 +1369,6 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
                 graph_attn_bias = graph_attn_bias.masked_fill(
                     clean_mask.unsqueeze(1).unsqueeze(2), 0.0
                 )
-        # else:
-        #     graph_attn_bias = None
 
         return graph_attn_bias
 

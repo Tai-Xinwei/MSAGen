@@ -9,15 +9,27 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=seq-dit-geom
-[ -z "${layers}" ] && layers=16
-[ -z "${hidden_size}" ] && hidden_size=2048
-[ -z "${ffn_size}" ] && ffn_size=8192
-[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=20
-[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=8192
-[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=2048
+
+[ -z "${layers}" ] && layers=14
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=6144
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=8192
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
+
+# [ -z "${layers}" ] && layers=16
+# [ -z "${hidden_size}" ] && hidden_size=2048
+# [ -z "${ffn_size}" ] && ffn_size=8192
+# [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=20
+# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=8192
+# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=2048
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=8192
+
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -64,10 +76,15 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 
-[ -z "${data_path_list}" ] && data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='esm'
+# [ -z "${data_path_list}" ] && data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='esm'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+
+[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
@@ -98,7 +115,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=1024
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${use_no_pre_cutoff_softmax}" ] && use_no_pre_cutoff_softmax=True

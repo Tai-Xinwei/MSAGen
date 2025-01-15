@@ -303,6 +303,7 @@ class PSMConfig(GraphormerConfig):
     freeze_backbone: bool = False
     hard_dist_loss_raito: float = 1.0
     use_hard_dist_loss: bool = False
+    use_bond_loss: bool = False
     if_total_energy: bool = False
     group_optimizer: bool = False
     group_lr_ratio: float = 1.0
