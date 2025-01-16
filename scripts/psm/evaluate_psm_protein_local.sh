@@ -2,7 +2,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-num_sampling_time=10
+num_sampling_time=50
 
 # MODEL_CONFIG=PSM1B_DIT
 # MODEL_CONFIG=PSM1B_exp3
@@ -19,7 +19,7 @@ ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 
-DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node 2 sfm/tasks/psm/pretrain_psm.py \
+DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 4 sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
   psm_validation_mode=true \
   sample_in_validation=true \
@@ -35,7 +35,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node 2 sf
   val_batch_size=1 \
   val_batch_log_interval=1 \
   gradient_accumulation_steps=1 \
-  diffusion_sampling=edm \
+  diffusion_sampling=dpm_edm \
   num_timesteps_stepsize=-250 \
   num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
@@ -45,4 +45,4 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node 2 sf
 
 echo $CKPT_PATH
 
-# ./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time $global_step
+./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time $global_step

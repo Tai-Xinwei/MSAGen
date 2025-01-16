@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
+from click import Option
 from sympy import ff
 from torch import Tensor
 
@@ -766,6 +767,7 @@ class InvariantDiffusionModule(nn.Module):
         ifbackprop: bool = False,
         pair_feat: Optional[Tensor] = None,
         dist_map: Optional[Tensor] = None,
+        clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         x = x.transpose(0, 1)
 
@@ -773,7 +775,7 @@ class InvariantDiffusionModule(nn.Module):
             batched_data,
             time_step=None,
             aa_mask=None,
-            clean_mask=batched_data["clean_mask"],
+            clean_mask=clean_mask,
             pbc_expand_batched=pbc_expand_batched,
             ignore_mlm_from_decoder_feature=True,
         )

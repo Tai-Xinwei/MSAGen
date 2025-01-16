@@ -65,13 +65,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2500
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
-[ -z "${val_batch_interval}" ] && val_batch_interval=30000
+[ -z "${val_batch_interval}" ] && val_batch_interval=100
 
 [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0' #'0.2,0.7,0.1'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
@@ -94,7 +94,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
 [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -137,14 +137,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 
 # material diffusion settings
-[ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=True
+[ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=False
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diff_init_lattice_size_factor}" ] && diff_init_lattice_size_factor=2.859496852322873
 [ -z "${periodic_lattice_diffusion_noise_std}" ] && periodic_lattice_diffusion_noise_std=0.5
-[ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=False
+[ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=True
 [ -z "${periodic_diffusion_noise_std_factor}" ] && periodic_diffusion_noise_std_factor=1.0531306506190654
-[ -z "${use_ddpm_for_material}" ] && use_ddpm_for_material=False
-
+[ -z "${use_ddpm_for_material}" ] && use_ddpm_for_material=True
+··
 [ -z "${use_graphormer_path_edge_feature}" ] && use_graphormer_path_edge_feature=False
 [ -z "${share_attention_bias}" ] && share_attention_bias=True
 [ -z "${separate_noise_head}" ] && separate_noise_head=True
@@ -165,20 +165,20 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${fp16}" ] && fp16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 
-[ -z "${psm_validation_mode}" ] && psm_validation_mode=False
+[ -z "${psm_validation_mode}" ] && psm_validation_mode=True
 [ -z "${sample_in_validation}" ] && sample_in_validation=False
 [ -z "${num_sampling_time}" ] && num_sampling_time=1
 [ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=False
-[ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=False
+[ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=True
 [ -z "${psm_validate_for_train_set}" ] && psm_validate_for_train_set=False
 [ -z "${val_batch_log_interval}" ] && val_batch_log_interval=1
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
+[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 
 [ -z "${psm_matbench_task_name}" ] && psm_matbench_task_name=matbench_dielectric
@@ -375,8 +375,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           structure_ffn_dim=$structure_ffn_dim \
           structure_hidden_dim=$structure_hidden_dim \
           use_graphormer_path_edge_feature=$use_graphormer_path_edge_feature \
+          ifresume=True \
           supervise_autograd_stress=$supervise_autograd_stress \
           stress_loss_factor=$stress_loss_factor \
           use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax
-
-          # ifresume=True \

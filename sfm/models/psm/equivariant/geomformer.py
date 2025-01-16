@@ -319,9 +319,12 @@ class MemEffInvariantAttention(nn.Module):
                 .unsqueeze(-1)
                 .repeat(1, 1, k.size()[-1])
             )
-            local_attention_weight = pbc_expand_batched["local_attention_weight"].to(
-                dtype=q.dtype
-            )
+            if pbc_expand_batched["local_attention_weight"] is not None:
+                local_attention_weight = pbc_expand_batched[
+                    "local_attention_weight"
+                ].to(dtype=q.dtype)
+            else:
+                local_attention_weight = None
             expand_k = torch.gather(k, dim=1, index=outcell_index)
             expand_v = torch.gather(v, dim=1, index=outcell_index)
             k = torch.cat([k, expand_k], dim=1)
@@ -507,9 +510,12 @@ class MemEffEquivariantAttention(nn.Module):
                 .unsqueeze(-1)
                 .repeat(1, 1, k.size()[-2], k.size()[-1])
             )
-            local_attention_weight = pbc_expand_batched["local_attention_weight"].to(
-                dtype=q.dtype
-            )
+            if pbc_expand_batched["local_attention_weight"] is not None:
+                local_attention_weight = pbc_expand_batched[
+                    "local_attention_weight"
+                ].to(dtype=q.dtype)
+            else:
+                local_attention_weight = None
             expand_k = torch.gather(k, dim=1, index=outcell_index)
             expand_v = torch.gather(v, dim=1, index=outcell_index)
             k = torch.cat([k, expand_k], dim=1)

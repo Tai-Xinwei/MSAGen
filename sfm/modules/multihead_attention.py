@@ -141,6 +141,7 @@ class MultiheadAttention(nn.Module):
         need_head_weights: bool = False,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
         position_ids: Optional[torch.Tensor] = None,
+        math_kernel: bool = False,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -190,14 +191,26 @@ class MultiheadAttention(nn.Module):
             local_attention_weight = None
 
         if outcell_index is not None:
+            if position_ids is not None:
+                expand_position_ids = torch.gather(
+                    position_ids, dim=1, index=outcell_index
+                )
+
             outcell_index = (
                 outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
             )
             expand_k = torch.gather(k, dim=0, index=outcell_index)
             expand_v = torch.gather(v, dim=0, index=outcell_index)
 
-            k = torch.cat([k, expand_k], dim=0)
+            k = torch.cat([k, expand_k], dim=0)  # [L_expand, B,]
             v = torch.cat([v, expand_v], dim=0)
+            if position_ids is not None:
+                #     position_ids = (
+                #         torch.arange(k.shape[0], device=k.device, dtype=k.dtype)
+                #         .unsqueeze(0)
+                #         .repeat(v.shape[1], 1)
+                #     )
+                position_ids = torch.cat([position_ids, expand_position_ids], dim=1)
 
             src_len = k.size()[0]
 
@@ -206,12 +219,14 @@ class MultiheadAttention(nn.Module):
             .view(tgt_len, bsz * self.num_heads, self.head_dim)
             .transpose(0, 1)
         )
+
         if k is not None:
             k = (
                 k.contiguous()
                 .view(-1, bsz * self.num_heads, self.head_dim)
                 .transpose(0, 1)
             )
+
         if v is not None:
             v = (
                 v.contiguous()

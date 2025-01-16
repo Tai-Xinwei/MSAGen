@@ -136,10 +136,11 @@ class PSMModel(Model):
                 ](self.diffnoise.alphas_cumprod, self.psm_config)
             elif self.psm_config.diffusion_sampling == "edm":
                 self.diffusion_process = None
+
             if self.psm_config.use_ddpm_for_material:
                 self.material_diffnoise = DiffNoise(self.psm_config)
                 self.material_diffusion_process = DIFFUSION_PROCESS_REGISTER["ddpm"](
-                    self.diffnoise.alphas_cumprod, self.psm_config
+                    self.material_diffnoise.alphas_cumprod, self.psm_config
                 )
         else:
             self.diffnoise = DiffNoise(self.psm_config)
@@ -927,18 +928,19 @@ class PSMModel(Model):
     def sample_and_calc_match_metric(self, batched_data):
         match_results = {}
         self.net.eval()
-        sampled_paths = [
-            os.path.join(
-                self.psm_config.sampled_structure_output_path, f"{_k}-{_+1}.pdb"
-            )
-            for _k in batched_data["key"]
-            for _ in range(self.psm_config.num_sampling_time)
-        ]
-        if all(os.path.exists(_) for _ in sampled_paths):
-            logger.warning("Structures already predicted, skip %s", batched_data["key"])
-            return {}
+        # sampled_paths = [
+        #     os.path.join(
+        #         self.psm_config.sampled_structure_output_path, f"{_k}-{_+1}.pdb"
+        #     )
+        #     for _k in batched_data["key"]
+        #     for _ in range(self.psm_config.num_sampling_time)
+        # ]
+        # if all(os.path.exists(_) for _ in sampled_paths):
+        #     logger.warning("Structures already predicted, skip %s", batched_data["key"])
+        #     return {}
 
         self._create_protein_mask(batched_data)
+        self._create_system_tags(batched_data)
 
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
@@ -1400,6 +1402,9 @@ class PSMModel(Model):
                             t, n_graphs, device=device, dtype=batched_data["pos"].dtype
                         )
                     )
+                    time_step = time_step.unsqueeze(-1).repeat(
+                        1, batched_data["pos"].shape[1]
+                    )
                 else:
                     time_step = None
             else:
@@ -1468,14 +1473,24 @@ class PSMModel(Model):
                     batched_data["is_stable_periodic"],
                 )
 
-            batched_data["pos"] = self.diffusion_process.sample_step(
-                x_t,
-                batched_data["init_pos"],
-                predicted_noise,
-                epsilon,
-                t,
-                stepsize=-self.psm_config.num_timesteps_stepsize,
-            )
+            if is_ddpm_for_material_when_edm:
+                batched_data["pos"] = self.material_diffusion_process.sample_step(
+                    x_t,
+                    batched_data["init_pos"],
+                    predicted_noise,
+                    epsilon,
+                    t,
+                    stepsize=-self.psm_config.num_timesteps_stepsize,
+                )
+            else:
+                batched_data["pos"] = self.diffusion_process.sample_step(
+                    x_t,
+                    batched_data["init_pos"],
+                    predicted_noise,
+                    epsilon,
+                    t,
+                    stepsize=-self.psm_config.num_timesteps_stepsize,
+                )
 
             if clean_mask is not None:
                 batched_data["pos"] = torch.where(
@@ -2588,6 +2603,7 @@ class PSM(nn.Module):
                         pair_feat=x_pair,
                         dist_map=dist_map,
                         ifbackprop=self.args.AutoGradForce,
+                        clean_mask=clean_mask,
                     )
                 else:
                     decoder_x_output = None

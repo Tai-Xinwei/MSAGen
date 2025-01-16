@@ -883,7 +883,7 @@ class DiffMAE3dCriterions(nn.Module):
                         if bond_loss_mask.any():
                             ori_pos = model_output["ori_pos"]
                             pair_pos_label = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
-                            pair_pos_pred = pos_pred.unsqueeze(
+                            pair_pos_pred = noise_pred.unsqueeze(
                                 1
                             ) - noise_pred.unsqueeze(2)
 
