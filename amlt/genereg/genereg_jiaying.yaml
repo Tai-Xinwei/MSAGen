@@ -1,0 +1,76 @@
+description: Gene scorer
+
+# target:
+#   service: sing
+#   name: msroctobasicvc
+#   workspace_name: sfm-ws
+
+# target:
+#   service: sing
+#   name: whitney02
+#   workspace_name: sfm-ws
+
+# target:
+#   service: sing
+#   name: msrresrchvc
+#   workspace_name: sfm-ws
+
+target:
+  service: sing
+  name: msrresrchbasicvc
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  rl4s:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /nlm
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: SFT_Training
+  identity: managed
+  tags: [Project_Name:SFT_Training,ProjectID:PRJ-0209-A40,Experiment:SFT_Training]
+  # sku: 80G8-A100 #${NODES}xG${GPUS}-IB
+  sku: 80G8-H100-NvLink
+  # sku: 80G4-A100-NvLink
+  sla_tier: Premium
+
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  # - ls -a | grep scripts
+  # - ls -a
+  # - pip install flash-attn==2.5.8 --no-build-isolation
+  - pip install -e . --no-deps
+  - python setup_cython.py build_ext --inplace
+  # - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
+  # - pip uninstall flash-attn -y
+  - export train_data_path='/nlm/v-xujiay/data/train_10x_continous.pt'
+  - export cell_ebd_path='/nlm/v-xujiay/data/rna_10x_ebds.csv'
+  - export valid_data_path='/nlm/v-xujiay/data/test_10x_continous.pt'
+  - export save_dir='/nlm/v-xujiay/gene_scorer/'
+  - export train_batch_size=32
+  - export val_batch_size=32
+  - export gradient_accumulation_steps=8
+  - export max_lr=4e-5
+  - export strategy=Zero1
+  - export log_interval=100
+  - export total_num_steps=1000000
+  - export save_batch_interval=20000
+  - export warmup_num_steps=1000
+  - export wandb_key=local-3a9fa70955b544d5b06b6c19632775e88939bf0d
+  - ls -a ./scripts/gene_reg
+  - bash ./scripts/gene_reg/scoring_model.sh
+
+  submit_args:
+    container_args:
+      shm_size: 1024g
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
