@@ -140,7 +140,7 @@ perturbation_each_traj: 2
 reward_weight: 10.0
 kl_weight: 0.1
 ratio_clip: 0.0001
-edm_x_init_treatment_from: vp
+edm_x_init_treatment_from: ve
 force_loss_type: L1
 force_head_type: GATED_EQUIVARIANT
 node_type_edge_method: NON_EXCHANGABLE

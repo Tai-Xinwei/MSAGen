@@ -247,7 +247,7 @@ class PSMConfig(GraphormerConfig):
     edm_sample_S_min: float = 0.0
     edm_sample_S_max: float = 100  # 3.0e30
     edm_sample_S_noise: float = 1.0
-    edm_x_init_treatment_from: str = "vp"
+    edm_x_init_treatment_from: str = "ve"
 
     # for AF3
     af3_sample_gamma_0: float = 0.8

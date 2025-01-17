@@ -531,6 +531,7 @@ class DiffusionModule3(nn.Module):
         ifbackprop: bool = False,
         pair_feat: Optional[Tensor] = None,
         dist_map: Optional[Tensor] = None,
+        clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         x = x.transpose(0, 1)
 
@@ -642,6 +643,7 @@ class AADiffusionModule(nn.Module):
         ifbackprop: bool = False,
         pair_feat: Optional[Tensor] = None,
         dist_map: Optional[Tensor] = None,
+        clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         x = x.transpose(0, 1)
 

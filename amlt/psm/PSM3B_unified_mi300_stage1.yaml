@@ -84,6 +84,11 @@ jobs:
   - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
   - export dataset_micro_batch_size='16,16,16,16'
 
+  # - export data_path_list='20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  # - export dataset_name_list='pdbcomplexmultimer' #,geom'
+  # - export dataset_split_raito='1.0' #,0.2'
+  # - export dataset_micro_batch_size='16'
+
   - export save_batch_interval=2500
   - export train_batch_size=1024
   - export val_batch_size=1024
@@ -167,7 +172,7 @@ jobs:
   - export separate_noise_head=True
   - export if_total_energy=False
 
-  - export AutoGradForce=True
+  - export AutoGradForce=False
   - export supervise_force_from_head_when_autograd=True
   - export n_gpu=${GPUS_PER_NODE}
 

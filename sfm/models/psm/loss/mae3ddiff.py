@@ -882,15 +882,21 @@ class DiffMAE3dCriterions(nn.Module):
                         )
                         if bond_loss_mask.any():
                             ori_pos = model_output["ori_pos"]
-                            pair_pos_label = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
-                            pair_pos_pred = noise_pred.unsqueeze(
-                                1
-                            ) - noise_pred.unsqueeze(2)
+                            pair_pos_label = (
+                                ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
+                            ).norm(dim=-1)
+                            pair_pos_pred = (
+                                noise_pred.unsqueeze(1) - noise_pred.unsqueeze(2)
+                            ).norm(dim=-1)
 
                             bond_loss = (
-                                pair_pos_label[bond_loss_mask]
-                                - pair_pos_pred[bond_loss_mask]
-                            ).mean()
+                                (
+                                    pair_pos_label[bond_loss_mask]
+                                    - pair_pos_pred[bond_loss_mask]
+                                )
+                                .abs()
+                                .mean()
+                            )
                             num_bond_loss = 1
                         else:
                             bond_loss = torch.tensor(

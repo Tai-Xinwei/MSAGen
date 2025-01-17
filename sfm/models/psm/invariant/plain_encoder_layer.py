@@ -215,18 +215,25 @@ class PSMPairPlainEncoderLayer(nn.Module):
         d_tilde=1,
         add_rope=False,
     ):
-        # if self.psm_config.use_memory_efficient_attention:
-        #     if self.psm_config.only_use_rotary_embedding_for_protein:
-        #         attn_cls = MemEffAttnWithProteinRotaryEmbedding
-        #     else:
-        #         attn_cls = MemEffAttn
+        # if not self.psm_config.use_memory_efficient_attention:
+        #     attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
+        # elif self.psm_config.only_use_rotary_embedding_for_protein:
+        #     attn_cls = MemEffAttnWithProteinRotaryEmbedding
         # else:
-        #     if self.psm_config.only_use_rotary_embedding_for_protein:
-        #         attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
-        #     else:
-        #         attn_cls = MultiheadAttention
+        #     attn_cls = MemEffAttn
 
-        attn_cls = MultiheadAttention
+        if self.psm_config.use_memory_efficient_attention:
+            if self.psm_config.only_use_rotary_embedding_for_protein:
+                attn_cls = MemEffAttnWithProteinRotaryEmbedding
+            else:
+                attn_cls = MemEffAttn
+        else:
+            if self.psm_config.only_use_rotary_embedding_for_protein:
+                attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
+            else:
+                attn_cls = MultiheadAttention
+
+        # attn_cls = MultiheadAttention
 
         return attn_cls(
             embed_dim,
@@ -260,29 +267,29 @@ class PSMPairPlainEncoderLayer(nn.Module):
 
         residual = x
         x = self.top_layer_norm(x)
-        # if self.psm_config.only_use_rotary_embedding_for_protein:
-        #     x, _ = self.self_attn(
-        #         x,
-        #         key_padding_mask=padding_mask,
-        #         need_weights=False,
-        #         attn_mask=None,
-        #         is_protein=batched_data["is_protein"],
-        #         position_ids=batched_data["position_ids"],
-        #         pbc_expand_batched=pbc_expand_batched,
-        #         attn_bias=mixed_attn_bias,
-        #         math_kernel=math_kernel,
-        #     )
-        # else:
-        x, _ = self.self_attn(
-            x,
-            key_padding_mask=padding_mask,
-            need_weights=False,
-            attn_mask=None,
-            position_ids=batched_data["position_ids"],
-            pbc_expand_batched=pbc_expand_batched,
-            attn_bias=mixed_attn_bias,
-            math_kernel=math_kernel,
-        )
+        if self.psm_config.only_use_rotary_embedding_for_protein:
+            x, _ = self.self_attn(
+                x,
+                key_padding_mask=padding_mask,
+                need_weights=False,
+                attn_mask=None,
+                is_protein=batched_data["is_protein"],
+                position_ids=batched_data["position_ids"],
+                pbc_expand_batched=pbc_expand_batched,
+                attn_bias=mixed_attn_bias,
+                math_kernel=math_kernel,
+            )
+        else:
+            x, _ = self.self_attn(
+                x,
+                key_padding_mask=padding_mask,
+                need_weights=False,
+                attn_mask=None,
+                position_ids=batched_data["position_ids"],
+                pbc_expand_batched=pbc_expand_batched,
+                attn_bias=mixed_attn_bias,
+                math_kernel=math_kernel,
+            )
         x = residual + x
 
         residual = x

@@ -10,15 +10,15 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=seq-dit-geom
 
-[ -z "${layers}" ] && layers=14
-[ -z "${hidden_size}" ] && hidden_size=512
-[ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
-[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
+# [ -z "${layers}" ] && layers=14
+# [ -z "${hidden_size}" ] && hidden_size=512
+# [ -z "${ffn_size}" ] && ffn_size=2048
+# [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
+# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
+# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
 
 # [ -z "${layers}" ] && layers=14
 # [ -z "${hidden_size}" ] && hidden_size=1536
@@ -30,15 +30,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
 # [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
 
-# [ -z "${layers}" ] && layers=16
-# [ -z "${hidden_size}" ] && hidden_size=2048
-# [ -z "${ffn_size}" ] && ffn_size=8192
-# [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=20
-# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=8192
-# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=2048
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
-# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=8192
+[ -z "${layers}" ] && layers=16
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=20
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=8192
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=2048
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=8192
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -91,15 +91,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
-[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
-
-# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+
+[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
@@ -109,7 +109,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit3B/global_step28464/mp_rank_00_model_states.pt'
 # [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3B'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit100m'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -377,6 +377,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_graphormer_path_edge_feature=$use_graphormer_path_edge_feature \
           supervise_autograd_stress=$supervise_autograd_stress \
           stress_loss_factor=$stress_loss_factor \
-          use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax
+          use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax \
+          ifresume=True \
 
-          # ifresume=True \
+sleep infinity

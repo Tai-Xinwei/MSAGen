@@ -91,10 +91,11 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
+# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered'
 [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
 [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -107,7 +108,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit3B/global_step28464/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit100m/global_step3561/mp_rank_00_model_states.pt'
 # [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3B'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -137,25 +138,25 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 
 # material diffusion settings
-[ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=False
+[ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=True
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diff_init_lattice_size_factor}" ] && diff_init_lattice_size_factor=2.859496852322873
 [ -z "${periodic_lattice_diffusion_noise_std}" ] && periodic_lattice_diffusion_noise_std=0.5
-[ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=True
+[ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=False
 [ -z "${periodic_diffusion_noise_std_factor}" ] && periodic_diffusion_noise_std_factor=1.0531306506190654
-[ -z "${use_ddpm_for_material}" ] && use_ddpm_for_material=True
-··
+[ -z "${use_ddpm_for_material}" ] && use_ddpm_for_material=False
+
 [ -z "${use_graphormer_path_edge_feature}" ] && use_graphormer_path_edge_feature=False
 [ -z "${share_attention_bias}" ] && share_attention_bias=True
 [ -z "${separate_noise_head}" ] && separate_noise_head=True
 
-[ -z "${diffusion_sampling}" ] && diffusion_sampling="edm"
+[ -z "${diffusion_sampling}" ] && diffusion_sampling="dpm_edm"
 [ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm, protea
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
-[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-1
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-10
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
@@ -178,7 +179,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
+[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 
 [ -z "${psm_matbench_task_name}" ] && psm_matbench_task_name=matbench_dielectric

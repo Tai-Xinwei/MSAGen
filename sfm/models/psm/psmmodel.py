@@ -1435,7 +1435,7 @@ class PSMModel(Model):
                     t_hat = t_hat.masked_fill(clean_mask.unsqueeze(-1), 0.0064)
 
                     c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
-                    batched_data["edm_sigma"] = t_hat
+                    batched_data["sigma_edm"] = t_hat
                     batched_data["c_skip"] = c_skip
                     batched_data["c_out"] = c_out
                     batched_data["c_in"] = c_in
@@ -2350,6 +2350,7 @@ class PSM(nn.Module):
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
             init_pos_raw = batched_data["init_pos"]
+
             batched_data["init_pos"] = batched_data["init_pos"].clone()
             if self.psm_config.edm_x_init_treatment_from == "ve":
                 pass
@@ -2569,6 +2570,7 @@ class PSM(nn.Module):
                 if self.args.backbone in ["exp2", "exp3"]
                 else self.seq_encoder
             )
+
             encoder_output, x_pair = encoder(
                 token_embedding.transpose(0, 1),
                 padding_mask,

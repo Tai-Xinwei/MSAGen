@@ -2,13 +2,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-num_sampling_time=50
+num_sampling_time=10
 
 # MODEL_CONFIG=PSM1B_DIT
 # MODEL_CONFIG=PSM1B_exp3
 
 MODEL_CONFIG=PSM3B_exp3
-global_step=global_step160000
+global_step=global_step180000
 
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5s_decodernlm_cluster/checkpoints
 ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints
@@ -35,7 +35,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   val_batch_size=1 \
   val_batch_log_interval=1 \
   gradient_accumulation_steps=1 \
-  diffusion_sampling=dpm_edm \
+  diffusion_sampling=edm \
   num_timesteps_stepsize=-250 \
   num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
