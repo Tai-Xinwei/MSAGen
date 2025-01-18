@@ -80,7 +80,7 @@ jobs:
   - export complex_mode_prob='0.9,0.0,0.1,0.0'
 
   - export d_tilde=1.0
-  - export max_lr=4e-5
+  - export max_lr=6e-5
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=200000
@@ -97,11 +97,10 @@ jobs:
 
   - export data_path=/psm/data/
 
-  # - export data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb,20240630_PDB_Training_Data'
-  # - export dataset_name_list='esm,pdbcomplexmultimer'
-  # - export dataset_split_raito='0.5,0.5'
-  # # - export dataset_micro_batch_size='16,16,16,16'
-  # - export dataset_micro_batch_size='4,4'
+  # - export data_path_list='20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  # - export dataset_name_list='pdbcomplexmultimer' #,geom'
+  # - export dataset_split_raito='1.0' #,0.2'
+  # - export dataset_micro_batch_size='1'
 
   - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
   - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'

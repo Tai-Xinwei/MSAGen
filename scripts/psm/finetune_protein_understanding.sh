@@ -48,7 +48,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-6
+[ -z "${max_lr}" ] && max_lr=2e-6
 [ -z "${epochs}" ] && epochs=100
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=200
@@ -150,7 +150,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
 [ -z "${data_basepath}" ] && data_basepath='/fastdata/peiran/psm/bfm_benchmark'
-[ -z "${task_name}" ] && task_name='GeneOntology_mf' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc, stability
+[ -z "${task_name}" ] && task_name='GeneOntology_cc' # EnzymeCommission, GeneOntology_mf, GeneOntology_bp, GeneOntology_cc, stability
 [ -z "${save_dir}" ] && save_dir="/data/peiran/output/exp3_3b_prot_${task_name}" #_${train_batch_size}_lr${max_lr}"
 
 [ -z "${wandb_group}" ] && wandb_group="psm_finetune_${task_name}" #_${train_batch_size}_lr${max_lr}"
@@ -161,7 +161,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_key}" ] && wandb_key=local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385
 
 [ -z "${early_stopping}" ] && early_stopping=True
-[ -z "${early_stopping_patience}" ] && early_stopping_patience=10
+[ -z "${early_stopping_patience}" ] && early_stopping_patience=5
 [ -z "${early_stopping_metric}" ] && early_stopping_metric="f1_max"
 [ -z "${early_stopping_mode}" ] && early_stopping_mode="max"
 [ -z "${label_normalize}" ] && label_normalize=False
