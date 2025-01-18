@@ -363,7 +363,7 @@ class DiffMAE3dCriterions(nn.Module):
                 | model_output["protein_mask"].any(dim=-1).view(B, -1)
                 | atomic_numbers.eq(156).unsqueeze(-1).repeat(1, 1, 37).view(B, -1)
                 # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
-                | atomic_numbers.eq(2).unsqueeze(-1).repeat(1, 1, 37).view(B, -1),
+                # | atomic_numbers.eq(2).unsqueeze(-1).repeat(1, 1, 37).view(B, -1),
             )
         else:
             R, T = svd_superimpose(
@@ -373,7 +373,7 @@ class DiffMAE3dCriterions(nn.Module):
                 | model_output["protein_mask"].any(dim=-1)
                 | atomic_numbers.eq(156)
                 # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
-                | atomic_numbers.eq(2),
+                # | atomic_numbers.eq(2),
             )
         # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
         return R, T

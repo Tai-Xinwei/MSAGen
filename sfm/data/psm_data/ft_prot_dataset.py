@@ -602,6 +602,10 @@ def collate_fn_protein_downstream(
             item["chain_ids"] = torch.ones(
                 item["token_type"].shape[0], dtype=torch.long
             )
+        if "stress" not in item:
+            item["stress"] = torch.zeros([3, 3], dtype=torch.float32)
+        if "has_stress" not in item:
+            item["has_stress"] = torch.tensor([0], dtype=torch.bool)
 
     idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
     sample_type = torch.tensor([i["sample_type"] for i in items], dtype=torch.long)
@@ -613,6 +617,8 @@ def collate_fn_protein_downstream(
     has_energy = torch.cat([i["has_energy"] for i in items], dim=0)
     has_forces = torch.cat([i["has_forces"] for i in items], dim=0)
     energy_per_atom = torch.cat(energy_per_atom)
+    stress = torch.cat([pad_pos_unsqueeze(i["stress"], 3) for i in items])
+    has_stress = torch.cat([i["has_stress"] for i in items], dim=0)
 
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
     position_ids = torch.cat(
@@ -705,8 +711,10 @@ def collate_fn_protein_downstream(
         energy=energy,
         energy_per_atom=energy_per_atom,
         forces=forces,
+        stress=stress,
         has_energy=has_energy,
         has_forces=has_forces,
+        has_stress=has_stress,
         pos=pos,
         node_type_edge=node_type_edge,
         pbc=pbc,

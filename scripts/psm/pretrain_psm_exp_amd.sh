@@ -228,6 +228,7 @@ random_number=$((RANDOM))
 echo "Random number: ${random_number}"
 [ -z "${seed}" ] && seed=$random_number
 
+[ -z "${use_bond_loss}" ] && use_bond_loss=False
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
@@ -377,7 +378,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
           mm_tensorcore=$mm_tensorcore compile=$compile disable_data_aug=$disable_data_aug \
-          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
+          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy use_bond_loss=$use_bond_loss \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
           loadcheck_path=$loadcheck_path encoderfeat4noise=$encoderfeat4noise encoderfeat4mlm=$encoderfeat4mlm \

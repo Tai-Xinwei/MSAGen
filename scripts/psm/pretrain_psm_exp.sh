@@ -141,7 +141,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='esm'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
@@ -184,8 +184,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5/checkpoints/global_step30000/mp_rank_00_model_states.pt"
-# [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/output/dit300m/global_step16000/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints/global_step185000/mp_rank_00_model_states.pt'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
@@ -228,7 +227,10 @@ echo "Random number: ${random_number}"
 [ -z "${num_edges}" ] && num_edges=25600
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
 
+
+[ -z "${use_bond_loss}" ] && use_bond_loss=False
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
+[ -z "${sample_in_validation}" ] && sample_in_validation=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
@@ -350,6 +352,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           complex_mode_prob=\"$complex_mode_prob\" \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
+          sample_in_validation=$sample_in_validation \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
           gradient_accumulation_steps=$gradient_accumulation_steps \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
@@ -377,7 +380,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
           mm_tensorcore=$mm_tensorcore compile=$compile disable_data_aug=$disable_data_aug \
-          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
+          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy use_bond_loss=$use_bond_loss \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
           loadcheck_path=$loadcheck_path encoderfeat4noise=$encoderfeat4noise encoderfeat4mlm=$encoderfeat4mlm \

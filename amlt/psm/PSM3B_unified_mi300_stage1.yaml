@@ -169,6 +169,8 @@ jobs:
   - export supervise_autograd_stress=True
   - export stress_loss_factor=0.1
 
+  - export use_bond_loss=False
+
   - export separate_noise_head=True
   - export if_total_energy=False
 

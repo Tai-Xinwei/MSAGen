@@ -200,6 +200,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
+[ -z "${use_bond_loss}" ] && use_bond_loss=False
 
 [ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=True
@@ -378,6 +379,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           supervise_autograd_stress=$supervise_autograd_stress \
           stress_loss_factor=$stress_loss_factor \
           use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax \
+          use_bond_loss=$use_bond_loss \
           ifresume=True \
 
 sleep infinity
