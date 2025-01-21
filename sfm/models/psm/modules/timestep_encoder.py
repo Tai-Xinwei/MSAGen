@@ -403,6 +403,7 @@ class DiffNoiseEDM(nn.Module):
         self.P_std = psm_config.edm_P_std
         self.sigma_data = psm_config.edm_sigma_data
         self.S_max = psm_config.edm_sample_sigma_max
+        self.alphas_cumprod = None
 
         self.torch_generator = None
 

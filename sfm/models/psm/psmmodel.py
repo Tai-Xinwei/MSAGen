@@ -1566,7 +1566,7 @@ class PSMModel(Model):
 
         device = batched_data["pos"].device
 
-        n_graphs = batched_data["pos"].shape[0]
+        batched_data["pos"].shape[0]
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
@@ -1635,7 +1635,7 @@ class PSMModel(Model):
                 * (sigma_min**inv_rho - sigma_max**inv_rho)
             )
             ** rho
-            * torch.ones((n_graphs,), device=device)
+            # * torch.ones((n_graphs,), device=device)
         )  # shape is (B, )
 
         decoder_x_output = None
@@ -1657,11 +1657,11 @@ class PSMModel(Model):
                 t_prev = t_prev.masked_fill(clean_mask, 0.0064)
                 t_cur = t_cur.masked_fill(clean_mask, 0.0064)
 
-            # # # Data Augmentation
-            R = uniform_random_rotation(
-                x_cur.size(0), device=x_cur.device, dtype=x_cur.dtype
-            )
-            x_cur = torch.bmm(x_cur, R)
+            # # # # Data Augmentation
+            # R = uniform_random_rotation(
+            #     x_cur.size(0), device=x_cur.device, dtype=x_cur.dtype
+            # )
+            # x_cur = torch.bmm(x_cur, R)
 
             # Reshape sigma to (B, L, 1)
             t_prev = t_prev.unsqueeze(-1)
@@ -1679,7 +1679,7 @@ class PSMModel(Model):
             )
             x_noisy = x_cur + ksi
             c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
-            batched_data["edm_sigma"] = t_hat
+            batched_data["sigma_edm"] = t_hat
             batched_data["pos"] = x_noisy
             batched_data["c_skip"] = c_skip
             batched_data["c_out"] = c_out

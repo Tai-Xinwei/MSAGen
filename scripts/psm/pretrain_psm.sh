@@ -10,15 +10,15 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=seq-dit-geom
 
-# [ -z "${layers}" ] && layers=14
-# [ -z "${hidden_size}" ] && hidden_size=512
-# [ -z "${ffn_size}" ] && ffn_size=2048
-# [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
-# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
+[ -z "${layers}" ] && layers=14
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
+[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
 
 # [ -z "${layers}" ] && layers=14
 # [ -z "${hidden_size}" ] && hidden_size=1536
@@ -30,15 +30,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
 # [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
 
-[ -z "${layers}" ] && layers=16
-[ -z "${hidden_size}" ] && hidden_size=2048
-[ -z "${ffn_size}" ] && ffn_size=8192
-[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=20
-[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=8192
-[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=2048
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=8192
+# [ -z "${layers}" ] && layers=16
+# [ -z "${hidden_size}" ] && hidden_size=2048
+# [ -z "${ffn_size}" ] && ffn_size=8192
+# [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=20
+# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=8192
+# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=2048
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
+# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=8192
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -65,7 +65,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2500
@@ -91,15 +91,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
-
-[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
+
+# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered' # 'PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim' # 'pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
@@ -130,7 +130,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=1024
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${use_no_pre_cutoff_softmax}" ] && use_no_pre_cutoff_softmax=True
@@ -149,7 +149,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${share_attention_bias}" ] && share_attention_bias=True
 [ -z "${separate_noise_head}" ] && separate_noise_head=True
 
-[ -z "${diffusion_sampling}" ] && diffusion_sampling="edm"
+[ -z "${diffusion_sampling}" ] && diffusion_sampling=edm
 [ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm, protea
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
@@ -200,8 +200,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
-[ -z "${use_bond_loss}" ] && use_bond_loss=False
 
+[ -z "${use_bond_loss}" ] && use_bond_loss=False
 [ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=True
 [ -z "${supervise_autograd_stress}" ] && supervise_autograd_stress=True

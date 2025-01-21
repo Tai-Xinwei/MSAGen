@@ -80,7 +80,7 @@ jobs:
   - export complex_mode_prob='0.9,0.0,0.1,0.0'
 
   - export d_tilde=1.0
-  - export max_lr=6e-5
+  - export max_lr=4e-5
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=200000
@@ -92,7 +92,7 @@ jobs:
   - export max_residue_num=1536
   - export ligand_crop_size=20.0
   - export plddt_threshold=70.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=16
   - export log_interval=100
 
   - export data_path=/psm/data/

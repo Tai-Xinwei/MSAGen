@@ -70,7 +70,7 @@ add_rope: true
 rope_theta: 10000
 num_residues: 32
 max_num_aa: 1024
-num_structure_encoder_layer: 20
+num_structure_encoder_layer: 18
 encoder_pair_embed_dim: 64
 structure_ffn_dim: 8192
 structure_hidden_dim: 2048

@@ -95,7 +95,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
 [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -108,7 +108,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit100m/global_step3561/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit100m/global_step47480/mp_rank_00_model_states.pt'
 # [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3B'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -131,7 +131,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=1024
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${use_no_pre_cutoff_softmax}" ] && use_no_pre_cutoff_softmax=True
@@ -150,13 +150,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${share_attention_bias}" ] && share_attention_bias=True
 [ -z "${separate_noise_head}" ] && separate_noise_head=True
 
-[ -z "${diffusion_sampling}" ] && diffusion_sampling="dpm_edm"
+[ -z "${diffusion_sampling}" ] && diffusion_sampling=edm
 [ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm, protea
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
-[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-10
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-250
+[ -z "${edm_sigma_data}" ] && edm_sigma_data=2
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
@@ -167,7 +168,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=True
-[ -z "${sample_in_validation}" ] && sample_in_validation=False
+[ -z "${sample_in_validation}" ] && sample_in_validation=True
 [ -z "${num_sampling_time}" ] && num_sampling_time=1
 [ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
@@ -202,7 +203,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
 
-[ -z "${AutoGradForce}" ] && AutoGradForce=True
+[ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=True
 [ -z "${supervise_autograd_stress}" ] && supervise_autograd_stress=True
 [ -z "${stress_loss_factor}" ] && stress_loss_factor=0.1
@@ -379,4 +380,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           ifresume=True \
           supervise_autograd_stress=$supervise_autograd_stress \
           stress_loss_factor=$stress_loss_factor \
-          use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax
+          use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax \
+          edm_sigma_data=$edm_sigma_data \

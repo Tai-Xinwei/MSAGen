@@ -53,9 +53,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=200
 
-[ -z "${train_batch_size}" ] && train_batch_size=16
-[ -z "${val_batch_size}" ] && val_batch_size=16
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${train_batch_size}" ] && train_batch_size=8
+[ -z "${val_batch_size}" ] && val_batch_size=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000000
