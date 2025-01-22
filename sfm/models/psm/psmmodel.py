@@ -2346,6 +2346,7 @@ class PSM(nn.Module):
         ):
             # pos_noised_no_c_in = batched_data["pos"].clone()
             # batched_data["pos"] = pos * batched_data["c_in"]
+
             batched_data["pos"] = batched_data["pos"].clone() * batched_data["c_in"]
             # CL: update "cell" to match the scaled "pos"!
             # batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)

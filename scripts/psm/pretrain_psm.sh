@@ -10,25 +10,25 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=seq-dit-geom
 
-[ -z "${layers}" ] && layers=14
-[ -z "${hidden_size}" ] && hidden_size=512
-[ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
-[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
-
 # [ -z "${layers}" ] && layers=14
-# [ -z "${hidden_size}" ] && hidden_size=1536
-# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${hidden_size}" ] && hidden_size=512
+# [ -z "${ffn_size}" ] && ffn_size=2048
 # [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=6144
-# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
+# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
+
+[ -z "${layers}" ] && layers=14
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=6144
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
 
 # [ -z "${layers}" ] && layers=16
 # [ -z "${hidden_size}" ] && hidden_size=2048
@@ -65,7 +65,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2500
@@ -94,7 +94,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
 [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -109,7 +109,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit3B/global_step28464/mp_rank_00_model_states.pt'
 # [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit140m'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit1b'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
