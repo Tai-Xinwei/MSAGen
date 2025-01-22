@@ -6,7 +6,7 @@
 description: psm
 
 env_defaults:
-  NODES: 4
+  NODES: 16
   GPUS_PER_NODE: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -79,15 +79,15 @@ jobs:
   - export max_residue_num=384
   - export ligand_crop_size=20.0
 
-  # - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
-  # - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'
-  # - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
-  # - export dataset_micro_batch_size='16,16,16,16'
+  - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'
+  - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
+  - export dataset_micro_batch_size='16,16,16,16'
 
-  - export data_path_list='20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
-  - export dataset_name_list='pdbcomplexmultimer' #,geom'
-  - export dataset_split_raito='1.0' #,0.2'
-  - export dataset_micro_batch_size='16'
+  # - export data_path_list='20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  # - export dataset_name_list='pdbcomplexmultimer' #,geom'
+  # - export dataset_split_raito='1.0' #,0.2'
+  # - export dataset_micro_batch_size='16'
 
   - export save_batch_interval=2500
   - export train_batch_size=1024
@@ -170,7 +170,6 @@ jobs:
   - export stress_loss_factor=0.1
 
   - export use_bond_loss=False
-
   - export separate_noise_head=True
   - export if_total_energy=False
 

@@ -1884,7 +1884,8 @@ def complete_cell(pos, batched_data):
     scatter_index = torch.arange(8, device=device).unsqueeze(0).unsqueeze(-1).repeat(
         [n_graphs, 1, 3]
     ) + batched_data["num_atoms"][is_stable_periodic].unsqueeze(-1).unsqueeze(-1)
-    cell -= ((cell[:, 0, :] + cell[:, 7, :]) / 2.0).unsqueeze(1)
+
+    # cell -= ((cell[:, 0, :] + cell[:, 7, :]) / 2.0).unsqueeze(1)
     periodic_pos = periodic_pos.scatter(1, scatter_index, cell)
     pos[is_stable_periodic] = periodic_pos
 
@@ -2347,7 +2348,10 @@ class PSM(nn.Module):
             # batched_data["pos"] = pos * batched_data["c_in"]
             batched_data["pos"] = batched_data["pos"].clone() * batched_data["c_in"]
             # CL: update "cell" to match the scaled "pos"!
-            batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
+            # batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
+            batched_data["cell"] = (
+                batched_data["cell"] * batched_data["c_in"][:, 0][:, None]
+            )
 
             init_pos_raw = batched_data["init_pos"]
 
@@ -2419,6 +2423,9 @@ class PSM(nn.Module):
                 )
             else:
                 pbc_expand_batched = None
+
+            # print("expand", pbc_expand_batched["expand_pos"].shape)
+            # exit()
 
             if (
                 self.psm_config.node_type_edge_method

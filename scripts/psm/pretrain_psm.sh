@@ -109,7 +109,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit3B/global_step28464/mp_rank_00_model_states.pt'
 # [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit100m'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit140m'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false

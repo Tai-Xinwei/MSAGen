@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+from math import e
+
 import numpy as np
 import torch
+from regex import P
 
 from sfm.logging.loggers import logger
 
@@ -299,10 +302,10 @@ class CellExpander:
                 threshold_num_expanded_token = threshold_num_expanded_token[
                     need_threshold
                 ]
+
                 threshold_dist = torch.sort(
                     need_threshold_distances, dim=-1, descending=False
                 )[0]
-
                 threshold_dist = torch.gather(
                     threshold_dist, 1, threshold_num_expanded_token.unsqueeze(-1)
                 )

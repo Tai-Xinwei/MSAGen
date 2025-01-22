@@ -95,7 +95,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-new-split'
 [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -108,7 +108,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit100m/global_step47480/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit140m/global_step5000/mp_rank_00_model_states.pt'
 # [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3B'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -157,7 +157,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
 [ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-250
-[ -z "${edm_sigma_data}" ] && edm_sigma_data=2
+[ -z "${edm_sigma_data}" ] && edm_sigma_data=16
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
@@ -218,7 +218,7 @@ export MKL_THREADING_LAYER='GNU'
 
 random_number=$((RANDOM))
 echo "Random number: ${random_number}"
-[ -z "${seed}" ] && seed=$random_number
+[ -z "${seed}" ] && seed=12345
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -259,7 +259,7 @@ else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --master_port $MASTER_PORT"
+                      --master_port 12345"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
                       --nnodes $OMPI_COMM_WORLD_SIZE \

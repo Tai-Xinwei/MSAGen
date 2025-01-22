@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from re import X
 from typing import Dict, Optional
 
 import torch
