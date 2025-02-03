@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-from math import e
-
 import numpy as np
 import torch
-from regex import P
 
 from sfm.logging.loggers import logger
 
