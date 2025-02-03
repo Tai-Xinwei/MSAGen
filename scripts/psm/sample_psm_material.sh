@@ -10,25 +10,25 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=seq-dit-geom
 
-[ -z "${layers}" ] && layers=14
-[ -z "${hidden_size}" ] && hidden_size=512
-[ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
-[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
-
 # [ -z "${layers}" ] && layers=14
-# [ -z "${hidden_size}" ] && hidden_size=1536
-# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${hidden_size}" ] && hidden_size=512
+# [ -z "${ffn_size}" ] && ffn_size=2048
 # [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=6144
-# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
+# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
+
+[ -z "${layers}" ] && layers=14
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=6144
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
 
 # [ -z "${layers}" ] && layers=16
 # [ -z "${hidden_size}" ] && hidden_size=2048
@@ -108,15 +108,14 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit140m/global_step27500/mp_rank_00_model_states.pt'
-# [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit1b/global_step379381/mp_rank_00_model_states.pt'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3B'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=psm_dev_unify
+[ -z "${wandb_group}" ] && wandb_group=sample_psm_material
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
 [ -z "${wandb_project}" ] && wandb_project=local_test
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
@@ -129,9 +128,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
-[ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
-[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_cutoff}" ] && pbc_cutoff=100.0
+[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=1
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=2048
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${use_no_pre_cutoff_softmax}" ] && use_no_pre_cutoff_softmax=True
@@ -139,7 +138,7 @@ export MKL_THREADING_LAYER='GNU'
 
 # material diffusion settings
 [ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=True
-[ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
+[ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=1.0
 [ -z "${diff_init_lattice_size_factor}" ] && diff_init_lattice_size_factor=2.859496852322873
 [ -z "${periodic_lattice_diffusion_noise_std}" ] && periodic_lattice_diffusion_noise_std=0.5
 [ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=False
@@ -156,8 +155,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
-[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-250
-[ -z "${edm_sigma_data}" ] && edm_sigma_data=16
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-10
+[ -z "${edm_sigma_data}" ] && edm_sigma_data=4
+[ -z "${edm_sample_num_steps}" ] && edm_sample_num_steps=1000
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
@@ -170,7 +170,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=True
 [ -z "${sample_in_validation}" ] && sample_in_validation=True
 [ -z "${num_sampling_time}" ] && num_sampling_time=1
-[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
+[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="../sample_material_save_dir"
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=False
@@ -216,8 +216,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_autograd_force_for_relaxation_and_md}" ] && use_autograd_force_for_relaxation_and_md=True
 
 
-random_number=$((RANDOM))
-echo "Random number: ${random_number}"
 [ -z "${seed}" ] && seed=12345
 
 echo -e "\n\n"
@@ -382,3 +380,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           stress_loss_factor=$stress_loss_factor \
           use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax \
           edm_sigma_data=$edm_sigma_data \
+          edm_sample_num_steps=$edm_sample_num_steps \

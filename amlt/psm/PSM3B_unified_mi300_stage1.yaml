@@ -60,7 +60,7 @@ jobs:
   - export pbc_multigraph_cutoff=7.0
   - export pbc_use_local_attention=True
   - export use_no_pre_cutoff_softmax=True
-  - export align_x0_in_diffusion_loss=True
+  - export align_x0_in_diffusion_loss=False
   - export diffusion_training_loss=L2
 
   - export backbone=seq-dit-geom

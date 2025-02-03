@@ -7,13 +7,13 @@ num_sampling_time=10
 # MODEL_CONFIG=PSM1B_DIT
 # MODEL_CONFIG=PSM1B_exp3
 
-MODEL_CONFIG=PSM3B_exp3
-# MODEL_CONFIG=PSM3B_unify
+# MODEL_CONFIG=PSM3B_exp3
+MODEL_CONFIG=PSM3B_unify
 
-global_step=global_step45000
+global_step=global_step110000
 
-# ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
-ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_2/checkpoints
+ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_2/checkpoints
 
 # global_step=global_step500
 # ckpt_folder_path=/data/peiran/output/dit300m/
@@ -21,7 +21,9 @@ ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 
-DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 4 sfm/tasks/psm/pretrain_psm.py \
+master_port=6667
+
+DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 4 --master_port $master_port sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
   psm_validation_mode=true \
   sample_in_validation=true \

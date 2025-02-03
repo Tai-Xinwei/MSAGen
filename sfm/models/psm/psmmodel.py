@@ -297,6 +297,7 @@ class PSMModel(Model):
         ).repeat([n_periodic_graphs, 1, 1]) * lattice_size_factor - (
             lattice_size_factor / 2.0
         )  # centering
+
         scatter_index = torch.arange(8, device=ori_pos.device).unsqueeze(0).unsqueeze(
             -1
         ).repeat([n_periodic_graphs, 1, 3]) + batched_data["num_atoms"][
@@ -707,6 +708,18 @@ class PSMModel(Model):
         diff_loss_mask[
             stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 4
         ] = True
+        diff_loss_mask[
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 3
+        ] = True
+        diff_loss_mask[
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 5
+        ] = True
+        diff_loss_mask[
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 6
+        ] = True
+        diff_loss_mask[
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 7
+        ] = True
         batched_data["diff_loss_mask"] = diff_loss_mask
 
     def _set_noise(
@@ -928,19 +941,23 @@ class PSMModel(Model):
     def sample_and_calc_match_metric(self, batched_data):
         match_results = {}
         self.net.eval()
-        # sampled_paths = [
-        #     os.path.join(
-        #         self.psm_config.sampled_structure_output_path, f"{_k}-{_+1}.pdb"
-        #     )
-        #     for _k in batched_data["key"]
-        #     for _ in range(self.psm_config.num_sampling_time)
-        # ]
-        # if all(os.path.exists(_) for _ in sampled_paths):
-        #     logger.warning("Structures already predicted, skip %s", batched_data["key"])
-        #     return {}
 
         self._create_protein_mask(batched_data)
         self._create_system_tags(batched_data)
+
+        if batched_data["is_protein"].any():
+            sampled_paths = [
+                os.path.join(
+                    self.psm_config.sampled_structure_output_path, f"{_k}-{_+1}.pdb"
+                )
+                for _k in batched_data["key"]
+                for _ in range(self.psm_config.num_sampling_time)
+            ]
+            if all(os.path.exists(_) for _ in sampled_paths):
+                logger.warning(
+                    "Structures already predicted, skip %s", batched_data["key"]
+                )
+                return {}
 
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
@@ -1658,10 +1675,11 @@ class PSMModel(Model):
                 t_cur = t_cur.masked_fill(clean_mask, 0.0064)
 
             # # # # Data Augmentation
-            # R = uniform_random_rotation(
-            #     x_cur.size(0), device=x_cur.device, dtype=x_cur.dtype
-            # )
-            # x_cur = torch.bmm(x_cur, R)
+            if not batched_data["is_periodic"].any():
+                R = uniform_random_rotation(
+                    x_cur.size(0), device=x_cur.device, dtype=x_cur.dtype
+                )
+                x_cur = torch.bmm(x_cur, R)
 
             # Reshape sigma to (B, L, 1)
             t_prev = t_prev.unsqueeze(-1)
@@ -1715,6 +1733,7 @@ class PSMModel(Model):
             batched_data["pos"] = batched_data["pos"].detach()
 
         pred_pos = batched_data["pos"].clone()
+
         if (
             self.psm_config.psm_finetune_mode
             and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"
@@ -2372,7 +2391,7 @@ class PSM(nn.Module):
                 raise ValueError(
                     f"unknown `edm_x_init_treatment_from` '{self.psm_config.edm_x_init_treatment_from}'"
                 )
-            batched_data["init_pos"] = batched_data["init_pos"] * batched_data["c_in"]
+            # batched_data["init_pos"] = batched_data["init_pos"] * batched_data["c_in"]
 
         n_graphs, n_nodes = pos_raw.size()[:2]
         is_periodic = batched_data["is_periodic"]
@@ -2424,9 +2443,6 @@ class PSM(nn.Module):
                 )
             else:
                 pbc_expand_batched = None
-
-            # print("expand", pbc_expand_batched["expand_pos"].shape)
-            # exit()
 
             if (
                 self.psm_config.node_type_edge_method

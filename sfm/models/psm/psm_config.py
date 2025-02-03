@@ -218,7 +218,7 @@ class PSMConfig(GraphormerConfig):
     ratio_clip: float = 1e-4
 
     # EDM
-    edm_P_mean: float = -1.2
+    edm_P_mean: float = -2.2
     edm_P_std: float = 1.5
     edm_sigma_data: float = 16.0
     edm_sample_num_steps: int = 200

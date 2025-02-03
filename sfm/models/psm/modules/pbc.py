@@ -262,8 +262,10 @@ class CellExpander:
                 expand_mask, atoms.eq(0).unsqueeze(-1), False
             )
             expand_mask = torch.sum(expand_mask, dim=1) > 0
+
             if not use_local_attention:
                 expand_mask = expand_mask & (~all_conflict_mask)
+
             expand_mask = expand_mask & (
                 ~(atoms.eq(0).repeat(1, num_expanded_cell))
             )  # B x (num_expand_cell x T)

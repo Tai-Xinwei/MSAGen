@@ -68,7 +68,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2500
+[ -z "${save_batch_interval}" ] && save_batch_interval=1000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=30000
@@ -107,7 +107,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit3B/global_step28464/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit1b/global_step136192/mp_rank_00_model_states.pt'
 # [ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20241205-1545'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit1b'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -128,9 +128,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
-[ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
-[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_cutoff}" ] && pbc_cutoff=100.0
+[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=1
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=2048
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${use_no_pre_cutoff_softmax}" ] && use_no_pre_cutoff_softmax=True
@@ -138,7 +138,7 @@ export MKL_THREADING_LAYER='GNU'
 
 # material diffusion settings
 [ -z "${use_fixed_init_lattice_size}" ] && use_fixed_init_lattice_size=True
-[ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
+[ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=1.0
 [ -z "${diff_init_lattice_size_factor}" ] && diff_init_lattice_size_factor=2.859496852322873
 [ -z "${periodic_lattice_diffusion_noise_std}" ] && periodic_lattice_diffusion_noise_std=0.5
 [ -z "${use_adaptive_noise_std_for_periodic}" ] && use_adaptive_noise_std_for_periodic=False
@@ -156,6 +156,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
 [ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-1
+[ -z "${edm_sigma_data}" ] && edm_sigma_data=16
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
@@ -381,5 +382,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax \
           use_bond_loss=$use_bond_loss \
           ifresume=True \
+          # edm_sigma_data=$edm_sigma_data \
 
 sleep infinity

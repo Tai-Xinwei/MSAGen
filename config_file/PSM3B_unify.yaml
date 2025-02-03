@@ -213,7 +213,7 @@ relax_lower_deformation: 0
 relax_upper_deformation: 0
 relax_deformation_step: 5
 relax_fmax: 0.01
-seed: 31682
+seed: 6667
 total_num_steps: 400000
 total_num_epochs: 1000
 max_tokens: 2048

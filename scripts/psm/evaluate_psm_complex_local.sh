@@ -6,15 +6,15 @@ CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/complex/$global_step/prediction
 MODEL_CONFIG=PSM3B_exp3
 NUM_SAMPLING_TIME=50
-GLOBAL_STEP=global_step160000
+GLOBAL_STEP=global_step70000
 DATA_PATH=/fastdata/peiran/psm
-WORK_PATH=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints
+WORK_PATH=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_2/checkpoints
 CKPT_PATH=$WORK_PATH/$GLOBAL_STEP/mp_rank_00_model_states.pt
 SMPL_PATH=$WORK_PATH/$GLOBAL_STEP/posebusters
 
 master_port=6667
 
-DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_psm.py \
+DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
   psm_validation_mode=true \
   sample_in_validation=true \

@@ -2,8 +2,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from json import decoder
-
 import torch
 import torch.nn as nn
 
@@ -255,6 +253,7 @@ class DiffMAE3dCriterions(nn.Module):
         molecule_loss_factor=1.0,
         periodic_loss_factor=1.0,
         is_protein=None,
+        is_virtual_node=None,
     ):
         if len(sample_mask.shape) == (len(token_mask.shape) - 1):
             sample_mask = sample_mask & token_mask.any(dim=-1)
@@ -303,6 +302,11 @@ class DiffMAE3dCriterions(nn.Module):
                         force_or_noise_loss[~is_protein] * 4
                     )
 
+                if is_virtual_node is not None:
+                    force_or_noise_loss[is_virtual_node] = (
+                        force_or_noise_loss[is_virtual_node] * 0.5
+                    )
+
                 force_or_noise_loss = torch.sum(
                     force_or_noise_loss[sample_mask], dim=[0, 1]
                 ) / (3.0 * torch.sum(token_mask[sample_mask], dim=-1))
@@ -312,6 +316,12 @@ class DiffMAE3dCriterions(nn.Module):
                     force_or_noise_loss[~is_protein.unsqueeze(-1)] = (
                         force_or_noise_loss[~is_protein.unsqueeze(-1)] * 4
                     )
+
+                if is_virtual_node is not None:
+                    force_or_noise_loss[is_virtual_node.unsqueeze(-1)] = (
+                        force_or_noise_loss[is_virtual_node.unsqueeze(-1)] * 0.5
+                    )
+
                 force_or_noise_loss = torch.sum(
                     force_or_noise_loss[sample_mask], dim=[0, 1]
                 ) / (3.0 * torch.sum(sample_mask))
@@ -622,6 +632,7 @@ class DiffMAE3dCriterions(nn.Module):
         total_energy_label = batched_data["energy"]
         atomic_numbers = batched_data["token_id"]
         adj = batched_data["adj"]
+        batched_data["num_atoms"]
 
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
@@ -652,6 +663,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_periodic = model_output["is_periodic"]
         is_complex = model_output["is_complex"]
         is_seq_only = model_output["is_seq_only"]
+        is_virtual_node = atomic_numbers.eq(129)
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
         sqrt_one_minus_alphas_cumprod_t = model_output[
@@ -819,6 +831,13 @@ class DiffMAE3dCriterions(nn.Module):
                         #         device=noise_pred.device,
                         #         dtype=noise_pred.dtype,
                         #     )
+                    # elif is_periodic.any():
+                    #     R = torch.eye(
+                    #             3, device=noise_pred.device, dtype=noise_pred.dtype
+                    #         ).unsqueeze(0).repeat(n_graphs, 1, 1)
+
+                    #     corner_index = num_atoms.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, 3)
+                    #     T = torch.gather(noise_pred, 1, index=corner_index) - torch.gather(pos_label, 1, index=corner_index)
                     else:
                         R, T = torch.eye(
                             3, device=noise_pred.device, dtype=noise_pred.dtype
@@ -918,6 +937,8 @@ class DiffMAE3dCriterions(nn.Module):
                             pos_label = torch.einsum(
                                 "bij,blj->bli", R.to(pos_label.dtype), pos_label
                             ) + T.to(pos_label.dtype)
+                    # elif is_periodic.any():
+                    #     pos_label = pos_label + T.to(pos_label.dtype)
 
                     if weight_pos_edm is not None:
                         if self.args.diffusion_training_loss in [
@@ -1072,6 +1093,7 @@ class DiffMAE3dCriterions(nn.Module):
                         is_periodic,
                         1.0,
                         1.0,
+                        is_virtual_node=is_virtual_node,
                     )
                     (
                         protein_noise_loss,
