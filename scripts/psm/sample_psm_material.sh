@@ -10,25 +10,25 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=seq-dit-geom
 
-# [ -z "${layers}" ] && layers=14
-# [ -z "${hidden_size}" ] && hidden_size=512
-# [ -z "${ffn_size}" ] && ffn_size=2048
-# [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
-# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
-
 [ -z "${layers}" ] && layers=14
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
 [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
-[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=6144
-[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+[ -z "${structure_ffn_dim}" ] && structure_ffn_dim=2048
+[ -z "${structure_hidden_dim}" ] && structure_hidden_dim=512
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=512
+
+# [ -z "${layers}" ] && layers=14
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_structure_encoder_layer}" ] && num_structure_encoder_layer=12
+# [ -z "${structure_ffn_dim}" ] && structure_ffn_dim=6144
+# [ -z "${structure_hidden_dim}" ] && structure_hidden_dim=1536
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+# [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1536
 
 # [ -z "${layers}" ] && layers=16
 # [ -z "${hidden_size}" ] && hidden_size=2048
@@ -108,7 +108,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16" # "8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit1b/global_step379381/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit100m/global_step26103/mp_rank_00_model_states.pt'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3B'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -157,7 +157,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
 [ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-10
 [ -z "${edm_sigma_data}" ] && edm_sigma_data=4
-[ -z "${edm_sample_num_steps}" ] && edm_sample_num_steps=1000
+[ -z "${edm_sample_num_steps}" ] && edm_sample_num_steps=200
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True

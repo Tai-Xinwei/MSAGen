@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from PSM.sfm.models.psm.modules import pbc
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
@@ -2526,6 +2527,19 @@ class PSM(nn.Module):
                     pbc_expand_batched=pbc_expand_batched,
                 )
 
+        # batched_data["pos"] = pbc_expand_batched["expand_pos"]
+        # expand_mask = pbc_expand_batched["expand_mask"]
+        # padding_mask = torch.cat([padding_mask, expand_mask], dim=1)
+        # outcell_index = pbc_expand_batched["outcell_index"]
+
+        # H = token_embedding.shape[-1]
+        # outcell_index = outcell_index.unsqueeze(-1).expand(-1, -1, H)
+        # expand_token_embedding = torch.gather(token_embedding, dim=1, index=outcell_index)
+
+        # token_embedding = torch.cat([token_embedding, expand_token_embedding], dim=1)  # [L_expand, B,]
+
+        # pbc_expand_batched = None
+
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
@@ -3034,6 +3048,16 @@ class PSM(nn.Module):
             result_dict.update({"autograd_forces": autograd_forces})
         if autograd_stress is not None:
             result_dict.update({"autograd_stress": autograd_stress})
+        if pbc_expand_batched is not None:
+            result_dict.update(
+                {
+                    "expand_pos": pbc_expand_batched["expand_pos"],
+                    "expand_mask": torch.cat(
+                        [padding_mask, pbc_expand_batched["expand_mask"]], dim=1
+                    ),
+                    "outcell_index": pbc_expand_batched["outcell_index"],
+                }
+            )
 
         if "one_hot_token_id" in batched_data:
             result_dict["one_hot_token_id"] = batched_data["one_hot_token_id"]

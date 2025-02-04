@@ -7,13 +7,13 @@ num_sampling_time=10
 # MODEL_CONFIG=PSM1B_DIT
 # MODEL_CONFIG=PSM1B_exp3
 
-# MODEL_CONFIG=PSM3B_exp3
-MODEL_CONFIG=PSM3B_unify
+MODEL_CONFIG=PSM3B_exp3
+# MODEL_CONFIG=PSM3B_unify
 
-global_step=global_step110000
+global_step=global_step2500
 
-ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_2/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
+ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_3/checkpoints
 
 # global_step=global_step500
 # ckpt_folder_path=/data/peiran/output/dit300m/

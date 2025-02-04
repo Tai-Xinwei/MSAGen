@@ -4,6 +4,7 @@
 
 import torch
 import torch.nn as nn
+from pyexpat import model
 
 from sfm.logging import logger
 from sfm.models.psm.psm_config import (
@@ -586,6 +587,71 @@ class DiffMAE3dCriterions(nn.Module):
             num_contact_losss,
         )
 
+    def atom_dist_loss(self, model_output, atomic_numbers, adj):
+        pos_label = model_output["ori_pos"].float() * self.diffusion_rescale_coeff
+        outcell_index = (
+            model_output["outcell_index"] if "outcell_index" in model_output else None
+        )
+
+        if outcell_index is not None:
+            expand_mask = model_output["expand_mask"]
+            pair_filter_mask = ~(
+                model_output["padding_mask"].unsqueeze(2) | expand_mask.unsqueeze(1)
+            )
+            is_virtual_node = atomic_numbers.eq(129)
+            expand_is_virtual_node = torch.gather(
+                is_virtual_node, dim=1, index=outcell_index
+            )
+            expand_is_virtual_node = torch.cat(
+                [is_virtual_node, expand_is_virtual_node], dim=1
+            )
+            pair_filter_mask = pair_filter_mask & (
+                (is_virtual_node.unsqueeze(2)) | (expand_is_virtual_node.unsqueeze(1))
+            )
+            pair_filter_mask[:, : pos_label.size(1), : pos_label.size(1)] = False
+
+            outcell_index = outcell_index.unsqueeze(-1).repeat(1, 1, 3)
+            expand_pos_label = torch.gather(pos_label, dim=1, index=outcell_index)
+            expand_pos_label = torch.cat([pos_label, expand_pos_label], dim=1)
+            delta_pos_label = (
+                pos_label.unsqueeze(2) - expand_pos_label.unsqueeze(1)
+            ).norm(dim=-1)
+
+            # # get mask of top k nearest atoms
+            # _, topk_index = torch.topk(delta_pos_label, 8, dim=-1, largest=False)
+            # topk_pos_mask = torch.zeros_like(delta_pos_label, dtype=torch.bool)
+            # topk_pos_mask.scatter_(dim=-1, index=topk_index, value=True)
+
+            # pair_filter_mask = pair_filter_mask & (delta_pos_label < 7) & topk_pos_mask
+        else:
+            filter_mask = ~(
+                model_output["padding_mask"]
+                | model_output["protein_mask"].any(dim=-1)
+                | model_output["is_protein"]
+                | atomic_numbers.eq(156)
+            )
+
+            pair_filter_mask = (
+                filter_mask.unsqueeze(1) & filter_mask.unsqueeze(2)
+            ) & adj
+            delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(
+                dim=-1
+            )
+
+        dist_map = model_output["dist_map"] if "dist_map" in model_output else None
+
+        if dist_map is not None and pair_filter_mask.any():
+            delta = dist_map.squeeze(-1) - delta_pos_label
+            atom_contact_loss = torch.abs(delta[pair_filter_mask]).mean()
+            num_atom_contact_losss = 1
+        else:
+            atom_contact_loss = torch.tensor(
+                0.0, device=pos_label.device, requires_grad=True
+            )
+            num_atom_contact_losss = 0
+
+        return atom_contact_loss, num_atom_contact_losss
+
     def _rescale_autograd_force(
         self,
         force_pred,
@@ -632,7 +698,7 @@ class DiffMAE3dCriterions(nn.Module):
         total_energy_label = batched_data["energy"]
         atomic_numbers = batched_data["token_id"]
         adj = batched_data["adj"]
-        batched_data["num_atoms"]
+        # num_atoms = batched_data["num_atoms"]
 
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
@@ -663,7 +729,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_periodic = model_output["is_periodic"]
         is_complex = model_output["is_complex"]
         is_seq_only = model_output["is_seq_only"]
-        is_virtual_node = atomic_numbers.eq(129)
+        # is_virtual_node = atomic_numbers.eq(129)
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
         sqrt_one_minus_alphas_cumprod_t = model_output[
@@ -863,6 +929,17 @@ class DiffMAE3dCriterions(nn.Module):
                             hard_dist_loss = torch.tensor(
                                 0.0, device=smooth_lddt_loss.device, requires_grad=True
                             )
+
+                        if is_complex.any():
+                            (
+                                atom_contact_loss,
+                                num_atom_contact_losss,
+                            ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
+                        else:
+                            atom_contact_loss = torch.tensor(
+                                0.0, device=noise_label.device, requires_grad=True
+                            )
+                            num_atom_contact_losss = 0
                     else:
                         smooth_lddt_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
@@ -880,6 +957,16 @@ class DiffMAE3dCriterions(nn.Module):
                         num_inter_dist_loss = 0
                         num_contact_losss = 0
 
+                        if not is_periodic.any():
+                            (
+                                atom_contact_loss,
+                                num_atom_contact_losss,
+                            ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
+                        else:
+                            atom_contact_loss = torch.tensor(
+                                0.0, device=noise_label.device, requires_grad=True
+                            )
+                            num_atom_contact_losss = 0
                     if (
                         is_molecule.any()
                         or (
@@ -1093,7 +1180,7 @@ class DiffMAE3dCriterions(nn.Module):
                         is_periodic,
                         1.0,
                         1.0,
-                        is_virtual_node=is_virtual_node,
+                        # is_virtual_node=is_virtual_node,
                     )
                     (
                         protein_noise_loss,
@@ -1491,6 +1578,17 @@ class DiffMAE3dCriterions(nn.Module):
             else:
                 loss = loss + contact_loss
 
+            if torch.any(torch.isnan(atom_contact_loss)) or torch.any(
+                torch.isinf(atom_contact_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in atom_contact_loss: {atom_contact_loss}"
+                )
+                atom_contact_loss = torch.tensor(
+                    0.0, device=atom_contact_loss.device, requires_grad=True
+                )
+                num_aa_mask_token = 0
+
             if torch.any(torch.isnan(periodic_energy_loss)) or torch.any(
                 torch.isinf(periodic_energy_loss)
             ):
@@ -1699,6 +1797,10 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "decoder_aa_acc": (float(decoder_aa_acc), int(num_decoder_aa_mask_token)),
             "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
+            "atom_contact_loss": (
+                float(atom_contact_loss.detach()),
+                int(num_atom_contact_losss),
+            ),
             "bond_loss": (float(bond_loss), int(num_bond_loss)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
             "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),

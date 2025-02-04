@@ -410,6 +410,14 @@ class DiffNoiseEDM(nn.Module):
     def _noise_lattice_vectors(self, pos, non_atom_mask, noise, is_stable_periodic):
         n_graphs = pos[is_stable_periodic].size()[0]
         device = pos.device
+
+        # if self.psm_config.use_fixed_init_lattice_size:
+        #     lattice_corner_noise_scale = self.unit_noise_scale
+        # else:
+        #     lattice_corner_noise_scale = (
+        #         self.psm_config.periodic_lattice_diffusion_noise_std
+        #     )
+
         lattice_corner_noise = (
             torch.randn(
                 [n_graphs, 8, 3],

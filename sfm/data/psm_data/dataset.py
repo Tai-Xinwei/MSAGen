@@ -2267,8 +2267,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.rmfarligfull.lmdb"
         # version = "20240630_snapshot.20241014_dc38f92a.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
-        # version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
-        version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.lmdb"
+        version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.remove_hydrogens.lmdb"
+        # version = "20240630_snapshot.20241105_dc38f92a.release_date_before_20210101.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.lmdb"
         testflag = "ComplexTest"
 
         self.crop_radius = args.crop_radius
@@ -2501,6 +2501,9 @@ class PDBComplexDataset(AFDBLMDBDataset):
         coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float64)
         position_ids = torch.tensor(position_ids, dtype=torch.int32)
         chain_ids = torch.tensor(chain_ids, dtype=torch.int32)
+
+        # H atom coords in complex is not accurate, set all to nan
+        coords[x == 1] = torch.nan
 
         data = {
             "token_type": x,

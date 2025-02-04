@@ -192,9 +192,7 @@ class MultiheadAttention(nn.Module):
 
         if outcell_index is not None:
             if position_ids is not None:
-                expand_position_ids = torch.gather(
-                    position_ids, dim=1, index=outcell_index
-                )
+                torch.gather(position_ids, dim=1, index=outcell_index)
 
             outcell_index = (
                 outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
@@ -205,12 +203,12 @@ class MultiheadAttention(nn.Module):
             k = torch.cat([k, expand_k], dim=0)  # [L_expand, B,]
             v = torch.cat([v, expand_v], dim=0)
             if position_ids is not None:
-                #     position_ids = (
-                #         torch.arange(k.shape[0], device=k.device, dtype=k.dtype)
-                #         .unsqueeze(0)
-                #         .repeat(v.shape[1], 1)
-                #     )
-                position_ids = torch.cat([position_ids, expand_position_ids], dim=1)
+                position_ids = (
+                    torch.arange(k.shape[0], device=k.device, dtype=k.dtype)
+                    .unsqueeze(0)
+                    .repeat(v.shape[1], 1)
+                )
+            # position_ids = torch.cat([position_ids, expand_position_ids], dim=1)
 
             src_len = k.size()[0]
 
