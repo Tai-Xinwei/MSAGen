@@ -75,9 +75,11 @@ jobs:
   - export act_dropout=0.1
   - export weight_decay=0.0
   - export droppath_prob=0.0
-  - export mask_ratio=0.15
-  - export mode_prob='0.1,0.9,0.0'
-  - export complex_mode_prob='0.9,0.0,0.1,0.0'
+  - export mask_ratio=0.0
+  # - export mode_prob='0.1,0.9,0.0'
+  # - export complex_mode_prob='0.9,0.0,0.1,0.0'
+  - export mode_prob='0.0,1.0,0.0'
+  - export complex_mode_prob='1.0,0.0,0.0,0.0'
 
   - export d_tilde=1.0
   - export max_lr=1e-4
@@ -92,22 +94,16 @@ jobs:
   - export max_residue_num=384
   - export ligand_crop_size=20.0
   - export plddt_threshold=70.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=16
   - export log_interval=100
 
   - export data_path=/psm/data/
 
-  # - export data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb,geom_drugs_full.lmdb,20240630_PDB_Training_Data'
-  # - export dataset_name_list='esm,geom,pdbcomplexmultimer'
-  # - export dataset_split_raito='0.5,0.3,0.2'
-  # # - export dataset_micro_batch_size='16,16,16,16'
-  # - export dataset_micro_batch_size='4,32,4'
-
   - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
   - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'
-  - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
-  # - export dataset_micro_batch_size='16,16,16,16'
+  - export dataset_split_raito='0.2,0.3,0.3,0.2' #,0.2'
   - export dataset_micro_batch_size='4,4,4,4'
+  # - export dataset_micro_batch_size='4,4,4,1'
 
   - export fp16=False
   - export clean_sample_ratio=0.0
@@ -129,6 +125,7 @@ jobs:
   - export decoder_feat4energy=False
   - export encoderfeat4noise=False
   - export encoderfeat4mlm=True
+  - export use_bond_loss=False
   - export only_use_rotary_embedding_for_protein=True
   - export use_memory_efficient_attention=False
   - export if_total_energy=False

@@ -11,7 +11,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from PSM.sfm.models.psm.modules import pbc
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger

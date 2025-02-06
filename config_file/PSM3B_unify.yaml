@@ -92,7 +92,7 @@ diff_init_lattice_size_factor: 2.859496852322873
 diff_init_lattice_size: 10.0
 use_fixed_init_lattice_size: false
 add_unit_cell_virtual_node: false
-use_ddpm_for_material: true
+use_ddpm_for_material: false
 crop_radius: 50.0
 ligand_crop_size: 20.0
 max_residue_num: 384
