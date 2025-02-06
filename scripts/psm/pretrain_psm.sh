@@ -382,6 +382,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_no_pre_cutoff_softmax=$use_no_pre_cutoff_softmax \
           use_bond_loss=$use_bond_loss \
           edm_sigma_data=$edm_sigma_data \
-          ifresume=True \
+          # ifresume=True \
 
 sleep infinity
