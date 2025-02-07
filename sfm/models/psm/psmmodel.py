@@ -1395,14 +1395,21 @@ class PSMModel(Model):
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        if self.args.backbone in ["dit", "ditp", "exp", "exp2", "exp3"]:
+        if self.args.backbone in [
+            "dit",
+            "ditp",
+            "exp",
+            "exp2",
+            "exp3",
+        ]:  # , "seq-dit-geom"]:
             if_recenter = False
         else:
             if_recenter = True
 
         if if_recenter:
             batched_data["pos"] = center_pos(
-                batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                batched_data,
+                padding_mask=padding_mask,  # clean_mask=clean_mask
             )  # centering to remove noise translation
 
         decoder_x_output = None
@@ -1517,7 +1524,8 @@ class PSMModel(Model):
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             if if_recenter:
                 batched_data["pos"] = center_pos(
-                    batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                    batched_data,
+                    padding_mask=padding_mask,  # clean_mask=clean_mask
                 )  # centering to remove noise translation
 
             batched_data["pos"] = batched_data["pos"].detach()

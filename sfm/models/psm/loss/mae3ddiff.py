@@ -643,14 +643,14 @@ class DiffMAE3dCriterions(nn.Module):
         if dist_map is not None and pair_filter_mask.any():
             delta = dist_map.squeeze(-1) - delta_pos_label
             atom_contact_loss = torch.abs(delta[pair_filter_mask]).mean()
-            num_atom_contact_losss = 1
+            num_atom_contact_loss = 1
         else:
             atom_contact_loss = torch.tensor(
                 0.0, device=pos_label.device, requires_grad=True
             )
-            num_atom_contact_losss = 0
+            num_atom_contact_loss = 0
 
-        return atom_contact_loss, num_atom_contact_losss
+        return atom_contact_loss, num_atom_contact_loss
 
     def _rescale_autograd_force(
         self,
@@ -930,16 +930,16 @@ class DiffMAE3dCriterions(nn.Module):
                                 0.0, device=smooth_lddt_loss.device, requires_grad=True
                             )
 
-                        if is_complex.any():
-                            (
-                                atom_contact_loss,
-                                num_atom_contact_losss,
-                            ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
-                        else:
-                            atom_contact_loss = torch.tensor(
-                                0.0, device=noise_label.device, requires_grad=True
-                            )
-                            num_atom_contact_losss = 0
+                        # if is_complex.any():
+                        #     (
+                        #         atom_contact_loss,
+                        #         num_atom_contact_loss,
+                        #     ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
+                        # else:
+                        atom_contact_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        num_atom_contact_loss = 0
                     else:
                         smooth_lddt_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
@@ -957,16 +957,16 @@ class DiffMAE3dCriterions(nn.Module):
                         num_inter_dist_loss = 0
                         num_contact_losss = 0
 
-                        if not is_periodic.any():
-                            (
-                                atom_contact_loss,
-                                num_atom_contact_losss,
-                            ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
-                        else:
-                            atom_contact_loss = torch.tensor(
-                                0.0, device=noise_label.device, requires_grad=True
-                            )
-                            num_atom_contact_losss = 0
+                        # if not is_periodic.any():
+                        #     (
+                        #         atom_contact_loss,
+                        #         num_atom_contact_loss,
+                        #     ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
+                        # else:
+                        atom_contact_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        num_atom_contact_loss = 0
                     if (
                         is_molecule.any()
                         or (
@@ -1799,7 +1799,7 @@ class DiffMAE3dCriterions(nn.Module):
             "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
             "atom_contact_loss": (
                 float(atom_contact_loss.detach()),
-                int(num_atom_contact_losss),
+                int(num_atom_contact_loss),
             ),
             "bond_loss": (float(bond_loss), int(num_bond_loss)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
