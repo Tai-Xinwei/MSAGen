@@ -6,6 +6,7 @@
 
 import os
 from contextlib import nullcontext
+from typing import Optional
 
 import numpy as np
 import torch
@@ -1283,13 +1284,14 @@ class PSMModel(Model):
             result_dict.update(match_results)
 
         if self.psm_finetune_head:
-            result_dict = self.psm_finetune_head(result_dict)
             if self.psm_config.psm_sample_structure_in_finetune:
                 self.eval()
                 sampled_output = self.sample(batched_data)
                 for k, v in sampled_output.items():
                     result_dict[k + "_sample"] = v
                 self.train()
+
+            result_dict = self.psm_finetune_head(result_dict)
 
         return result_dict
 
@@ -1312,7 +1314,7 @@ class PSMModel(Model):
             )
         return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
 
-    def config_optimizer(self, model: nn.Module = None):
+    def config_optimizer(self, model: Optional[nn.Module]):
         """
         Return the optimizer and learning rate scheduler for this model.
 
@@ -1539,7 +1541,7 @@ class PSMModel(Model):
             self.psm_config.psm_finetune_mode
             and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"
         ):
-            logger.info("Running PerResidueLDDTCaPredictor")
+            # logger.info("Running PerResidueLDDTCaPredictor")
             plddt = self.psm_finetune_head(
                 {
                     "decoder_x_output": decoder_x_output,
