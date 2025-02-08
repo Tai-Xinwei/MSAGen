@@ -708,18 +708,18 @@ class PSMModel(Model):
         diff_loss_mask[
             stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 4
         ] = True
-        diff_loss_mask[
-            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 3
-        ] = True
-        diff_loss_mask[
-            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 5
-        ] = True
-        diff_loss_mask[
-            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 6
-        ] = True
-        diff_loss_mask[
-            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 7
-        ] = True
+        # diff_loss_mask[
+        #     stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 3
+        # ] = True
+        # diff_loss_mask[
+        #     stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 5
+        # ] = True
+        # diff_loss_mask[
+        #     stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 6
+        # ] = True
+        # diff_loss_mask[
+        #     stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 7
+        # ] = True
         batched_data["diff_loss_mask"] = diff_loss_mask
 
     def _set_noise(

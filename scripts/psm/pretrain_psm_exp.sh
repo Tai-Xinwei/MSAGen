@@ -8,6 +8,13 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=exp3
 
+# [ -z "${layers}" ] && layers=36
+# [ -z "${hidden_size}" ] && hidden_size=3072
+# [ -z "${ffn_size}" ] && ffn_size=12288
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=32
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=3072
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=12288
+
 [ -z "${layers}" ] && layers=32
 [ -z "${hidden_size}" ] && hidden_size=2048
 [ -z "${ffn_size}" ] && ffn_size=8192
@@ -39,7 +46,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.15
+[ -z "${mask_ratio}" ] && mask_ratio=0.0
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -55,8 +62,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.9,0.0' #'0.2,0.7,0.1'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.9,0.0,0.1,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0' #'0.2,0.7,0.1'
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
@@ -151,7 +158,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
@@ -180,7 +187,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=False
+[ -z "${fp16}" ] && fp16=True
 [ -z "${bf16}" ] && bf16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
@@ -189,7 +196,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
-[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${wandb_team}" ] && wandb_team=peiranjin
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 

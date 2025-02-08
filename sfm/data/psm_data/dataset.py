@@ -2373,6 +2373,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             crop_center,
             ligand_buffer=5,
             keep_num=self.max_residue_num,
+            sample_mode=self.sample_mode,
         )
 
         # reconstruct the graph

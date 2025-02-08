@@ -10,16 +10,21 @@ num_sampling_time=10
 # MODEL_CONFIG=PSM3B_exp3
 MODEL_CONFIG=PSM3B_unify
 
-global_step=global_step150000
-
 ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_3/checkpoints
 
 # global_step=global_step500
 # ckpt_folder_path=/data/peiran/output/dit300m/
 
+global_step=global_step160000
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
+
+# MODEL_CONFIG=PSM1B_unify
+# ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909
+# global_step=checkpoint_E2_B97620
+# CKPT_PATH=$ckpt_folder_path/checkpoint_E2_B97620.pt
+# SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 
 master_port=6667
 
@@ -39,7 +44,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   val_batch_size=1 \
   val_batch_log_interval=1 \
   gradient_accumulation_steps=1 \
-  diffusion_sampling=dpm_edm \
+  diffusion_sampling=edm \
   num_timesteps_stepsize=-250 \
   num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \

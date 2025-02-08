@@ -4,7 +4,6 @@
 
 import torch
 import torch.nn as nn
-from pyexpat import model
 
 from sfm.logging import logger
 from sfm.models.psm.psm_config import (
@@ -936,10 +935,7 @@ class DiffMAE3dCriterions(nn.Module):
                         #         num_atom_contact_loss,
                         #     ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
                         # else:
-                        atom_contact_loss = torch.tensor(
-                            0.0, device=noise_label.device, requires_grad=True
-                        )
-                        num_atom_contact_loss = 0
+                        torch.tensor(0.0, device=noise_label.device, requires_grad=True)
                     else:
                         smooth_lddt_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
@@ -963,10 +959,7 @@ class DiffMAE3dCriterions(nn.Module):
                         #         num_atom_contact_loss,
                         #     ) = self.atom_dist_loss(model_output, atomic_numbers, adj)
                         # else:
-                        atom_contact_loss = torch.tensor(
-                            0.0, device=noise_label.device, requires_grad=True
-                        )
-                        num_atom_contact_loss = 0
+                        torch.tensor(0.0, device=noise_label.device, requires_grad=True)
                     if (
                         is_molecule.any()
                         or (
@@ -1578,16 +1571,16 @@ class DiffMAE3dCriterions(nn.Module):
             else:
                 loss = loss + contact_loss
 
-            if torch.any(torch.isnan(atom_contact_loss)) or torch.any(
-                torch.isinf(atom_contact_loss)
-            ):
-                logger.error(
-                    f"NaN or inf detected in atom_contact_loss: {atom_contact_loss}"
-                )
-                atom_contact_loss = torch.tensor(
-                    0.0, device=atom_contact_loss.device, requires_grad=True
-                )
-                num_aa_mask_token = 0
+            # if torch.any(torch.isnan(atom_contact_loss)) or torch.any(
+            #     torch.isinf(atom_contact_loss)
+            # ):
+            #     logger.error(
+            #         f"NaN or inf detected in atom_contact_loss: {atom_contact_loss}"
+            #     )
+            #     atom_contact_loss = torch.tensor(
+            #         0.0, device=atom_contact_loss.device, requires_grad=True
+            #     )
+            #     num_aa_mask_token = 0
 
             if torch.any(torch.isnan(periodic_energy_loss)) or torch.any(
                 torch.isinf(periodic_energy_loss)
@@ -1797,10 +1790,10 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "decoder_aa_acc": (float(decoder_aa_acc), int(num_decoder_aa_mask_token)),
             "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
-            "atom_contact_loss": (
-                float(atom_contact_loss.detach()),
-                int(num_atom_contact_loss),
-            ),
+            # "atom_contact_loss": (
+            #     float(atom_contact_loss.detach()),
+            #     int(num_atom_contact_loss),
+            # ),
             "bond_loss": (float(bond_loss), int(num_bond_loss)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
             "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),

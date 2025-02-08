@@ -169,7 +169,9 @@ class MultiheadAttentionWithProteinRotaryEmbedding(MultiheadAttention):
         if before_softmax:
             return attn_weights, v
 
-        attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
+        attn_weights_float = nn.functional.softmax(
+            attn_weights.float(), dim=-1
+        ).type_as(attn_weights)
 
         if local_attention_weight is not None:
             attn_weights_float = attn_weights_float.view(

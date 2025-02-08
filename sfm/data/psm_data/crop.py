@@ -4,14 +4,13 @@ import random
 from typing import Dict
 
 import numpy as np
-import torch
-
-from sfm.data.prot_data import residue_constants as rc
-from sfm.data.psm_data.utils import VOCAB
 
 
 def crop_chain(
-    chain_coords: np.ndarray, crop_size: int, crop_center: np.ndarray
+    chain_coords: np.ndarray,
+    crop_size: int,
+    crop_center: np.ndarray,
+    sample_mode: bool = False,
 ) -> np.ndarray:
     """
     Crop a chain refer to crop_size.
@@ -22,9 +21,11 @@ def crop_chain(
     Returns:
         cropped_chain: a cropped chain
     """
-
-    # remove the nan from the chain_coords
-    chain_coords[np.isnan(chain_coords)] = 10000
+    if sample_mode:
+        chain_coords[np.isnan(chain_coords)] = 0.0
+    else:
+        # remove the nan from the chain_coords
+        chain_coords[np.isnan(chain_coords)] = 10000
 
     # Calculate the distance between the atoms and the crop center
     dists = np.linalg.norm(chain_coords - crop_center, axis=1)
@@ -141,6 +142,7 @@ def spatial_crop_psm(
     crop_center: np.ndarray,
     ligand_buffer: int = 5,
     keep_num: int = 768,
+    sample_mode: bool = False,
 ) -> Dict:
     """
     Crop the polymer chains and non-polymer chains refer to crop_size.
@@ -164,7 +166,10 @@ def spatial_crop_psm(
 
         # Crop the polymer chain
         cropped_chain_idxes, dist = crop_chain(
-            copy.deepcopy(polymer_chain["center_coord"]), crop_size, crop_center
+            copy.deepcopy(polymer_chain["center_coord"]),
+            crop_size,
+            crop_center,
+            sample_mode=sample_mode,
         )
 
         # if the cropped chain is not empty
@@ -212,7 +217,10 @@ def spatial_crop_psm(
 
         # Crop the polymer chain
         cropped_chain_idxes, _ = crop_chain(
-            copy.deepcopy(polymer_chain["center_coord"]), cutoff_dists, crop_center
+            copy.deepcopy(polymer_chain["center_coord"]),
+            cutoff_dists,
+            crop_center,
+            sample_mode=sample_mode,
         )
 
         # if the cropped chain is not empty
