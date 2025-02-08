@@ -184,6 +184,7 @@ def lddt(
     all_atom_pred_pos: torch.Tensor,  # (B, N, 3)
     all_atom_positions: torch.Tensor,  # (B, N, 3)
     all_atom_mask: torch.Tensor,  # (B, N)
+    is_polymer_atom_mask: torch.Tensor,  # (B, N)
     cutoff: float = 15.0,
     eps: float = 1e-10,
 ) -> torch.Tensor:
@@ -199,7 +200,7 @@ def lddt(
         p=2,
     )
     dists_to_score = dmat_true < cutoff
-    dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-1)
+    dists_to_score = dists_to_score * is_polymer_atom_mask.unsqueeze(-1)
     dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-2)
     dists_to_score = dists_to_score * (
         1.0
@@ -223,7 +224,8 @@ def lddt_loss(
     logits: torch.Tensor,
     ca_atom_pred_pos: torch.Tensor,  # (B, 1, 3)
     ca_atom_positions: torch.Tensor,  # (B, 1, 3)
-    ca_atom_mask: torch.Tensor,  # (B, N)
+    all_atom_mask: torch.Tensor,  # (B, N)
+    is_polymer_atom_mask: torch.Tensor,
     resolution: torch.Tensor,
     cutoff: float = 15.0,
     no_bins: int = 50,
@@ -233,14 +235,19 @@ def lddt_loss(
     **kwargs,
 ) -> torch.Tensor:
     score = lddt(
-        ca_atom_pred_pos, ca_atom_positions, ca_atom_mask, cutoff=cutoff, eps=eps
+        ca_atom_pred_pos,
+        ca_atom_positions,
+        all_atom_mask,
+        is_polymer_atom_mask,
+        cutoff=cutoff,
+        eps=eps,
     )
     # TODO: Remove after initial pipeline testing
     score = torch.nan_to_num(score, nan=torch.nanmean(score))
     score[score < 0] = 0
 
-    lddt_per_prot = (score * ca_atom_mask).sum(dim=-1) / (
-        eps + ca_atom_mask.sum(dim=-1)
+    lddt_per_prot = (score * all_atom_mask).sum(dim=-1) / (
+        eps + all_atom_mask.sum(dim=-1)
     )
     score = score.detach()
     bin_index = torch.floor(score * no_bins).long()
@@ -249,21 +256,21 @@ def lddt_loss(
     errors = softmax_cross_entropy(logits, lddt_ca_one_hot)
     with torch.no_grad():
         mean_lddt = (
-            torch.sum(bin_index.float() * ca_atom_mask)
-            / (eps + torch.sum(ca_atom_mask))
+            torch.sum(bin_index.float() * all_atom_mask)
+            / (eps + torch.sum(all_atom_mask))
             * 2
             + 2
         )
         acc = torch.sum(
             (torch.argmax(logits, dim=-1) == bin_index).type(logits.dtype)
-            * ca_atom_mask
-        ) / (eps + torch.sum(ca_atom_mask))
+            * all_atom_mask
+        ) / (eps + torch.sum(all_atom_mask))
         # debug
-        lddt_stat = (score * 100)[ca_atom_mask]
+        lddt_stat = (score * 100)[all_atom_mask]
 
-    ca_atom_mask = ca_atom_mask.squeeze(-1)
-    loss = torch.sum(errors * ca_atom_mask, dim=-1) / (
-        eps + torch.sum(ca_atom_mask, dim=-1)
+    all_atom_mask = all_atom_mask.squeeze(-1)
+    loss = torch.sum(errors * all_atom_mask, dim=-1) / (
+        eps + torch.sum(all_atom_mask, dim=-1)
     )
 
     loss = loss * ((resolution >= min_resolution) & (resolution <= max_resolution))
