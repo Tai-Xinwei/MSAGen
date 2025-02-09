@@ -149,46 +149,66 @@ class PSMPairPlainEncoderLayer(nn.Module):
     Implements a Transformer-M Encoder Layer.
     """
 
-    def __init__(self, args, psm_config: PSMConfig):
+    def __init__(
+        self,
+        args,
+        psm_config: PSMConfig,
+        embedding_dim: int = None,
+        ffn_embedding_dim: int = None,
+        encoder_pair_embed_dim: int = None,
+        num_attention_heads: int = None,
+    ):
         super().__init__()
+
+        if embedding_dim is None:
+            embedding_dim = psm_config.embedding_dim
+
+        if ffn_embedding_dim is None:
+            ffn_embedding_dim = psm_config.ffn_embedding_dim
+
+        if num_attention_heads is None:
+            num_attention_heads = psm_config.num_attention_heads
+
+        if encoder_pair_embed_dim is None:
+            encoder_pair_embed_dim = psm_config.encoder_pair_embed_dim
 
         self.psm_config = psm_config
 
         # Initialize blocks
         self.activation_fn = get_activation_fn(psm_config.activation_fn)
         self.self_attn = self.build_self_attention(
-            psm_config.embedding_dim,
-            psm_config.num_attention_heads,
+            embedding_dim,
+            num_attention_heads,
             dropout=psm_config.dropout,
             add_rope=True,
         )
 
         self.fc1 = self.build_fc1(
-            psm_config.embedding_dim,
-            psm_config.ffn_embedding_dim,
+            embedding_dim,
+            ffn_embedding_dim,
         )
         self.fc2 = self.build_fc2(
-            psm_config.ffn_embedding_dim,
-            psm_config.embedding_dim,
+            ffn_embedding_dim,
+            embedding_dim,
         )
 
         # sandwitch layernorm
-        self.top_layer_norm = nn.LayerNorm(psm_config.embedding_dim)
-        self.mid_layer_norm = nn.LayerNorm(psm_config.embedding_dim)
+        self.top_layer_norm = nn.LayerNorm(embedding_dim)
+        self.mid_layer_norm = nn.LayerNorm(embedding_dim)
 
         self.args = args
 
         self.pair_proj = nn.Sequential(
-            nn.LayerNorm(psm_config.embedding_dim),
+            nn.LayerNorm(embedding_dim),
             nn.Linear(
-                psm_config.embedding_dim,
-                psm_config.encoder_pair_embed_dim * 2,
+                embedding_dim,
+                encoder_pair_embed_dim * 2,
                 bias=False,
             ),
             nn.SiLU(),
             nn.Linear(
-                psm_config.encoder_pair_embed_dim * 2,
-                psm_config.encoder_pair_embed_dim,
+                encoder_pair_embed_dim * 2,
+                encoder_pair_embed_dim,
                 bias=False,
             ),
         )

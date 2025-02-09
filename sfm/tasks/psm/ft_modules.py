@@ -290,7 +290,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
         return batched_data
 
     def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        s = self.linear_s(result_dict["decoder_x_output"])
+        s = self.linear_s(result_dict["decoder_x_output_sample"])
         c = self.linear_c(result_dict["encoder_output"])
 
         pos_pred = result_dict["pred_pos_sample"]
@@ -311,6 +311,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
 
         s = self.linear_2(s)
         result_dict["plddt_logits"] = s
+
         with torch.no_grad():
             result_dict["plddt"] = compute_plddt(s)
             # calculate mean pLDDT score corresponding to the mask
@@ -320,6 +321,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
                     ~result_dict["protein_mask"].any(dim=-1)
                 )  # result_dict["is_protein"]
             ].mean()
+
         return result_dict
 
     def update_loss(self, loss, logging_output, model_output, batched_data):

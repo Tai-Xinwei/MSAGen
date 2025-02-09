@@ -25,8 +25,8 @@ class DiTBlock(nn.Module):
         self,
         args,
         psm_config: PSMConfig,
-        embedding_dim: torch.Tensor = None,
-        ffn_embedding_dim: torch.Tensor = None,
+        embedding_dim: int = None,
+        ffn_embedding_dim: int = None,
         num_attention_heads: int = None,
     ):
         super().__init__()

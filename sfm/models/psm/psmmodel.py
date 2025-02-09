@@ -1485,7 +1485,9 @@ class PSMModel(Model):
 
             predicted_noise = net_result["noise_pred"]
             if self.psm_config.psm_finetune_mode:
-                net_result["decoder_x_output"]
+                decoder_x_output = net_result["decoder_x_output"]
+            else:
+                decoder_x_output = None
 
             if is_ddpm_for_material_when_edm:
                 epsilon = self.material_diffnoise.get_noise(
@@ -1564,6 +1566,7 @@ class PSMModel(Model):
             "loss": loss,
             "pred_pos": pred_pos,
             "orig_pos": orig_pos,
+            "decoder_x_output": decoder_x_output,
         }
 
     @torch.no_grad()
