@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
+from sfm.models.psm.invariant.dit_encoder import DiTBlock
 from sfm.models.psm.modules.autograd import GradientHead
 from sfm.models.psm.modules.confidence_model import compute_plddt, lddt_loss
 from sfm.models.psm.psmmodel import PSMConfig
@@ -251,33 +252,63 @@ class MDEnergyForceMultiHead(PSMFinetuneBaseModule):
 
 @PSM_FT_REGISTER.register("plddt_confidence_head")
 class PerResidueLDDTCaPredictor(nn.Module):
-    def __init__(self, args, no_bins=50, c_hidden=128):
+    def __init__(self, args: PSMConfig, no_bins: int = 50, c_hidden: int = 128):
         super(PerResidueLDDTCaPredictor, self).__init__()
+        psm_config = PSMConfig(args)
 
         self.no_bins = no_bins
         self.c_in = args.encoder_embed_dim
         self.c_hidden = c_hidden
 
-        self.layer_norm = nn.LayerNorm(self.c_in)
+        self.linear_1 = nn.Linear(2 * self.c_in, self.c_hidden)
 
-        self.linear_1 = nn.Linear(self.c_in, self.c_hidden)
-        self.linear_2 = nn.Linear(self.c_hidden, self.c_hidden)
-        self.linear_3 = nn.Linear(self.c_hidden, self.no_bins)
-        with torch.no_grad():
-            self.linear_3.weight.data.fill_(0.0)
-        self.relu = nn.ReLU()
+        self.dist_proj = nn.Sequential(
+            nn.Linear(1, self.c_hidden),
+            nn.SiLU(),
+            nn.Linear(self.c_hidden, 1),
+        )
+
+        self.layers = nn.ModuleList([])
+        for _ in range(4):
+            self.layers.extend(
+                [
+                    DiTBlock(
+                        args,
+                        psm_config,
+                        embedding_dim=c_hidden,
+                        ffn_embedding_dim=c_hidden,
+                    )
+                ]
+            )
+
+        self.linear_2 = nn.Linear(self.c_hidden, self.no_bins)
 
     def update_batched_data(self, samples, batched_data):
         return batched_data
 
     def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        s = result_dict["encoder_output"]
-        s = self.layer_norm(s)
+        s = torch.cat(
+            [result_dict["decoder_x_output"], result_dict["encoder_output"]], dim=-1
+        )
         s = self.linear_1(s)
-        s = self.relu(s)
+
+        pos_pred = result_dict["pred_pos_sample"]
+        pos_orig = result_dict["orig_pos_sample"]
+
+        dist = torch.norm(pos_pred - pos_orig, dim=-1)
+        dist = self.dist_proj(dist.unsqueeze(-1)).squeeze(-1)
+
+        for layer in self.layers:
+            s = layer(
+                s,
+                result_dict["encoder_output"],
+                result_dict["padding_mask"],
+                result_dict,
+                pbc_expand_batched=None,
+                mixed_attn_bias=dist,
+            )
+
         s = self.linear_2(s)
-        s = self.relu(s)
-        s = self.linear_3(s)
         result_dict["plddt_logits"] = s
         with torch.no_grad():
             result_dict["plddt"] = compute_plddt(s)

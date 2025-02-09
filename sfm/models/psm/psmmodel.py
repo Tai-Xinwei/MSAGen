@@ -1285,13 +1285,14 @@ class PSMModel(Model):
             result_dict.update(match_results)
 
         if self.psm_finetune_head:
-            result_dict = self.psm_finetune_head(result_dict)
             if self.psm_config.psm_sample_structure_in_finetune:
                 self.eval()
                 sampled_output = self.sample(batched_data)
                 for k, v in sampled_output.items():
                     result_dict[k + "_sample"] = v
                 self.train()
+            result_dict = self.psm_finetune_head(result_dict)
+
         return result_dict
 
     def compute_loss(self, model_output, batched_data) -> ModelOutput:

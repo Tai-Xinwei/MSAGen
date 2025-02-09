@@ -58,7 +58,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2000
+[ -z "${save_batch_interval}" ] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
@@ -76,7 +76,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16,16"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32,32"
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${group_optimizer}" ] && group_optimizer=True
