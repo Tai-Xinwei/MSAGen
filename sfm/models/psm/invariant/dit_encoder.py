@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Dict, Optional
+from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
-from sympy import ff
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
@@ -40,9 +39,7 @@ class DiTBlock(nn.Module):
         if num_attention_heads is None:
             num_attention_heads = psm_config.num_attention_heads
 
-        self.norm1 = nn.LayerNorm(
-            psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
-        )
+        self.norm1 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.psm_config = psm_config
 
         if not self.psm_config.use_memory_efficient_attention:
@@ -66,9 +63,7 @@ class DiTBlock(nn.Module):
             smooth_factor=psm_config.smooth_factor,
         )
 
-        self.norm2 = nn.LayerNorm(
-            psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
-        )
+        self.norm2 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),

@@ -259,8 +259,10 @@ class PerResidueLDDTCaPredictor(nn.Module):
         self.no_bins = no_bins
         self.c_in = args.encoder_embed_dim
         self.c_hidden = c_hidden
+        self.n_head = 8
 
-        self.linear_1 = nn.Linear(2 * self.c_in, self.c_hidden)
+        self.linear_s = nn.Linear(self.c_in, self.c_hidden)
+        self.linear_c = nn.Linear(self.c_in, self.c_hidden)
 
         self.dist_proj = nn.Sequential(
             nn.Linear(1, self.c_hidden),
@@ -277,6 +279,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
                         psm_config,
                         embedding_dim=c_hidden,
                         ffn_embedding_dim=c_hidden,
+                        num_attention_heads=self.n_head,
                     )
                 ]
             )
@@ -287,25 +290,23 @@ class PerResidueLDDTCaPredictor(nn.Module):
         return batched_data
 
     def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        s = torch.cat(
-            [result_dict["decoder_x_output"], result_dict["encoder_output"]], dim=-1
-        )
-        s = self.linear_1(s)
+        s = self.linear_s(result_dict["decoder_x_output"])
+        c = self.linear_c(result_dict["encoder_output"])
 
         pos_pred = result_dict["pred_pos_sample"]
-        pos_orig = result_dict["orig_pos_sample"]
 
-        dist = torch.norm(pos_pred - pos_orig, dim=-1).to(s.dtype)
+        dist = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1).to(s.dtype)
         dist = self.dist_proj(dist.unsqueeze(-1)).squeeze(-1)
+        attn_bias = dist.unsqueeze(1).repeat(1, self.n_head, 1, 1)
 
         for layer in self.layers:
             s = layer(
                 s,
-                result_dict["encoder_output"],
+                c,
                 result_dict["padding_mask"],
                 result_dict,
                 pbc_expand_batched=None,
-                mixed_attn_bias=dist,
+                mixed_attn_bias=attn_bias,
             )
 
         s = self.linear_2(s)

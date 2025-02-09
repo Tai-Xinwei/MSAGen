@@ -1260,6 +1260,7 @@ class PSMModel(Model):
         result_dict["force_label"] = batched_data["forces"]
         result_dict["stress_label"] = batched_data["stress"]
         result_dict["padding_mask"] = padding_mask
+        result_dict["position_ids"] = batched_data["position_ids"]
         batched_data["padding_mask"] = padding_mask
 
         if self.psm_config.diffusion_mode == "edm":
@@ -1291,6 +1292,7 @@ class PSMModel(Model):
                 for k, v in sampled_output.items():
                     result_dict[k + "_sample"] = v
                 self.train()
+
             result_dict = self.psm_finetune_head(result_dict)
 
         return result_dict
