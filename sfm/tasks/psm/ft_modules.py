@@ -295,7 +295,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
         pos_pred = result_dict["pred_pos_sample"]
         pos_orig = result_dict["orig_pos_sample"]
 
-        dist = torch.norm(pos_pred - pos_orig, dim=-1)
+        dist = torch.norm(pos_pred - pos_orig, dim=-1).to(s.dtype)
         dist = self.dist_proj(dist.unsqueeze(-1)).squeeze(-1)
 
         for layer in self.layers:
