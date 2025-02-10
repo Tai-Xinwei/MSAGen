@@ -303,3 +303,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           freeze_backbone=$freeze_backbone psm_sample_structure_in_finetune=$psm_sample_structure_in_finetune \
           psm_finetune_noise_mode=$psm_finetune_noise_mode psm_finetune_valid_noise_mode=$psm_finetune_noise_mode \
           finetune_module=$finetune_module num_timesteps_stepsize=$num_timesteps_stepsize \
+          ifresume=True \

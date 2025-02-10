@@ -8,7 +8,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone}" ] && backbone=exp3
 
-# [ -z "${layers}" ] && layers=36
+# [ -z "${layers}" ] && layers=32
 # [ -z "${hidden_size}" ] && hidden_size=3072
 # [ -z "${ffn_size}" ] && ffn_size=12288
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=32
@@ -158,7 +158,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
@@ -192,7 +192,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c/checkpoints/global_step185000/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_10b_p_stage1_2/checkpoints/global_step3000/mp_rank_00_model_states.pt'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
@@ -315,7 +315,7 @@ else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --master_port $MASTER_PORT"
+                      --master_port 11111"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
                       --nnodes $OMPI_COMM_WORLD_SIZE \

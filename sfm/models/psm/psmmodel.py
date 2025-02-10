@@ -968,6 +968,10 @@ class PSMModel(Model):
                     batched_data["pos"]
                 )  # zero position to avoid any potential leakage
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
+
+            if self.psm_finetune_head:
+                result_dict = self._forward_net(batched_data)
+
             if (
                 self.psm_config.diffusion_mode == "edm"
                 and self.psm_config.diffusion_sampling == "edm"
@@ -979,11 +983,20 @@ class PSMModel(Model):
                 )
             ):
                 # if self.psm_config.edm_sampling_method == "af3":
-                self.sample_AF3(batched_data=batched_data)
+                sampled_output = self.sample_AF3(batched_data)
+                for k, v in sampled_output.items():
+                    result_dict[k + "_sample"] = v
                 # elif self.psm_config.edm_sampling_method == "2nd":
                 #     pass
             else:
-                self.sample(batched_data=batched_data)
+                sampled_output = self.sample(batched_data)
+                for k, v in sampled_output.items():
+                    result_dict[k + "_sample"] = v
+
+            if self.psm_finetune_head:
+                result_dict = self.psm_finetune_head(result_dict)
+                batched_data["plddt"] = result_dict["plddt"]
+                batched_data["mean_plddt"] = result_dict["mean_plddt"]
 
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
@@ -1207,22 +1220,15 @@ class PSMModel(Model):
             padding_mask,
         )
 
-    def forward(self, batched_data, skip_sample=False, **kwargs):
+    def _forward_net(self, batched_data, skip_sample=False, **kwargs):
         """
         Forward pass of the model.
 
         Args:
             batched_data: Input data for the forward pass.
-            **kwargs: Additional keyword arguments.
+            skip_sample: Skip the sampling step.
+            **kwargs: Additional keyword
         """
-
-        if (
-            self.psm_config.sample_in_validation
-            and not self.training
-            and not skip_sample
-        ):
-            match_results = self.sample_and_calc_match_metric(batched_data)
-
         (
             clean_mask,
             aa_mask,
@@ -1277,6 +1283,26 @@ class PSMModel(Model):
             result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
                 "sqrt_one_minus_alphas_cumprod_t"
             ]
+
+        return result_dict
+
+    def forward(self, batched_data, skip_sample=False, **kwargs):
+        """
+        Forward pass of the model.
+
+        Args:
+            batched_data: Input data for the forward pass.
+            **kwargs: Additional keyword arguments.
+        """
+
+        if (
+            self.psm_config.sample_in_validation
+            and not self.training
+            and not skip_sample
+        ):
+            match_results = self.sample_and_calc_match_metric(batched_data)
+
+        result_dict = self._forward_net(batched_data, skip_sample, **kwargs)
 
         if (
             self.psm_config.sample_in_validation
@@ -1727,6 +1753,9 @@ class PSMModel(Model):
             x0_pred = net_result["noise_pred"]
             if self.psm_config.psm_finetune_mode:
                 decoder_x_output = net_result["decoder_x_output"]
+            else:
+                decoder_x_output = None
+
             delta = (x_noisy - x0_pred) / t_hat
             dt = t_cur - t_hat
             x_next = x_noisy + dt * delta * step_scale
@@ -1774,6 +1803,7 @@ class PSMModel(Model):
             "loss": loss,
             "pred_pos": pred_pos,
             "orig_pos": orig_pos,
+            "decoder_x_output": decoder_x_output,
         }
 
 

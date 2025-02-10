@@ -7,17 +7,18 @@ num_sampling_time=10
 # MODEL_CONFIG=PSM1B_DIT
 # MODEL_CONFIG=PSM1B_exp3
 
-# MODEL_CONFIG=PSM3B_exp3
-MODEL_CONFIG=PSM3B_unify
+MODEL_CONFIG=PSM3B_exp3
+# MODEL_CONFIG=PSM3B_unify
 
-ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_3/checkpoints
 
-# global_step=global_step500
-# ckpt_folder_path=/data/peiran/output/dit300m/
+global_step=global_step2500
+ckpt_folder_path=/data/peiran/output/dit300m/
 
-global_step=global_step160000
-CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
+# global_step=global_step160000
+# CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
+
 SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 
 # MODEL_CONFIG=PSM1B_unify
@@ -51,7 +52,10 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   sampled_structure_output_path=$SMPL_PATH \
   diffusion_mode=edm \
   use_memory_efficient_attention=false \
+  psm_finetune_noise_mode=T \
+  finetune_module=plddt_confidence_head \
+  psm_sample_structure_in_finetune=True \
 
 echo $CKPT_PATH
 
-./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time $global_step
+# ./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time $global_step

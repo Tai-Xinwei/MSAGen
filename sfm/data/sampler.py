@@ -127,6 +127,7 @@ class WeightedDistributedSampler(DistributedSampler):
 
         if self.num_skip_batches is not None:
             indices = indices[self.num_skip_batches * self.micro_batch_size :]
+
         self.num_samples = len(indices)
 
         return iter(indices)

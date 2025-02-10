@@ -311,6 +311,7 @@ class ProteinConverter(BaseConverter):
         num_residues = batched_data["num_atoms"].cpu().numpy()
         batch_size = num_residues.shape[0]
         structures: List[Optional[List[str]]] = []
+        pLDDT = List[Optional[List[float]]] = []
         token_ids = batched_data["token_id"]
         keys = batched_data.get("key", ["TEMP"] * batch_size)
         for i in range(batch_size):
@@ -322,7 +323,8 @@ class ProteinConverter(BaseConverter):
                 atomidx = 0
                 chainid = "A"
                 resnumb = 0
-                for i, (x, y, z) in enumerate(pos):
+                residue_plddt = []
+                for _, (x, y, z) in enumerate(pos):
                     record = "ATOM  "
                     symbol = "C"
                     atomname = " CA "
@@ -331,19 +333,34 @@ class ProteinConverter(BaseConverter):
                     if np.isnan(x):
                         # Process missing residues in ground truth protein
                         continue
-                    atomidx += 1
-                    pdb_lines.append(
-                        f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
-                        f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
-                        f"  1.00  0.00          {symbol}  \n"
-                    )
+                    if "plddt" in batched_data:
+                        residue_plddt.append(batched_data["plddt"][i, atomidx])
+                        atomidx += 1
+                        plddt_value = batched_data["plddt"][i, atomidx]
+                        pdb_lines.append(
+                            f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
+                            f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
+                            f"  1.00{plddt_value:6.2f}          {symbol}  \n"
+                        )
+                    else:
+                        atomidx += 1
+                        pdb_lines.append(
+                            f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
+                            f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
+                            f"  1.00  0.00          {symbol}  \n"
+                        )
+
                 pdb_lines.append("TER\n")
                 pdb_lines.append("END\n")
                 structures.append(pdb_lines)
+                if "plddt" in batched_data:
+                    pLDDT.append(residue_plddt)
+
             except Exception as e:
                 logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
                 structures.append(None)
-        return structures
+
+        return structures, pLDDT
 
     def match(
         self,
@@ -354,6 +371,7 @@ class ProteinConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
+        plddt: Optional[float] = None,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -406,10 +424,17 @@ class ProteinConverter(BaseConverter):
                     tm_score = float(cols[2])
                 elif line.startswith("Global LDDT") and len(cols) > 3:
                     lddt = float(cols[3])
-            logger.success(
-                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
-                f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}."
-            )
+            if plddt is None:
+                logger.success(
+                    f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+                    f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
+                )
+            else:
+                logger.success(
+                    f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+                    f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
+                    f"pLDDT={plddt:5.2f}."
+                )
         except Exception as e:
             logger.warning(f"Failed to evaluate sample {idx}, {e}.")
         return {"rmsd": rmsd, "tm_score": tm_score, "lddt": lddt}
@@ -654,7 +679,7 @@ class SampledStructureConverter:
             indexes_in_batch = is_mask.nonzero().squeeze(-1)
             if torch.any(is_mask):
                 indexes = batched_data["idx"][is_mask]
-                sampled_structures = CONVERTER_REGISTER[system_tag]().convert(
+                sampled_structures, plddt = CONVERTER_REGISTER[system_tag]().convert(
                     batched_data, batched_data["pos"]
                 )
                 original_structures = CONVERTER_REGISTER[system_tag]().convert(
@@ -683,15 +708,29 @@ class SampledStructureConverter:
                     indexes,
                     indexes_in_batch,
                 ):
-                    all_results[index_in_batch] = CONVERTER_REGISTER[
-                        system_tag
-                    ]().match(
-                        sampled_structure,
-                        relaxed_sampled_structure,
-                        original_structure,
-                        int(index),
-                        self.sampled_structure_output_path,
-                        sample_index,
-                        self.given_protein,
-                    )
+                    if "plddt" in batched_data:
+                        all_results[index_in_batch] = CONVERTER_REGISTER[
+                            system_tag
+                        ]().match(
+                            sampled_structure,
+                            relaxed_sampled_structure,
+                            original_structure,
+                            int(index),
+                            self.sampled_structure_output_path,
+                            sample_index,
+                            self.given_protein,
+                            plddt[index_in_batch],
+                        )
+                    else:
+                        all_results[index_in_batch] = CONVERTER_REGISTER[
+                            system_tag
+                        ]().match(
+                            sampled_structure,
+                            relaxed_sampled_structure,
+                            original_structure,
+                            int(index),
+                            self.sampled_structure_output_path,
+                            sample_index,
+                            self.given_protein,
+                        )
         return all_results
