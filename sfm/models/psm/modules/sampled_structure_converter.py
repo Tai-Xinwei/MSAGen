@@ -314,17 +314,17 @@ class ProteinConverter(BaseConverter):
         pLDDT: List[Optional[List[float]]] = []
         token_ids = batched_data["token_id"]
         keys = batched_data.get("key", ["TEMP"] * batch_size)
-        for i in range(batch_size):
+        for j in range(batch_size):
             try:
-                pos = poses[i].cpu()
-                pos = pos[: num_residues[i]]
-                residue_ids = token_ids[i][: num_residues[i]].cpu().numpy()
-                pdb_lines = [f"HEADER    {keys[i]}\n"]
+                pos = poses[j].cpu()
+                pos = pos[: num_residues[j]]
+                residue_ids = token_ids[j][: num_residues[j]].cpu().numpy()
+                pdb_lines = [f"HEADER    {keys[j]}\n"]
                 atomidx = 0
                 chainid = "A"
                 resnumb = 0
                 residue_plddt = []
-                for _, (x, y, z) in enumerate(pos):
+                for i, (x, y, z) in enumerate(pos):
                     record = "ATOM  "
                     symbol = "C"
                     atomname = " CA "

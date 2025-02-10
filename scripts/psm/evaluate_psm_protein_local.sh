@@ -40,7 +40,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   data_path_list=ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
   dataset_name_list=proteintest \
   dataset_split_raito=1.0 \
-  dataset_micro_batch_size=2 \
+  dataset_micro_batch_size=1 \
   use_unified_batch_sampler=true \
   val_batch_size=1 \
   val_batch_log_interval=1 \

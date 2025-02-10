@@ -1321,12 +1321,6 @@ class PSMModel(Model):
                 if (
                     self.psm_config.diffusion_mode == "edm"
                     and self.psm_config.diffusion_sampling == "edm"
-                    and (
-                        not (
-                            batched_data["is_periodic"].any()
-                            and self.psm_config.use_ddpm_for_material
-                        )
-                    )
                 ):
                     sampled_output = self.sample_AF3(batched_data)
                 else:
