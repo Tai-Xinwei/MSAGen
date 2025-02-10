@@ -311,7 +311,7 @@ class ProteinConverter(BaseConverter):
         num_residues = batched_data["num_atoms"].cpu().numpy()
         batch_size = num_residues.shape[0]
         structures: List[Optional[List[str]]] = []
-        pLDDT = List[Optional[List[float]]] = []
+        pLDDT: List[Optional[List[float]]] = []
         token_ids = batched_data["token_id"]
         keys = batched_data.get("key", ["TEMP"] * batch_size)
         for i in range(batch_size):
@@ -334,9 +334,9 @@ class ProteinConverter(BaseConverter):
                         # Process missing residues in ground truth protein
                         continue
                     if "plddt" in batched_data:
-                        residue_plddt.append(batched_data["plddt"][i, atomidx])
+                        plddt_value = batched_data["plddt"][i, atomidx].item()
+                        residue_plddt.append(plddt_value)
                         atomidx += 1
-                        plddt_value = batched_data["plddt"][i, atomidx]
                         pdb_lines.append(
                             f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
                             f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
@@ -371,72 +371,70 @@ class ProteinConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
-        plddt: Optional[float] = None,
+        chain_plddt: Optional[float] = None,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
                 "Matching behavior with relaxed structurs for protein is not defined yet."
             )
         rmsd, tm_score, lddt = np.nan, np.nan, np.nan
-        try:
-            assert (
-                sampled_structure and sampled_structure[0][:6] == "HEADER"
-            ), f"Wrong sample structure {sampled_structure[0]}"
-            assert (
-                original_structure and original_structure[0][:6] == "HEADER"
-            ), f"Wrong original structure {original_structure[0]}"
-            assert (
-                sampled_structure[0] == original_structure[0]
-            ), f"Wrong name for sample {sampled_structure[0]}"
-            key = sampled_structure[0].split()[1]
-            sampled_path = os.path.join(
-                sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
+        # try:
+        assert (
+            sampled_structure and sampled_structure[0][:6] == "HEADER"
+        ), f"Wrong sample structure {sampled_structure[0]}"
+        assert (
+            original_structure and original_structure[0][:6] == "HEADER"
+        ), f"Wrong original structure {original_structure[0]}"
+        assert (
+            sampled_structure[0] == original_structure[0]
+        ), f"Wrong name for sample {sampled_structure[0]}"
+        key = sampled_structure[0].split()[1]
+        sampled_path = os.path.join(
+            sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
+        )
+        with open(sampled_path, "w") as out_file:
+            out_file.writelines(sampled_structure)
+        original_path = os.path.join(sampled_structure_output_path, f"{key}-native.pdb")
+        with open(original_path, "w") as out_file:
+            out_file.writelines(original_structure)
+        lines = []
+        lines.extend(
+            subprocess.run(
+                f"TMscore {sampled_path} {original_path}",
+                shell=True,
+                capture_output=True,
+                text=True,
+            ).stdout.split("\n")
+        )
+        lines.extend(
+            subprocess.run(
+                f"lddt -c {sampled_path} {original_path}",
+                shell=True,
+                capture_output=True,
+                text=True,
+            ).stdout.split("\n")
+        )
+        for line in lines:
+            cols = line.split()
+            if line.startswith("RMSD") and len(cols) > 5:
+                rmsd = float(cols[5])
+            elif line.startswith("TM-score") and len(cols) > 2:
+                tm_score = float(cols[2])
+            elif line.startswith("Global LDDT") and len(cols) > 3:
+                lddt = float(cols[3])
+        if chain_plddt is None:
+            logger.success(
+                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+                f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
             )
-            with open(sampled_path, "w") as out_file:
-                out_file.writelines(sampled_structure)
-            original_path = os.path.join(
-                sampled_structure_output_path, f"{key}-native.pdb"
+        else:
+            logger.success(
+                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+                f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
+                f"pLDDT={chain_plddt:5.2f}."
             )
-            with open(original_path, "w") as out_file:
-                out_file.writelines(original_structure)
-            lines = []
-            lines.extend(
-                subprocess.run(
-                    f"TMscore {sampled_path} {original_path}",
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                ).stdout.split("\n")
-            )
-            lines.extend(
-                subprocess.run(
-                    f"lddt -c {sampled_path} {original_path}",
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                ).stdout.split("\n")
-            )
-            for line in lines:
-                cols = line.split()
-                if line.startswith("RMSD") and len(cols) > 5:
-                    rmsd = float(cols[5])
-                elif line.startswith("TM-score") and len(cols) > 2:
-                    tm_score = float(cols[2])
-                elif line.startswith("Global LDDT") and len(cols) > 3:
-                    lddt = float(cols[3])
-            if plddt is None:
-                logger.success(
-                    f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
-                    f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
-                )
-            else:
-                logger.success(
-                    f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
-                    f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
-                    f"pLDDT={plddt:5.2f}."
-                )
-        except Exception as e:
-            logger.warning(f"Failed to evaluate sample {idx}, {e}.")
+        # except Exception as e:
+        # logger.warning(f"Failed to evaluate sample {idx}, {e}.")
         return {"rmsd": rmsd, "tm_score": tm_score, "lddt": lddt}
 
 
@@ -682,7 +680,7 @@ class SampledStructureConverter:
                 sampled_structures, plddt = CONVERTER_REGISTER[system_tag]().convert(
                     batched_data, batched_data["pos"]
                 )
-                original_structures = CONVERTER_REGISTER[system_tag]().convert(
+                original_structures, _ = CONVERTER_REGISTER[system_tag]().convert(
                     batched_data, original_pos
                 )
                 relaxed_sampled_structures = (
@@ -709,6 +707,8 @@ class SampledStructureConverter:
                     indexes_in_batch,
                 ):
                     if "plddt" in batched_data:
+                        chain_plddt = plddt[index_in_batch]
+                        chain_plddt = sum(chain_plddt) / len(chain_plddt)
                         all_results[index_in_batch] = CONVERTER_REGISTER[
                             system_tag
                         ]().match(
@@ -719,7 +719,7 @@ class SampledStructureConverter:
                             self.sampled_structure_output_path,
                             sample_index,
                             self.given_protein,
-                            plddt[index_in_batch],
+                            chain_plddt,
                         )
                     else:
                         all_results[index_in_batch] = CONVERTER_REGISTER[

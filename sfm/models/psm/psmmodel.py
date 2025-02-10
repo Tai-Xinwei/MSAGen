@@ -970,7 +970,8 @@ class PSMModel(Model):
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
 
             if self.psm_finetune_head:
-                result_dict = self._forward_net(batched_data)
+                with torch.no_grad():
+                    result_dict = self._forward_net(batched_data)
 
             if (
                 self.psm_config.diffusion_mode == "edm"
@@ -1001,15 +1002,18 @@ class PSMModel(Model):
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
             )
+
             for match_result in match_result_one_time:
                 for key in match_result:
                     if key not in match_results:
                         match_results[key] = []
                     match_results[key].append(match_result[key])
+
             batched_data[
                 "pos"
             ] = original_pos  # recover original position, in case that we want to calculate diffusion loss and sampling RMSD at the same time in validation, and for subsequent sampling
             batched_data["cell"] = original_cell
+
         for key in match_results:
             match_results[key] = torch.tensor(
                 match_results[key], device=batched_data["pos"].device
@@ -1311,10 +1315,23 @@ class PSMModel(Model):
         ):
             result_dict.update(match_results)
 
-        if self.psm_finetune_head:
+        if self.psm_finetune_head and not self.psm_config.sample_in_validation:
             if self.psm_config.psm_sample_structure_in_finetune:
                 self.eval()
-                sampled_output = self.sample(batched_data)
+                if (
+                    self.psm_config.diffusion_mode == "edm"
+                    and self.psm_config.diffusion_sampling == "edm"
+                    and (
+                        not (
+                            batched_data["is_periodic"].any()
+                            and self.psm_config.use_ddpm_for_material
+                        )
+                    )
+                ):
+                    sampled_output = self.sample_AF3(batched_data)
+                else:
+                    sampled_output = self.sample(batched_data)
+
                 for k, v in sampled_output.items():
                     result_dict[k + "_sample"] = v
                 self.train()
@@ -1336,7 +1353,11 @@ class PSMModel(Model):
         """
         bs = batched_data["pos"].size(0)
         loss, logging_output = self.loss_fn(model_output, batched_data)
-        if self.psm_finetune_head and hasattr(self.psm_finetune_head, "update_loss"):
+        if (
+            self.psm_finetune_head
+            and hasattr(self.psm_finetune_head, "update_loss")
+            and self.training
+        ):
             loss, logging_output = self.psm_finetune_head.update_loss(
                 loss, logging_output, model_output, batched_data
             )
@@ -1777,25 +1798,25 @@ class PSMModel(Model):
 
         pred_pos = batched_data["pos"].clone()
 
-        if (
-            self.psm_config.psm_finetune_mode
-            and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"
-        ):
-            logger.info("Running PerResidueLDDTCaPredictor")
-            plddt = self.psm_finetune_head(
-                {
-                    "decoder_x_output": decoder_x_output,
-                    "is_protein": batched_data["is_protein"],
-                }
-            )
-            plddt_residue = plddt["plddt"]
-            mean_plddt = plddt["mean_plddt"]
-            plddt_per_prot = (plddt_residue * batched_data["is_protein"]).sum(
-                dim=-1
-            ) / (1e-10 + batched_data["is_protein"].sum(dim=-1))
-            batched_data["plddt_residue"] = plddt_residue
-            batched_data["mean_plddt"] = mean_plddt
-            batched_data["plddt_per_prot"] = plddt_per_prot
+        # if (
+        #     self.psm_config.psm_finetune_mode
+        #     and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"
+        # ):
+        #     logger.info("Running PerResidueLDDTCaPredictor")
+        #     plddt = self.psm_finetune_head(
+        #         {
+        #             "decoder_x_output": decoder_x_output,
+        #             "is_protein": batched_data["is_protein"],
+        #         }
+        #     )
+        #     plddt_residue = plddt["plddt"]
+        #     mean_plddt = plddt["mean_plddt"]
+        #     plddt_per_prot = (plddt_residue * batched_data["is_protein"]).sum(
+        #         dim=-1
+        #     ) / (1e-10 + batched_data["is_protein"].sum(dim=-1))
+        #     batched_data["plddt_residue"] = plddt_residue
+        #     batched_data["mean_plddt"] = mean_plddt
+        # batched_data["plddt_per_prot"] = plddt_per_prot
 
         loss = torch.sum((pred_pos - orig_pos) ** 2, dim=-1, keepdim=True)
 

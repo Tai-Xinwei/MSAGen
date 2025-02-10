@@ -17,7 +17,7 @@ global_step=global_step2500
 ckpt_folder_path=/data/peiran/output/dit300m/
 
 # global_step=global_step160000
-# CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
+CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 
 SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 
@@ -40,7 +40,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   data_path_list=ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
   dataset_name_list=proteintest \
   dataset_split_raito=1.0 \
-  dataset_micro_batch_size=1 \
+  dataset_micro_batch_size=2 \
   use_unified_batch_sampler=true \
   val_batch_size=1 \
   val_batch_log_interval=1 \
@@ -55,6 +55,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   psm_finetune_noise_mode=T \
   finetune_module=plddt_confidence_head \
   psm_sample_structure_in_finetune=True \
+  psm_finetune_mode=True \
 
 echo $CKPT_PATH
 
