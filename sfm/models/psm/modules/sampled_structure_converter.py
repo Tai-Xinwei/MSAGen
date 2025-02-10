@@ -334,7 +334,7 @@ class ProteinConverter(BaseConverter):
                         # Process missing residues in ground truth protein
                         continue
                     if "plddt" in batched_data:
-                        plddt_value = batched_data["plddt"][i, atomidx].item()
+                        plddt_value = batched_data["plddt"][j, atomidx].item()
                         residue_plddt.append(plddt_value)
                         atomidx += 1
                         pdb_lines.append(
@@ -357,7 +357,7 @@ class ProteinConverter(BaseConverter):
                     pLDDT.append(residue_plddt)
 
             except Exception as e:
-                logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
+                logger.warning(f"Failed to sample for protein {keys[j]}, {e}")
                 structures.append(None)
 
         return structures, pLDDT
