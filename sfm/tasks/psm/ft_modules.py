@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from math import log
 from typing import Dict, Union
 
 import torch

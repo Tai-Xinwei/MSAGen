@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-from collections import Counter
 from typing import List, Optional
 
 import torch
 from Bio.SVDSuperimposer import SVDSuperimposer
-from numpy import flip
 from torch import nn
 
 
