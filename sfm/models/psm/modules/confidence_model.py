@@ -16,6 +16,27 @@ def softmax_cross_entropy(logits, labels):
     return loss
 
 
+def focal_loss(logits, labels, alpha=0.25, gamma=2.0):
+    # Apply softmax to logits
+    softmax_probs = torch.nn.functional.softmax(logits, dim=-1)
+
+    # If labels are one-hot encoded, convert them to indices by using `torch.argmax`
+    if labels.dim() > 1:  # check if the labels are one-hot encoded
+        labels = torch.argmax(labels, dim=-1)
+
+    # Gather the probabilities for the true classes (using the labels to index)
+    p_t = softmax_probs.gather(dim=-1, index=labels.unsqueeze(-1))
+
+    # Calculate the modulating factor (1 - p_t) ** gamma
+    modulating_factor = (1 - p_t) ** gamma
+
+    # Compute focal loss
+    loss = -alpha * modulating_factor * torch.log(p_t)
+
+    # Sum the loss across the classes
+    return loss.sum(dim=-1)
+
+
 def _calculate_bin_centers(boundaries: torch.Tensor):
     step = boundaries[1] - boundaries[0]
     bin_centers = boundaries + step / 2
@@ -254,6 +275,7 @@ def lddt_loss(
     bin_index = torch.clamp(bin_index, max=(no_bins - 1))
     lddt_ca_one_hot = torch.nn.functional.one_hot(bin_index, num_classes=no_bins)
     errors = softmax_cross_entropy(logits, lddt_ca_one_hot)
+    # errors = focal_loss(logits, lddt_ca_one_hot)
     with torch.no_grad():
         mean_lddt = (
             torch.sum(bin_index.float() * all_atom_mask)
@@ -296,6 +318,114 @@ def lddt_loss(
             * 100,
             "lddt_per_prot": lddt_per_prot.cpu().numpy(),
         },
+    )
+
+
+def compute_pde(logits: torch.Tensor, all_atom_mask: torch.Tensor) -> torch.Tensor:
+    num_bins = logits.shape[-1]
+    bin_width = 1.0 / num_bins
+    bounds = torch.arange(
+        start=0.5 * bin_width, end=1.0, step=bin_width, device=logits.device
+    )
+    probs = torch.nn.functional.softmax(logits, dim=-1)
+    pred_pde = (probs * bounds.unsqueeze(0).unsqueeze(0).unsqueeze(0)).sum(dim=-1)
+
+    pair_mask = all_atom_mask.unsqueeze(-1) & all_atom_mask.unsqueeze(-2)
+    pred_pde[~pair_mask] = 0.0
+
+    mean_pde = pred_pde.sum(dim=(-1, -2)) / (pair_mask.sum(dim=(-1, -2)) + 1e-6)
+
+    return pred_pde * 32, mean_pde * 32
+
+
+def pde(
+    all_atom_pred_pos: torch.Tensor,  # (B, N, 3)
+    all_atom_positions: torch.Tensor,  # (B, N, 3)
+    all_atom_mask: torch.Tensor,  # (B, N)
+    is_polymer_atom_mask: torch.Tensor,  # (B, N)
+    cutoff: float = 15.0,
+    eps: float = 1e-10,
+    **kwargs,
+) -> torch.Tensor:
+    dmat_true = torch.norm(
+        all_atom_positions[..., None, :] - all_atom_positions[..., None, :, :] + eps,
+        dim=-1,
+        p=2,
+    )
+    dmat_pred = torch.norm(
+        all_atom_pred_pos[..., None, :] - all_atom_pred_pos[..., None, :, :] + eps,
+        dim=-1,
+        p=2,
+    )
+
+    dists_to_score = dmat_true < 50
+    dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-1)
+    dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-2)
+    dists_to_score = dists_to_score * (
+        1.0
+        - torch.eye(all_atom_mask.shape[1], device=all_atom_mask.device).unsqueeze(0)
+    )
+    # (B, N, N) * (B, N, N)
+    dist_l1 = torch.abs(dmat_true - dmat_pred) * dists_to_score.float()
+
+    return dist_l1  # in angstrom
+
+
+def pde_loss(
+    logits: torch.Tensor,
+    ca_atom_pred_pos: torch.Tensor,  # (B, 1, 3)
+    ca_atom_positions: torch.Tensor,  # (B, 1, 3)
+    all_atom_mask: torch.Tensor,  # (B, N)
+    is_polymer_atom_mask: torch.Tensor,
+    resolution: torch.Tensor,
+    cutoff: float = 15.0,
+    no_bins: int = 64,
+    min_resolution: float = 0.1,
+    max_resolution: float = 3.0,
+    eps: float = 1e-10,
+    **kwargs,
+) -> torch.Tensor:
+    dist_l1 = pde(
+        ca_atom_pred_pos,
+        ca_atom_positions,
+        all_atom_mask,
+        is_polymer_atom_mask,
+        cutoff=cutoff,
+        eps=eps,
+    )
+    # TODO: Remove after initial pipeline testing
+    dist_l1 = torch.nan_to_num(dist_l1, nan=torch.nanmean(dist_l1))
+
+    dist_l1 = dist_l1.detach()
+    bin_index = torch.floor(dist_l1 * 2).long()  # 0.5 angstrom per bin
+    bin_index = torch.clamp(bin_index, max=(no_bins - 1))
+    pde_one_hot = torch.nn.functional.one_hot(bin_index, num_classes=no_bins)
+    errors = softmax_cross_entropy(logits, pde_one_hot)
+    pair_mask = all_atom_mask.unsqueeze(-1) & all_atom_mask.unsqueeze(-2)
+
+    with torch.no_grad():
+        mean_pde = (
+            torch.sum(bin_index.float() * pair_mask) / (eps + torch.sum(pair_mask)) / 2
+            + 0.5
+        )
+        acc = torch.sum(
+            (torch.argmax(logits, dim=-1) == bin_index).type(logits.dtype) * pair_mask
+        ) / (eps + torch.sum(pair_mask))
+
+    errors = errors[pair_mask]
+    # loss = torch.sum(errors) / (
+    #     eps + torch.sum(pair_mask, dim=(-1, -2))
+    # )
+
+    # loss = loss * ((resolution >= min_resolution) & (resolution <= max_resolution))
+
+    # Average over the batch dimension
+    loss = torch.mean(errors)
+
+    return (
+        loss,
+        mean_pde,
+        acc,
     )
 
 

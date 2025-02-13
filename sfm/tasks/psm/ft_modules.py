@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
+from math import log
 from typing import Dict, Union
 
 import torch
 import torch.nn as nn
+from sympy import comp
 
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.invariant.dit_encoder import DiTBlock
 from sfm.models.psm.modules.autograd import GradientHead
-from sfm.models.psm.modules.confidence_model import compute_plddt, lddt_loss
+from sfm.models.psm.modules.confidence_model import (
+    compute_pde,
+    compute_plddt,
+    lddt_loss,
+    pde_loss,
+)
 from sfm.models.psm.psmmodel import PSMConfig
 from sfm.utils.register import Register
 
@@ -263,6 +270,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
 
         self.linear_s = nn.Linear(self.c_in, self.c_hidden)
         self.linear_c = nn.Linear(self.c_in, self.c_hidden)
+        self.linear_z = nn.Linear(args.encoder_pair_embed_dim, self.c_hidden)
 
         self.dist_proj = nn.Sequential(
             nn.Linear(1, self.c_hidden),
@@ -284,7 +292,8 @@ class PerResidueLDDTCaPredictor(nn.Module):
                 ]
             )
 
-        self.linear_2 = nn.Linear(self.c_hidden, self.no_bins)
+        self.proj_s = nn.Linear(self.c_hidden, self.no_bins)
+        self.proj_z = nn.Linear(self.c_hidden, 64)
 
     def update_batched_data(self, samples, batched_data):
         return batched_data
@@ -292,6 +301,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
     def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         s = self.linear_s(result_dict["decoder_x_output_sample"])
         c = self.linear_c(result_dict["encoder_output"])
+        # z = self.linear_z(result_dict["x_pair"])
 
         pos_pred = result_dict["pred_pos_sample"]
 
@@ -309,8 +319,13 @@ class PerResidueLDDTCaPredictor(nn.Module):
                 mixed_attn_bias=attn_bias,
             )
 
-        s = self.linear_2(s)
+        z = torch.einsum("blh,bkh->blkh", s, s)
+
+        s = self.proj_s(s)
+        z = self.proj_z(z)
+
         result_dict["plddt_logits"] = s
+        result_dict["pde_logits"] = z
 
         with torch.no_grad():
             result_dict["plddt"] = compute_plddt(s)
@@ -321,6 +336,12 @@ class PerResidueLDDTCaPredictor(nn.Module):
                     ~result_dict["protein_mask"].any(dim=-1)
                 )  # result_dict["is_protein"]
             ].mean()
+
+            result_dict["pde"], result_dict["mean_pde"] = compute_pde(
+                z,
+                (~result_dict["padding_mask"])
+                & (~result_dict["protein_mask"].any(dim=-1)),
+            )
 
         return result_dict
 
@@ -333,6 +354,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
             device=pos_pred.device,
             dtype=pos_pred.dtype,
         )
+
         lddt_loss_output, lddt_label, lddt_acc, lddt_stats = lddt_loss(
             model_output["plddt_logits"],
             pos_pred,
@@ -342,10 +364,29 @@ class PerResidueLDDTCaPredictor(nn.Module):
             batched_data["is_protein"],
             resolution,
         )
+
+        pde_loss_output, pde_label, pde_acc = pde_loss(
+            model_output["pde_logits"],
+            pos_pred,
+            pos_orig,
+            (~model_output["padding_mask"])
+            & (~model_output["protein_mask"].any(dim=-1)),
+            batched_data["is_protein"],
+            resolution,
+        )
+
         loss += lddt_loss_output
+        loss += pde_loss_output
+
         logging_output["lddt_loss"] = lddt_loss_output
         logging_output["lddt_acc"] = lddt_acc
         logging_output["lddt_label"] = lddt_label
+
+        logging_output["pde_loss"] = pde_loss_output
+        logging_output["pde_acc"] = pde_acc
+        logging_output["pde_label"] = pde_label
+        logging_output["pde_pred"] = model_output["mean_pde"]
+
         logging_output = {**logging_output, **lddt_stats}
         return loss, logging_output
 

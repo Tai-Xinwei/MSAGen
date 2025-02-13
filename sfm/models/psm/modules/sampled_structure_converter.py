@@ -154,6 +154,8 @@ class MoleculeConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
+        chain_plddt: Optional[float] = None,
+        chain_pde: Optional[float] = None,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -240,6 +242,8 @@ class PeriodicConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
+        chain_plddt: Optional[float] = None,
+        chain_pde: Optional[float] = None,
     ) -> float:
         if sampled_structure is None or original_structure is None:
             return {"rmsd": np.nan}
@@ -372,6 +376,7 @@ class ProteinConverter(BaseConverter):
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
         chain_plddt: Optional[float] = None,
+        chain_pde: Optional[float] = None,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -431,7 +436,7 @@ class ProteinConverter(BaseConverter):
             logger.success(
                 f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
                 f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
-                f"pLDDT={chain_plddt:5.2f}."
+                f"pLDDT={chain_plddt:5.2f}, pde={chain_pde:5.2f}, "
             )
         # except Exception as e:
         # logger.warning(f"Failed to evaluate sample {idx}, {e}.")
@@ -510,6 +515,8 @@ class ComplexConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
+        chain_plddt: Optional[float] = None,
+        chain_pde: Optional[float] = None,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -709,6 +716,7 @@ class SampledStructureConverter:
                     if "plddt" in batched_data:
                         chain_plddt = plddt[index_in_batch]
                         chain_plddt = sum(chain_plddt) / len(chain_plddt)
+                        chain_pde = batched_data["mean_pde"][index_in_batch]
                         all_results[index_in_batch] = CONVERTER_REGISTER[
                             system_tag
                         ]().match(
@@ -720,6 +728,7 @@ class SampledStructureConverter:
                             sample_index,
                             self.given_protein,
                             chain_plddt,
+                            chain_pde,
                         )
                     else:
                         all_results[index_in_batch] = CONVERTER_REGISTER[

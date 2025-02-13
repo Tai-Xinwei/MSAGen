@@ -86,6 +86,9 @@ def evaluate_predicted_structure(
                     with open(pdb_file, "r") as fp:
                         predlines = fp.readlines()
                     assert predlines, f" wrong predicted file {pdb_file}"
+                    plddts = [float(_[60:66].strip())
+                              for _ in predlines if _.startswith('ATOM')]
+                    score["pLDDT"] = sum(plddts) / len(plddts)
                     natilines = metadata["pdbs"][taridx]
                     score.update(calculate_score(predlines, natilines, residx))
                 except Exception as e:
@@ -102,6 +105,7 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
         "CASP14 Full": ["MultiDom"],
         "CASP15 Full": ["MultiDom"],
         "CAMEO  Easy": ["Easy"],
+        "CAMEO  M+H": ["Medium", "Hard"],
         "CAMEO  Medi": ["Medium"],
         "CAMEO  Hard": ["Hard"],
         "CASP14 TBM-easy": ["TBM-easy"],
@@ -123,12 +127,15 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
             "Group": gdf["Group"].iloc[0],
             "Type": gdf["Type"].iloc[0],
         }
+        numtop1 = gdf["ModelIndex"][gdf["pLDDT"].idxmax()]
         for col in ["TMscore", "RMSD", "GDT_TS", "LDDT"]:
+            top1score = gdf[gdf["ModelIndex"] == numtop1][col].iloc[0]
             maxscore = float("-inf")
             for num in gdf["ModelIndex"].to_list():
                 score = gdf[gdf["ModelIndex"] == num][col].iloc[0]
                 record[f"Model{num}_{col}"] = score
                 maxscore = max(maxscore, score)
+            record[f"ModelTop1_{col}"] = top1score
             record[f"ModelMax_{col}"] = maxscore
         records.append(record)
     newdf = pd.DataFrame(records)
@@ -148,10 +155,12 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
             {
                 "CatAndGroup": key,
                 "Number": len(subdf),
-                "Top1TMscore": subdf["Model1_TMscore"].mean() * 100,
-                "Top5TMscore": subdf["ModelMax_TMscore"].mean() * 100,
-                "Top1LDDT": subdf["Model1_LDDT"].mean() * 100,
-                "Top5LDDT": subdf["ModelMax_LDDT"].mean() * 100,
+                "Rnd1TMscore": subdf["Model1_TMscore"].mean() * 100,
+                "Top1TMscore": subdf["ModelTop1_TMscore"].mean() * 100,
+                "BestTMscore": subdf["ModelMax_TMscore"].mean() * 100,
+                "Rnd1LDDT": subdf["Model1_LDDT"].mean() * 100,
+                "Top1LDDT": subdf["ModelTop1_LDDT"].mean() * 100,
+                "BestLDDT": subdf["ModelMax_LDDT"].mean() * 100,
             }
         )
     # calculate average score for dataframe

@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
+import random
 from contextlib import nullcontext
 from typing import Optional
 
@@ -983,12 +984,14 @@ class PSMModel(Model):
                     )
                 )
             ):
-                # if self.psm_config.edm_sampling_method == "af3":
+                if random.random() < 0.8:
+                    self.psm_config.edm_sample_num_steps = 12
+                else:
+                    self.psm_config.edm_sample_num_steps = 11
+
                 sampled_output = self.sample_AF3(batched_data)
                 for k, v in sampled_output.items():
                     result_dict[k + "_sample"] = v
-                # elif self.psm_config.edm_sampling_method == "2nd":
-                #     pass
             else:
                 sampled_output = self.sample(batched_data)
                 for k, v in sampled_output.items():
@@ -998,6 +1001,7 @@ class PSMModel(Model):
                 result_dict = self.psm_finetune_head(result_dict)
                 batched_data["plddt"] = result_dict["plddt"]
                 batched_data["mean_plddt"] = result_dict["mean_plddt"]
+                batched_data["mean_pde"] = result_dict["mean_pde"]
 
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
@@ -1707,7 +1711,6 @@ class PSMModel(Model):
                 * (sigma_min**inv_rho - sigma_max**inv_rho)
             )
             ** rho
-            # * torch.ones((n_graphs,), device=device)
         )  # shape is (B, )
 
         decoder_x_output = None
@@ -3126,6 +3129,7 @@ class PSM(nn.Module):
                     "encoder_output": encoder_output,
                     "decoder_x_output": decoder_x_output,
                     "decoder_vec_output": decoder_vec_output,
+                    "x_pair": x_pair,
                 }
             )
 
