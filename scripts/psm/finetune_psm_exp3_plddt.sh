@@ -55,10 +55,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=100
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=200
+[ -z "${save_batch_interval}" ] && save_batch_interval=100
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
@@ -101,8 +101,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${compile}" ] && compile=False
 
 # [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_2/checkpoints/global_step140000/mp_rank_00_model_states.pt'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit300m/global_step2600/mp_rank_00_model_states.pt'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3b_plddt2'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit3b_plddt2/global_step1800/mp_rank_00_model_states.pt'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3b_plddt3'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
 [ -z "${wandb_team}" ] && wandb_team=peiranjin

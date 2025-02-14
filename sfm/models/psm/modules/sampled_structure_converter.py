@@ -433,10 +433,11 @@ class ProteinConverter(BaseConverter):
                 f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
             )
         else:
+            confidence = chain_plddt - chain_pde
             logger.success(
                 f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
                 f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
-                f"pLDDT={chain_plddt:5.2f}, pde={chain_pde:5.2f}, "
+                f"pLDDT={chain_plddt:5.2f}, pde={chain_pde:5.2f}, confidence={confidence:5.2f}."
             )
         # except Exception as e:
         # logger.warning(f"Failed to evaluate sample {idx}, {e}.")
@@ -716,7 +717,7 @@ class SampledStructureConverter:
                     if "plddt" in batched_data:
                         chain_plddt = plddt[index_in_batch]
                         chain_plddt = sum(chain_plddt) / len(chain_plddt)
-                        chain_pde = batched_data["mean_pde"][index_in_batch]
+                        chain_pde = batched_data["pde_score"][index_in_batch]
                         all_results[index_in_batch] = CONVERTER_REGISTER[
                             system_tag
                         ]().match(

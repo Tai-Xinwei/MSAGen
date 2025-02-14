@@ -13,8 +13,8 @@ MODEL_CONFIG=PSM3B_exp3
 # ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_3/checkpoints
 
-global_step=global_step1000
-ckpt_folder_path=/data/peiran/output/dit3b_plddt2/
+global_step=global_step1500
+ckpt_folder_path=/data/peiran/output/dit3b_plddt3/
 
 # global_step=global_step160000
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt

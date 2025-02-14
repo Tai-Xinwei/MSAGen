@@ -44,6 +44,25 @@ def _calculate_bin_centers(boundaries: torch.Tensor):
     return bin_centers
 
 
+def one_hot(
+    x: torch.Tensor, lower_bins: torch.Tensor, upper_bins: torch.Tensor
+) -> torch.Tensor:
+    """Get one hot embedding of x from lower_bins and upper_bins
+    Args:
+        x (torch.Tensor): the input x
+            [...]
+        lower_bins (torch.Tensor): the lower bounds of bins
+            [bins]
+        upper_bins (torch.Tensor): the upper bounds of bins
+            [bins]
+    Returns:
+        torch.Tensor: the one hot embedding of x from v_bins
+            [..., bins]
+    """
+    dgram = (x[..., None] > lower_bins) * (x[..., None] < upper_bins).float()
+    return dgram
+
+
 # evaluation metrics
 def _superimpose_np(reference, coords):
     """
@@ -326,7 +345,12 @@ def compute_pde(logits: torch.Tensor, all_atom_mask: torch.Tensor) -> torch.Tens
         start=0.5 * bin_width, end=1.0, step=bin_width, device=logits.device
     )
     probs = torch.nn.functional.softmax(logits, dim=-1)
-    pred_pde = (probs * bounds.unsqueeze(0).unsqueeze(0).unsqueeze(0)).sum(dim=-1)
+
+    # pred_pde = (probs * bounds.unsqueeze(0).unsqueeze(0).unsqueeze(0)).sum(dim=-1)
+    pred_pde = torch.sum(
+        probs * bounds.view(*((1,) * len(probs.shape[:-1])), *bounds.shape),
+        dim=-1,
+    )
 
     pair_mask = all_atom_mask.unsqueeze(-1) & all_atom_mask.unsqueeze(-2)
     pred_pde[~pair_mask] = 0.0
@@ -411,11 +435,6 @@ def pde_loss(
         ) / (eps + torch.sum(pair_mask))
 
     errors = errors[pair_mask]
-    # loss = torch.sum(errors) / (
-    #     eps + torch.sum(pair_mask, dim=(-1, -2))
-    # )
-
-    # loss = loss * ((resolution >= min_resolution) & (resolution <= max_resolution))
 
     # Average over the batch dimension
     loss = torch.mean(errors)
