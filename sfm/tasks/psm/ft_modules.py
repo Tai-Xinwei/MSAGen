@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-from math import log
 from typing import Dict, Union
 
 import torch
 import torch.nn as nn
-from pydash import result
 
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.invariant.dit_encoder import DiTBlock
@@ -311,7 +309,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
 
         pos_pred = result_dict["pred_pos_sample"]
 
-        dist = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1).to(s.dtype)
+        dist = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1).to(c.dtype)
         # discretize distance, 0.25 angstrom per bin, 128 bins
         dist_bin_index = torch.floor(dist * 4).long()
         dist_bin_index = torch.clamp(dist_bin_index, 0, self.dist_bin - 1)
@@ -355,7 +353,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
             scaled_mean_pde = result_dict["mean_pde"] / torch.sqrt(
                 all_atom_mask.sum(dim=-1)
             )
-            result_dict["pde_score"] = 1.0 / scaled_mean_pde
+            result_dict["pde_score"] = scaled_mean_pde
 
         return result_dict
 

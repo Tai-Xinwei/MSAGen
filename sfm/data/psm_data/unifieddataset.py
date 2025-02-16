@@ -23,6 +23,7 @@ from sfm.data.psm_data.dataset import (
     MatterSimDataset,
     MGnifyDataset,
     PDBComplexDataset,
+    PDBComplexHydroDataset,
     PDBDataset,
     PlainPM6FullLMDBDataset,
     PM6FullLMDBDataset,
@@ -231,6 +232,11 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.sizes.append(train_dataset.sizes)
             elif dataset_name == "complex":
                 dataset = ComplexDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+            elif dataset_name == "pdbcomplexmultimerh":
+                dataset = PDBComplexHydroDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)

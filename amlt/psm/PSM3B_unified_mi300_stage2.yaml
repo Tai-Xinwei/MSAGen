@@ -6,7 +6,7 @@
 description: psm
 
 env_defaults:
-  NODES: 8
+  NODES: 16
   GPUS_PER_NODE: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -45,9 +45,10 @@ jobs:
   process_count_per_node: 1
   command:
   - export wandb_team=peiranjin
-  - export wandb_group=psm_exp_v22
-  - export wandb_project=psm_VT
+  - export wandb_group=psm_unified_v23_stage1
+  - export wandb_project=psm_unified_v23
   - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export wandb_run_name="unify_3b_training"
 
   - export HSA_ENABLE_SDMA=0
   - export NCCL_IB_PCI_RELAXED_ORDERING=1
@@ -59,17 +60,18 @@ jobs:
   - export pbc_multigraph_cutoff=7.0
   - export pbc_use_local_attention=True
   - export use_no_pre_cutoff_softmax=True
-  - export align_x0_in_diffusion_loss=True
+  - export align_x0_in_diffusion_loss=False
   - export diffusion_training_loss=L2
 
   - export backbone=seq-dit-geom
   - export layers=16
   - export hidden_size=2048
   - export ffn_size=8192
-  - export num_structure_encoder_layer=20
+  - export num_structure_encoder_layer=18
   - export structure_ffn_dim=8192
   - export structure_hidden_dim=2048
   - export num_pred_attn_layer=4
+  - export decoder_hidden_dim=2048
   - export decoder_ffn_dim=8192
   - export num_head=32
 
@@ -77,20 +79,21 @@ jobs:
   - export max_residue_num=768
   - export ligand_crop_size=20.0
 
-  - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
-  - export dataset_name_list='esm,esm,esm,pdbcomplexmultimer' #,geom'
-  - export dataset_split_raito='0.2,0.2,0.4,0.2' #,0.2'
-  - export dataset_micro_batch_size='4,4,4,4'
+  - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6,mattersim-30M-less200-filtered-merged' #,geom_drugs_full.lmdb'
+  - export dataset_name_list='esm,esm,pdbcomplexmultimerh,pm6-wb97xd3,mattersim' #,geom'
+  - export dataset_split_raito='0.2,0.3,0.1,0.2,0.2' #,0.2'
+  - export dataset_micro_batch_size='4,4,4,16,8'
 
-  - export save_batch_interval=1000
+  # - export data_path_list='20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
+  # - export dataset_name_list='pdbcomplexmultimer' #,geom'
+  # - export dataset_split_raito='1.0' #,0.2'
+  # - export dataset_micro_batch_size='16'
+
+  - export save_batch_interval=2500
   - export train_batch_size=1024
   - export val_batch_size=1024
-  - export gradient_accumulation_steps=4
+  - export gradient_accumulation_steps=8
   - export val_batch_interval=0
-
-  - export wandb_project=psm_dev_shiyu_unified_20241119
-  - export wandb_group=psm_dev_shiyu_20241015
-  - export WANDB_RUN_NAME=psm_unified_continue_mat_edmprot
 
   - export total_num_steps=400000
   - export warmup_num_steps=1000
@@ -103,9 +106,9 @@ jobs:
   - export strategy=Zero1
   - export fp16=False
   - export clean_sample_ratio=0.5
-  - export mode_prob='0.1,0.9,0.0'
-  - export complex_mode_prob='0.9,0.0,0.1,0.0'
-  - export mask_ratio=0.0
+  - export mode_prob='0.2,0.8,0.0'
+  - export complex_mode_prob='0.8,0.0,0.2,0.0'
+  - export mask_ratio=0.15
 
   - export use_graphormer_path_edge_feature=False
   - export use_ddpm_for_material=True
@@ -120,9 +123,9 @@ jobs:
   - export ddpm_schedule=sigmoid
 
   - export data_path=/psm/data/
-  - export save_dir=/blob/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c/checkpoints
-  - export loadcheck_path='/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909/checkpoint_E1_B80151.pt'
-  - export psm_finetune_mode=False
+  - export save_dir=/blob/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage2_5c/checkpoints
+  - export loadcheck_path=/blob/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints/global_step217500/mp_rank_00_model_states.pt
+  - export psm_finetune_mode=True
 
   - export psm_validation_mode=False
   - export sample_in_validation=False
@@ -143,6 +146,7 @@ jobs:
   - export molecule_energy_loss_ratio=1.0
   - export energy_per_atom_label_scale=1.0
   - export mlm_from_decoder_feature=True
+  - export encoderfeat4mlm=True
   - export num_3d_bias_kernel=32
 
   - export diffusion_training_loss=L2
@@ -166,6 +170,7 @@ jobs:
   - export supervise_autograd_stress=True
   - export stress_loss_factor=0.1
 
+  - export use_bond_loss=False
   - export separate_noise_head=True
   - export if_total_energy=False
 
@@ -173,11 +178,8 @@ jobs:
   - export supervise_force_from_head_when_autograd=True
   - export n_gpu=${GPUS_PER_NODE}
 
-  - export wandb_run_name="v0_training"
-
   - export log_interval=100
 
-  - export seed=12348
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/psm/pretrain_psm.sh

@@ -67,14 +67,14 @@ class PSMMixEmbedding(nn.Module):
         is_molecule = batched_data["is_molecule"]
         batch_size, max_num_nodes = padding_mask.size()[:2]
 
-        if aa_mask is not None:
-            mask_token_type = token_id.masked_fill(
-                aa_mask, 157
-            )  # 157 is the mask token
-        else:
-            mask_token_type = token_id
+        # if aa_mask is not None:
+        #     mask_token_type = token_id.masked_fill(
+        #         aa_mask, 157
+        #     )  # 157 is the mask token
+        # else:
+        #     mask_token_type = token_id
 
-        batched_data["masked_token_type"] = mask_token_type
+        mask_token_type = batched_data["masked_token_type"]
         x = self.embed(mask_token_type)
 
         if (

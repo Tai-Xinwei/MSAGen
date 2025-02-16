@@ -1320,10 +1320,6 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             ),
         )
 
-        self.virtual_node_emb = nn.Parameter(
-            torch.zeros(8, psm_config.embedding_dim), requires_grad=True
-        )
-
         self.psm_config = psm_config
 
     @torch.compiler.disable(recursive=False)
@@ -1461,19 +1457,6 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
         chain_embed = self.chain_id_proj(chain_id)
 
         x = x + chain_embed
-
-        if pbc_expand_batched is not None:
-            num_atoms = (
-                batched_data["num_atoms"]
-                .unsqueeze(-1)
-                .unsqueeze(-1)
-                .expand(-1, 8, x.size(-1))
-            )
-            x.scatter_add_(
-                1,
-                num_atoms + torch.arange(8, device=x.device).unsqueeze(0).unsqueeze(-1),
-                self.virtual_node_emb.unsqueeze(0).expand(x.size(0), -1, -1),
-            )
 
         graph_attn_bias = self._2dedge_emb(
             batched_data["adj"],

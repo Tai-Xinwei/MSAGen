@@ -2,24 +2,21 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-num_sampling_time=10
 
 # MODEL_CONFIG=PSM1B_DIT
 # MODEL_CONFIG=PSM1B_exp3
 
-MODEL_CONFIG=PSM3B_exp3
+# MODEL_CONFIG=PSM3B_exp3
 # MODEL_CONFIG=PSM3B_unify
 
 # ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints
 # ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_3/checkpoints
 
-global_step=global_step1500
+# global_step=global_step217500
+
+MODEL_CONFIG=PSM3B_exp3
+global_step=global_step1400
 ckpt_folder_path=/data/peiran/output/dit3b_plddt3/
-
-# global_step=global_step160000
-CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
-
-SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 
 # MODEL_CONFIG=PSM1B_unify
 # ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/shiyu/psm-checkpoints/psm-unified-20241228-0909
@@ -27,7 +24,20 @@ SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 # CKPT_PATH=$ckpt_folder_path/checkpoint_E2_B97620.pt
 # SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
 
+
+# MODEL_CONFIG=PSM9B_exp3
+# ckpt_folder_path=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_10b_p_stage1_2/checkpoints
+# global_step=global_step32000
+
+num_sampling_time=10
+CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
+SMPL_PATH=/home/peiranjin/output/psp/$global_step/prediction
+
 master_port=6667
+
+# cameo-subset-casp14-and-casp15-combined.lmdb
+# proteintest-casp15-full.lmdb
+data=proteintest-casp15-full.lmdb
 
 DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 4 --master_port $master_port sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
@@ -37,7 +47,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   max_length=2048 \
   mask_ratio=0.0 \
   data_path=/fastdata/peiran/psm \
-  data_path_list=ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
+  data_path_list=ProteinTest/$data \
   dataset_name_list=proteintest \
   dataset_split_raito=1.0 \
   dataset_micro_batch_size=1 \
@@ -59,4 +69,8 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
 
 echo $CKPT_PATH
 
-# ./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time $global_step
+./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb $SMPL_PATH $num_sampling_time $global_step
+
+
+  # data_path_list=ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
+  # data_path_list=ProteinTest/proteintest-casp15-full.lmdb \

@@ -974,18 +974,18 @@ class PSMModel(Model):
                 )
             ):
                 sampled_output = self.sample_AF3(batched_data)
-                for k, v in sampled_output.items():
-                    result_dict[k + "_sample"] = v
             else:
                 sampled_output = self.sample(batched_data)
+
+            if self.psm_finetune_head:
                 for k, v in sampled_output.items():
                     result_dict[k + "_sample"] = v
 
-            if self.psm_finetune_head:
                 result_dict = self.psm_finetune_head(result_dict)
                 batched_data["plddt"] = result_dict["plddt"]
                 batched_data["mean_plddt"] = result_dict["mean_plddt"]
                 batched_data["mean_pde"] = result_dict["mean_pde"]
+                batched_data["pde_score"] = result_dict["pde_score"]
 
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
@@ -1311,12 +1311,12 @@ class PSMModel(Model):
                     and self.psm_config.diffusion_sampling == "edm"
                 ):
                     # select = random.random()
-                    # if select < 0.5:
+                    # if select < 0.6:
                     #     self.psm_config.edm_sample_num_steps = 12
-                    # # elif select < 0.6:
-                    #     # self.psm_config.edm_sample_num_steps = 11
+                    # elif select < 0.7:
+                    #     self.psm_config.edm_sample_num_steps = 11
                     # else:
-                    self.psm_config.edm_sample_num_steps = 20
+                    #     self.psm_config.edm_sample_num_steps = 20
 
                     sampled_output = self.sample_AF3(batched_data)
                 else:
@@ -2703,7 +2703,6 @@ class PSM(nn.Module):
 
                 if self.args.backbone in ["exp2", "exp3"]:
                     decoder_vec_output = None
-                    encoder_output = encoder_output.transpose(0, 1)
                 else:
                     decoder_x_output, decoder_vec_output = self.structure_decoder(
                         batched_data,
@@ -2713,6 +2712,8 @@ class PSM(nn.Module):
                         pbc_expand_batched,
                         time_embed=time_embed,
                     )
+
+                encoder_output = encoder_output.transpose(0, 1)
 
         elif self.args.backbone in ["dit", "ditp"]:
             encoder_output = self.encoder(
