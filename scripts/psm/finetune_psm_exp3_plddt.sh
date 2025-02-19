@@ -68,15 +68,15 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 
-# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
+[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
 
-[ -z "${data_path_list}" ] && data_path_list='UniProt90-UniRef50-updated-plddt70-reduce.lmdb,20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='esm,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,8"
+# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data,UniProt90-UniRef50-updated-plddt70-reduce.lmdb,AFDB50-plddt70.lmdb'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer,esm,afdb'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.4,0.4'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,8,8"
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${group_optimizer}" ] && group_optimizer=True
@@ -102,7 +102,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_2/checkpoints/global_step140000/mp_rank_00_model_states.pt'
 # [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/output/dit3b_plddt2/global_step1800/mp_rank_00_model_states.pt'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3b_plddt3'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit3b_plddt1'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
@@ -125,11 +125,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 [ -z "${diffusion_rescale_coeff}" ] && diffusion_rescale_coeff=1.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm, protea
-[ -z "${diffusion_sampling}" ] && diffusion_sampling=dpm_edm
+[ -z "${diffusion_sampling}" ] && diffusion_sampling=edm
 [ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-1000
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L2"
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
-[ -z "${edm_sample_num_steps}" ] && edm_sample_num_steps=15
+[ -z "${edm_sample_num_steps}" ] && edm_sample_num_steps=12
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7

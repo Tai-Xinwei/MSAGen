@@ -79,19 +79,19 @@ jobs:
   - export max_residue_num=768
   - export ligand_crop_size=20.0
 
-  - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6,mattersim-30M-less200-filtered-merged' #,geom_drugs_full.lmdb'
+  - export data_path_list='MGnify90-selected-plddt70-reduce.lmdb,AFDB70-plddt70-reduce-updated.lmdb,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6,matter-sim-15M-correct-stress' #,geom_drugs_full.lmdb'
   - export dataset_name_list='esm,esm,pdbcomplexmultimerh,pm6-wb97xd3,mattersim' #,geom'
-  - export dataset_split_raito='0.2,0.3,0.1,0.2,0.2' #,0.2'
-  - export dataset_micro_batch_size='4,4,4,16,8'
+  - export dataset_split_raito='0.2,0.2,0.1,0.2,0.3' #,0.2'
+  - export dataset_micro_batch_size='4,4,4,16,4'
 
   # - export data_path_list='20240630_PDB_Training_Data' #,geom_drugs_full.lmdb'
   # - export dataset_name_list='pdbcomplexmultimer' #,geom'
   # - export dataset_split_raito='1.0' #,0.2'
   # - export dataset_micro_batch_size='16'
 
-  - export save_batch_interval=2500
-  - export train_batch_size=1024
-  - export val_batch_size=1024
+  - export save_batch_interval=2000
+  - export train_batch_size=4096
+  - export val_batch_size=4096
   - export gradient_accumulation_steps=8
   - export val_batch_interval=0
 
@@ -111,7 +111,7 @@ jobs:
   - export mask_ratio=0.15
 
   - export use_graphormer_path_edge_feature=False
-  - export use_ddpm_for_material=True
+  - export use_ddpm_for_material=False
   - export diff_init_lattice_size=10.0
   - export wrap_in_periodic_diffusion=False
   - export recompute_noise_after_wrap=False
@@ -123,9 +123,9 @@ jobs:
   - export ddpm_schedule=sigmoid
 
   - export data_path=/psm/data/
-  - export save_dir=/blob/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage2_5c/checkpoints
+  - export save_dir=/blob/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage2_5c_2/checkpoints
   - export loadcheck_path=/blob/sfmexpresults/peiran/psmv1_mi300_edm_unify_v22_3b_stage1_5c_2/checkpoints/global_step217500/mp_rank_00_model_states.pt
-  - export psm_finetune_mode=True
+  - export psm_finetune_mode=False
 
   - export psm_validation_mode=False
   - export sample_in_validation=False
@@ -167,7 +167,7 @@ jobs:
   - export use_adaptive_noise_std_for_periodic=True
   - export periodic_diffusion_noise_std_factor=1.0531306506190654
   - export supervise_prediction_stress=False
-  - export supervise_autograd_stress=True
+  - export supervise_autograd_stress=False
   - export stress_loss_factor=0.1
 
   - export use_bond_loss=False

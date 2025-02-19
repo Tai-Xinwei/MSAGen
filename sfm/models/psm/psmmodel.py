@@ -1310,13 +1310,13 @@ class PSMModel(Model):
                     self.psm_config.diffusion_mode == "edm"
                     and self.psm_config.diffusion_sampling == "edm"
                 ):
-                    # select = random.random()
-                    # if select < 0.6:
-                    #     self.psm_config.edm_sample_num_steps = 12
-                    # elif select < 0.7:
-                    #     self.psm_config.edm_sample_num_steps = 11
-                    # else:
-                    #     self.psm_config.edm_sample_num_steps = 20
+                    select = random.random()
+                    if select < 0.6:
+                        self.psm_config.edm_sample_num_steps = 12
+                    elif select < 0.7:
+                        self.psm_config.edm_sample_num_steps = 11
+                    else:
+                        self.psm_config.edm_sample_num_steps = 20
 
                     sampled_output = self.sample_AF3(batched_data)
                 else:
@@ -1351,6 +1351,7 @@ class PSMModel(Model):
             loss, logging_output = self.psm_finetune_head.update_loss(
                 loss, logging_output, model_output, batched_data
             )
+
         return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
 
     def config_optimizer(self, model: Optional[nn.Module]):
@@ -2417,10 +2418,9 @@ class PSM(nn.Module):
         if self.psm_config.diffusion_mode == "edm" and (
             not is_ddpm_for_material_when_edm
         ):
-            # pos_noised_no_c_in = batched_data["pos"].clone()
-            # batched_data["pos"] = pos * batched_data["c_in"]
+            pos_noised_no_c_in = batched_data["pos"].clone()
+            batched_data["pos"] = pos_raw * batched_data["c_in"]
 
-            batched_data["pos"] = batched_data["pos"].clone() * batched_data["c_in"]
             # CL: update "cell" to match the scaled "pos"!
             # batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             batched_data["cell"] = (
@@ -2445,6 +2445,7 @@ class PSM(nn.Module):
                 raise ValueError(
                     f"unknown `edm_x_init_treatment_from` '{self.psm_config.edm_x_init_treatment_from}'"
                 )
+
             # batched_data["init_pos"] = batched_data["init_pos"] * batched_data["c_in"]
 
         n_graphs, n_nodes = pos_raw.size()[:2]
@@ -2953,7 +2954,7 @@ class PSM(nn.Module):
                     not is_ddpm_for_material_when_edm
                 ):
                     noise_pred = (
-                        batched_data["c_skip"] * pos_raw
+                        batched_data["c_skip"] * pos_noised_no_c_in
                         + batched_data["c_out"] * noise_pred
                     )
                 else:
@@ -2995,7 +2996,7 @@ class PSM(nn.Module):
                         energy_per_atom,
                         non_atom_mask,
                         pos_raw,
-                        batched_data["cell"],
+                        batched_data["cell"] / batched_data["c_in"][:, 0][:, None],
                         batched_data["is_periodic"],
                         batched_data["is_molecule"],
                     )
@@ -3027,11 +3028,11 @@ class PSM(nn.Module):
                                 -1
                             ),
                         )
-                    elif self.psm_config.AutoGradForce:
-                        if self.psm_config.all_atom:
-                            forces = torch.zeros_like(batched_data["pos"].mean(dim=2))
-                        else:
-                            forces = torch.zeros_like(batched_data["pos"])
+                    # elif self.psm_config.AutoGradForce:
+                    #     if self.psm_config.all_atom:
+                    #         forces = torch.zeros_like(batched_data["pos"].mean(dim=2))
+                    #     else:
+                    #         forces = torch.zeros_like(batched_data["pos"])
                     else:
                         forces = torch.where(
                             is_periodic.unsqueeze(-1).unsqueeze(-1),

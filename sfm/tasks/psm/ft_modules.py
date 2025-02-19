@@ -6,6 +6,7 @@ import torch.nn as nn
 
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.invariant.dit_encoder import DiTBlock
+from sfm.models.psm.invariant.plain_encoder import PSMPairPlainEncoderLayer
 from sfm.models.psm.modules.autograd import GradientHead
 from sfm.models.psm.modules.confidence_model import (
     compute_pde,
@@ -278,20 +279,25 @@ class PerResidueLDDTCaPredictor(nn.Module):
         # )
 
         self.layers = nn.ModuleList([])
-        for _ in range(4):
+        for _ in range(8):
             self.layers.extend(
                 [
-                    DiTBlock(
+                    PSMPairPlainEncoderLayer(
                         args,
                         psm_config,
                         embedding_dim=c_hidden,
                         ffn_embedding_dim=c_hidden,
+                        encoder_pair_embed_dim=c_hidden,
                         num_attention_heads=self.n_head,
                     )
                 ]
             )
 
-        self.proj_s = nn.Linear(self.c_hidden, self.no_bins)
+        self.proj_s = nn.Sequential(
+            nn.Linear(self.c_hidden, self.c_hidden),
+            nn.SiLU(),
+            nn.Linear(self.c_hidden, self.no_bins),
+        )
         self.proj_z = nn.Linear(self.c_hidden, 64)
 
         self.dist_bin = 128
@@ -305,33 +311,47 @@ class PerResidueLDDTCaPredictor(nn.Module):
     def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         s = self.linear_s(result_dict["decoder_x_output_sample"])
         c = self.linear_c(result_dict["encoder_output"])
-        z = self.linear_z(result_dict["x_pair"])
+        # z = self.linear_z(result_dict["x_pair"])
 
         pos_pred = result_dict["pred_pos_sample"]
 
         dist = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1).to(c.dtype)
+
         # discretize distance, 0.25 angstrom per bin, 128 bins
         dist_bin_index = torch.floor(dist * 4).long()
         dist_bin_index = torch.clamp(dist_bin_index, 0, self.dist_bin - 1)
-        attn_bias = self.dist_bin_emb(dist_bin_index)
-        attn_bias = self.dist_proj(self.activation(attn_bias)).squeeze(-1)
-        # dist = self.dist_proj(1 / (dist.unsqueeze(-1) + 1.0)).squeeze(-1)
+        dist_emb = self.dist_bin_emb(dist_bin_index)
+        attn_bias = self.dist_proj(self.activation(dist_emb)).squeeze(-1)
         attn_bias = dist.unsqueeze(1).repeat(1, self.n_head, 1, 1)
 
+        x_pair = dist_emb.permute(1, 2, 0, 3)
+        x = c.transpose(0, 1)
+
         for layer in self.layers:
-            s = layer(
-                s,
-                c,
+            x, x_pair = layer(
+                x,
                 result_dict["padding_mask"],
                 result_dict,
-                pbc_expand_batched=None,
                 mixed_attn_bias=attn_bias,
+                x_pair=x_pair,
+                pbc_expand_batched=None,
             )
 
-        z += torch.einsum("blh,bkh->blkh", s, s)
+        # z = torch.einsum("blh,bkh->blkh", s, s)
+        # s = self.proj_s(x.transpose(0, 1))
 
-        s = self.proj_s(s)
-        z = self.proj_z(z)
+        x_pair = x_pair.permute(2, 0, 1, 3)
+        x_pair = x_pair.masked_fill(
+            result_dict["padding_mask"].unsqueeze(1).unsqueeze(-1), 0.0
+        )
+        x_pair = x_pair.masked_fill(
+            result_dict["padding_mask"].unsqueeze(2).unsqueeze(-1), 0.0
+        )
+        x_pair_pool = x_pair.sum(dim=-2) / (~result_dict["padding_mask"]).sum(
+            dim=-1
+        ).unsqueeze(-1).unsqueeze(-1)
+        s = self.proj_s(x_pair_pool)
+        z = self.proj_z(x_pair)
 
         result_dict["plddt_logits"] = s
         result_dict["pde_logits"] = z
@@ -342,7 +362,6 @@ class PerResidueLDDTCaPredictor(nn.Module):
             all_atom_mask = (~result_dict["padding_mask"]) & (
                 ~result_dict["protein_mask"].any(dim=-1)
             )
-
             # calculate mean pLDDT score corresponding to the mask
             result_dict["mean_plddt"] = result_dict["plddt"][all_atom_mask].mean()
 
