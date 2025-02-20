@@ -324,8 +324,14 @@ class PerResidueLDDTCaPredictor(nn.Module):
         attn_bias = self.dist_proj(self.activation(dist_emb)).squeeze(-1)
         attn_bias = dist.unsqueeze(1).repeat(1, self.n_head, 1, 1)
 
+        x_pair_pool = dist_emb.sum(dim=-2) / (~result_dict["padding_mask"]).sum(
+            dim=-1
+        ).unsqueeze(-1).unsqueeze(-1)
+
+        s = s + x_pair_pool
+
         x_pair = dist_emb.permute(1, 2, 0, 3)
-        x = c.transpose(0, 1)
+        x = s.transpose(0, 1)
 
         for layer in self.layers:
             x, x_pair = layer(
@@ -407,7 +413,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
         )
 
         loss += lddt_loss_output
-        loss += pde_loss_output
+        # loss += pde_loss_output
 
         logging_output["lddt_loss"] = lddt_loss_output
         logging_output["lddt_acc"] = lddt_acc

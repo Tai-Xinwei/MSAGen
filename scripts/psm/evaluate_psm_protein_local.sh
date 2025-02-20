@@ -15,7 +15,7 @@
 
 
 MODEL_CONFIG=PSM3B_exp3
-global_step=global_step1400
+global_step=global_step3000
 ckpt_folder_path=/data/peiran/output/dit3b_plddt1/
 
 # global_step=global_step217500
@@ -53,7 +53,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 
   data_path_list=ProteinTest/$data \
   dataset_name_list=proteintest \
   dataset_split_raito=1.0 \
-  dataset_micro_batch_size=1 \
+  dataset_micro_batch_size=2 \
   use_unified_batch_sampler=true \
   val_batch_size=1 \
   val_batch_log_interval=1 \

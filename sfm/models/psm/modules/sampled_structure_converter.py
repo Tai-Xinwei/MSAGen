@@ -505,7 +505,7 @@ class ComplexConverter(BaseConverter):
             except Exception as e:
                 logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
         structures.append(pdb_lines)
-        return structures
+        return structures, None
 
     def match(
         self,
@@ -714,7 +714,7 @@ class SampledStructureConverter:
                     indexes,
                     indexes_in_batch,
                 ):
-                    if "plddt" in batched_data:
+                    if "plddt" in batched_data and plddt is not None:
                         chain_plddt = plddt[index_in_batch]
                         chain_plddt = sum(chain_plddt) / len(chain_plddt)
                         chain_pde = batched_data["pde_score"][index_in_batch]

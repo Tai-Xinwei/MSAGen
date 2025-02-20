@@ -1310,13 +1310,13 @@ class PSMModel(Model):
                     self.psm_config.diffusion_mode == "edm"
                     and self.psm_config.diffusion_sampling == "edm"
                 ):
-                    select = random.random()
-                    if select < 0.6:
-                        self.psm_config.edm_sample_num_steps = 12
-                    elif select < 0.7:
-                        self.psm_config.edm_sample_num_steps = 11
-                    else:
-                        self.psm_config.edm_sample_num_steps = 20
+                    random.random()
+                    # if select < 0.6:
+                    #     self.psm_config.edm_sample_num_steps = 12
+                    # elif select < 0.7:
+                    #     self.psm_config.edm_sample_num_steps = 11
+                    # else:
+                    # self.psm_config.edm_sample_num_steps = 20
 
                     sampled_output = self.sample_AF3(batched_data)
                 else:

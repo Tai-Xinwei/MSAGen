@@ -238,7 +238,8 @@ def lddt(
         p=2,
     )
     dists_to_score = dmat_true < cutoff
-    dists_to_score = dists_to_score * is_polymer_atom_mask.unsqueeze(-1)
+    # dists_to_score = dists_to_score * is_polymer_atom_mask.unsqueeze(-1)
+    dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-1)
     dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-2)
     dists_to_score = dists_to_score * (
         1.0
@@ -280,6 +281,14 @@ def lddt_loss(
         cutoff=cutoff,
         eps=eps,
     )
+    global_score = compute_contact_agreement(
+        ca_atom_pred_pos,
+        ca_atom_positions,
+        all_atom_mask,
+        eps=eps,
+    )
+    score = 0.7 * score + 0.3 * global_score
+
     # TODO: Remove after initial pipeline testing
     score = torch.nan_to_num(score, nan=torch.nanmean(score))
     score[score < 0] = 0
@@ -531,3 +540,36 @@ class TMScoreHead(nn.Module):
         # [*, N, N, no_bins]
         logits = self.linear(z)
         return logits
+
+
+def compute_contact_agreement(
+    all_atom_positions, all_atom_pred_pos, all_atom_mask, contact_cutoff=8.0, eps=1e-6
+):
+    """Compute contact agreement score based on contact maps."""
+    dmat_true = torch.norm(
+        all_atom_positions[..., None, :] - all_atom_positions[..., None, :, :] + eps,
+        dim=-1,
+        p=2,
+    )
+    dmat_pred = torch.norm(
+        all_atom_pred_pos[..., None, :] - all_atom_pred_pos[..., None, :, :] + eps,
+        dim=-1,
+        p=2,
+    )
+
+    pair_mask = all_atom_mask.unsqueeze(-1) & all_atom_mask.unsqueeze(-2)
+
+    true_contacts = (dmat_true < contact_cutoff) & pair_mask
+    pred_contacts = (dmat_pred < contact_cutoff) & pair_mask
+
+    true_positive = torch.sum(true_contacts & pred_contacts, dim=-1)
+    total_true = torch.sum(true_contacts, dim=-1)
+
+    return true_positive / (total_true + eps)
+
+
+# def compute_lddt_global(true_coords, pred_coords, alpha=0.7):
+#     """Compute a hybrid lDDT-global score combining local and global interactions."""
+#     lddt_score = compute_lddt(true_coords, pred_coords)
+#     contact_score = compute_contact_agreement(true_coords, pred_coords)
+#     return alpha * lddt_score + (1 - alpha) * contact_score

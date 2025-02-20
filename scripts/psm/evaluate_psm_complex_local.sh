@@ -5,12 +5,14 @@
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/complex/$global_step/prediction
 MODEL_CONFIG=PSM3B_exp3
-NUM_SAMPLING_TIME=50
-GLOBAL_STEP=global_step70000
+NUM_SAMPLING_TIME=1
+GLOBAL_STEP=global_step140000
 DATA_PATH=/fastdata/peiran/psm
 WORK_PATH=/data/peiran/blob/sfmdatawestus/psm/sfmexpresults/peiran/psmv1_mi300_edm_exp3_v22_3b_ps_stage1_5c_2/checkpoints
 CKPT_PATH=$WORK_PATH/$GLOBAL_STEP/mp_rank_00_model_states.pt
-SMPL_PATH=$WORK_PATH/$GLOBAL_STEP/posebusters
+# SMPL_PATH=$WORK_PATH/$GLOBAL_STEP/posebusters
+SMPL_PATH=/home/peiranjin/output/complex/$GLOBAL_STEP/prediction
+
 
 master_port=6667
 
@@ -31,7 +33,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   val_batch_size=1 \
   val_batch_log_interval=1 \
   gradient_accumulation_steps=1 \
-  diffusion_sampling=dpm_edm \
+  diffusion_sampling=edm \
   num_timesteps_stepsize=-250 \
   num_sampling_time=$NUM_SAMPLING_TIME \
   loadcheck_path=$CKPT_PATH \
@@ -46,13 +48,13 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
 echo $CKPT_PATH
 echo $SMPL_PATH
 
-python tools/protein_evaluation/EvaluateComplexAligned.py \
-  $SMPL_PATH \
-  /casp/sfm/psm/ComplexTest/posebusters_benchmark_set \
-  $NUM_SAMPLING_TIME \
-  $SMPL_PATH/../result.csv \
-  -1
+# python tools/protein_evaluation/EvaluateComplexAligned.py \
+#   $SMPL_PATH \
+#   /casp/sfm/psm/ComplexTest/posebusters_benchmark_set \
+#   $NUM_SAMPLING_TIME \
+#   $SMPL_PATH/../result.csv \
+#   -1
 
-python tools/protein_evaluation/posebusters_stat.py \
-  $SMPL_PATH/../result.csv \
-  $NUM_SAMPLING_TIME
+# python tools/protein_evaluation/posebusters_stat.py \
+#   $SMPL_PATH/../result.csv \
+#   $NUM_SAMPLING_TIME
