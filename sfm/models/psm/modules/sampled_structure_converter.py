@@ -154,8 +154,6 @@ class MoleculeConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
-        chain_plddt: Optional[float] = None,
-        chain_pde: Optional[float] = None,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -242,8 +240,6 @@ class PeriodicConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
-        chain_plddt: Optional[float] = None,
-        chain_pde: Optional[float] = None,
     ) -> float:
         if sampled_structure is None or original_structure is None:
             return {"rmsd": np.nan}
@@ -309,141 +305,6 @@ class PeriodicConverter(BaseConverter):
         return ret
 
 
-@CONVERTER_REGISTER.register("protein")
-class ProteinConverter(BaseConverter):
-    def convert(self, batched_data: Dict[str, Tensor], poses: Tensor):
-        num_residues = batched_data["num_atoms"].cpu().numpy()
-        batch_size = num_residues.shape[0]
-        structures: List[Optional[List[str]]] = []
-        pLDDT: List[Optional[List[float]]] = []
-        token_ids = batched_data["token_id"]
-        keys = batched_data.get("key", ["TEMP"] * batch_size)
-        for j in range(batch_size):
-            try:
-                pos = poses[j].cpu()
-                pos = pos[: num_residues[j]]
-                residue_ids = token_ids[j][: num_residues[j]].cpu().numpy()
-                pdb_lines = [f"HEADER    {keys[j]}\n"]
-                atomidx = 0
-                chainid = "A"
-                resnumb = 0
-                residue_plddt = []
-                for i, (x, y, z) in enumerate(pos):
-                    record = "ATOM  "
-                    symbol = "C"
-                    atomname = " CA "
-                    resnumb += 1
-                    resname = VOCAB2AA.get(residue_ids[i], "UNK")
-                    if np.isnan(x):
-                        # Process missing residues in ground truth protein
-                        continue
-                    if "plddt" in batched_data:
-                        plddt_value = batched_data["plddt"][j, atomidx].item()
-                        residue_plddt.append(plddt_value)
-                        atomidx += 1
-                        pdb_lines.append(
-                            f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
-                            f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
-                            f"  1.00{plddt_value:6.2f}          {symbol}  \n"
-                        )
-                    else:
-                        atomidx += 1
-                        pdb_lines.append(
-                            f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
-                            f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
-                            f"  1.00  0.00          {symbol}  \n"
-                        )
-
-                pdb_lines.append("TER\n")
-                pdb_lines.append("END\n")
-                structures.append(pdb_lines)
-                if "plddt" in batched_data:
-                    pLDDT.append(residue_plddt)
-
-            except Exception as e:
-                logger.warning(f"Failed to sample for protein {keys[j]}, {e}")
-                structures.append(None)
-
-        return structures, pLDDT
-
-    def match(
-        self,
-        sampled_structure: Optional[List[str]],
-        relaxed_sampled_structure: Optional[List[str]],
-        original_structure: Optional[List[str]],
-        idx: int,
-        sampled_structure_output_path: Optional[str] = None,
-        sample_index: Optional[int] = -1,
-        given_protein: bool = False,
-        chain_plddt: Optional[float] = None,
-        chain_pde: Optional[float] = None,
-    ) -> float:
-        if relaxed_sampled_structure is not None:
-            logger.warning(
-                "Matching behavior with relaxed structurs for protein is not defined yet."
-            )
-        rmsd, tm_score, lddt = np.nan, np.nan, np.nan
-        # try:
-        assert (
-            sampled_structure and sampled_structure[0][:6] == "HEADER"
-        ), f"Wrong sample structure {sampled_structure[0]}"
-        assert (
-            original_structure and original_structure[0][:6] == "HEADER"
-        ), f"Wrong original structure {original_structure[0]}"
-        assert (
-            sampled_structure[0] == original_structure[0]
-        ), f"Wrong name for sample {sampled_structure[0]}"
-        key = sampled_structure[0].split()[1]
-        sampled_path = os.path.join(
-            sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
-        )
-        with open(sampled_path, "w") as out_file:
-            out_file.writelines(sampled_structure)
-        original_path = os.path.join(sampled_structure_output_path, f"{key}-native.pdb")
-        with open(original_path, "w") as out_file:
-            out_file.writelines(original_structure)
-        lines = []
-        lines.extend(
-            subprocess.run(
-                f"TMscore {sampled_path} {original_path}",
-                shell=True,
-                capture_output=True,
-                text=True,
-            ).stdout.split("\n")
-        )
-        lines.extend(
-            subprocess.run(
-                f"lddt -c {sampled_path} {original_path}",
-                shell=True,
-                capture_output=True,
-                text=True,
-            ).stdout.split("\n")
-        )
-        for line in lines:
-            cols = line.split()
-            if line.startswith("RMSD") and len(cols) > 5:
-                rmsd = float(cols[5])
-            elif line.startswith("TM-score") and len(cols) > 2:
-                tm_score = float(cols[2])
-            elif line.startswith("Global LDDT") and len(cols) > 3:
-                lddt = float(cols[3])
-        if chain_plddt is None:
-            logger.success(
-                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
-                f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
-            )
-        else:
-            # confidence = chain_plddt + chain_pde
-            logger.success(
-                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
-                f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}, "
-                f"pLDDT={chain_plddt:5.2f}, pde={chain_pde:5.2f}."  # , confidence={confidence:5.2f}."
-            )
-        # except Exception as e:
-        # logger.warning(f"Failed to evaluate sample {idx}, {e}.")
-        return {"rmsd": rmsd, "tm_score": tm_score, "lddt": lddt}
-
-
 @CONVERTER_REGISTER.register("complex")
 class ComplexConverter(BaseConverter):
     def convert(self, batched_data: Dict[str, Tensor], poses: Tensor):
@@ -468,10 +329,14 @@ class ComplexConverter(BaseConverter):
                 tok = batched_data["token_id"][i][: num_atoms[i]].cpu().numpy()
                 msk = batched_data["is_protein"][i][: num_atoms[i]].cpu().numpy()
                 ids = batched_data["chain_ids"][i][: num_atoms[i]].cpu().numpy()
+                plddt = np.zeros((num_atoms[i],))
+                if "plddt" in batched_data:
+                    plddt = batched_data["plddt"][i][: num_atoms[i]].cpu().numpy()
                 pdb_lines = [f"HEADER    {keys[i]}\n"]
                 atomidx = 0
                 chainid = "A"
                 resnumb = 0
+                bfactor = 0.0
                 ligatom = collections.defaultdict(int)
                 for idx, (x, y, z) in enumerate(pos):
                     if _num2str(ids[idx]) != chainid:
@@ -485,6 +350,7 @@ class ComplexConverter(BaseConverter):
                         atomname = " CA "
                         resnumb += 1
                         resname = VOCAB2AA.get(tok[idx], "UNK")
+                        bfactor = plddt[idx]
                     else:
                         record = "HETATM"
                         symbol = NUM2SYM.get(tok[idx] - 2, "X")
@@ -492,6 +358,7 @@ class ComplexConverter(BaseConverter):
                         atomname = f"{symbol.upper():>2s}{ligatom[symbol]:<2d}"
                         resnumb = resnumb
                         resname = "LIG"
+                        bfactor = plddt[idx]
                     if np.isnan(x):
                         # Process missing residues in ground truth protein
                         continue
@@ -499,13 +366,13 @@ class ComplexConverter(BaseConverter):
                     pdb_lines.append(
                         f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
                         f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
-                        f"  1.00  0.00          {symbol}  \n"
+                        f"  1.00{bfactor:>6.2f}          {symbol}  \n"
                     )
                 pdb_lines.append("END\n")
             except Exception as e:
                 logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
         structures.append(pdb_lines)
-        return structures, None
+        return structures
 
     def match(
         self,
@@ -516,8 +383,6 @@ class ComplexConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
         given_protein: bool = False,
-        chain_plddt: Optional[float] = None,
-        chain_pde: Optional[float] = None,
     ) -> float:
         if relaxed_sampled_structure is not None:
             logger.warning(
@@ -537,6 +402,14 @@ class ComplexConverter(BaseConverter):
                     ligpos.append((key, xyz))
             return protpos, ligpos
 
+        def _get_bfactor(atomlines: list):
+            bfactor = []
+            for line in atomlines:
+                if line[:6] not in ("ATOM  ", "HETATM"):
+                    continue
+                bfactor.append(float(line[60:66].strip()))
+            return bfactor
+
         def _calc_rmsd(x1, x2, ref1=None, ref2=None):
             if ref1 is None or ref2 is None:
                 ref1, ref2 = x1, x2
@@ -548,7 +421,7 @@ class ComplexConverter(BaseConverter):
             rmsd = np.sqrt(((((x1 - x2_t) ** 2)) * 3).mean())
             return rmsd
 
-        pocket_aligned_rmsd, tm_score = np.nan, np.nan
+        pocket_aligned_rmsd, tm_score, lddt = np.nan, np.nan, np.nan
         try:
             assert (
                 sampled_structure and sampled_structure[0][:6] == "HEADER"
@@ -575,32 +448,40 @@ class ComplexConverter(BaseConverter):
             sampled_protein, sampled_ligand = _get_xyz(sampled_structure)
             original_protein, original_ligand = _get_xyz(original_structure)
 
-            commprt = set([_[0] for _ in sampled_protein]) & set(
-                [_[0] for _ in original_protein]
-            )
-            commlig = set([_[0] for _ in sampled_ligand]) & set(
-                [_[0] for _ in original_ligand]
-            )
-            smplprt = np.array([_[1] for _ in sampled_protein if _[0] in commprt])
-            smpllig = np.array([_[1] for _ in sampled_ligand if _[0] in commlig])
-            origprt = np.array([_[1] for _ in original_protein if _[0] in commprt])
-            origlig = np.array([_[1] for _ in original_ligand if _[0] in commlig])
+            # check ligand exists or not
+            pocket_rmsd, kabsch_rmsd = np.nan, np.nan
+            if len(sampled_ligand) > 0:
+                commprt = set([_[0] for _ in sampled_protein]) & set(
+                    [_[0] for _ in original_protein]
+                )
+                commlig = set([_[0] for _ in sampled_ligand]) & set(
+                    [_[0] for _ in original_ligand]
+                )
+                smplprt = np.array([_[1] for _ in sampled_protein if _[0] in commprt])
+                smpllig = np.array([_[1] for _ in sampled_ligand if _[0] in commlig])
+                origprt = np.array([_[1] for _ in original_protein if _[0] in commprt])
+                origlig = np.array([_[1] for _ in original_ligand if _[0] in commlig])
 
-            # calculate Kabsch RMSD between sampled ligand and original ligand
-            kabsch_rmsd = _calc_rmsd(smpllig, origlig)
-            # calculate pocket aligned RMSD
-            dist = np.linalg.norm(smplprt[:, None, :] - smpllig[None, :, :], axis=-1)
+                # calculate Kabsch RMSD between sampled ligand and original ligand
+                kabsch_rmsd = _calc_rmsd(smpllig, origlig)
+                # calculate pocket aligned RMSD
+                dist = np.linalg.norm(
+                    smplprt[:, None, :] - smpllig[None, :, :], axis=-1
+                )
 
-            if given_protein:
-                mask = np.min(dist, axis=-1) < 1000  # 1000 Angstrom
-            else:
-                mask = np.min(dist, axis=-1) < 10  # 10 Angstrom
+                if given_protein:
+                    mask = np.min(dist, axis=-1) < 1000  # 1000 Angstrom
+                else:
+                    mask = np.min(dist, axis=-1) < 10  # 10 Angstrom
 
-            smpl_pocket, orig_pocket = smplprt[mask], origprt[mask]
-            assert len(smpl_pocket) >= 1, f"Cannot find pocket atoms for {key}."
-            pocket_aligned_rmsd = _calc_rmsd(smpllig, origlig, smpl_pocket, orig_pocket)
-            pocket_ref_rmsd = _calc_rmsd(smpl_pocket, orig_pocket)
-            # calculate TM-score on protein
+                smpl_pocket, orig_pocket = smplprt[mask], origprt[mask]
+                assert len(smpl_pocket) >= 1, f"Cannot find pocket atoms for {key}."
+                pocket_aligned_rmsd = _calc_rmsd(
+                    smpllig, origlig, smpl_pocket, orig_pocket
+                )
+                pocket_rmsd = _calc_rmsd(smpl_pocket, orig_pocket)
+
+            # calculate TM-score and lDDT on protein
             with (
                 tempfile.NamedTemporaryFile() as predpdb,
                 tempfile.NamedTemporaryFile() as natipdb,
@@ -612,7 +493,15 @@ class ComplexConverter(BaseConverter):
                 lines = []
                 lines.extend(
                     subprocess.run(
-                        f"TMscore {predpdb.name} {natipdb.name}",
+                        f"TMscore {sampled_path} {original_path}",
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                    ).stdout.split("\n")
+                )
+                lines.extend(
+                    subprocess.run(
+                        f"lddt -c {sampled_path} {original_path}",
                         shell=True,
                         capture_output=True,
                         text=True,
@@ -622,18 +511,26 @@ class ComplexConverter(BaseConverter):
                     cols = line.split()
                     if line.startswith("TM-score") and len(cols) > 2:
                         tm_score = float(cols[2])
+                    elif line.startswith("Global LDDT") and len(cols) > 3:
+                        lddt = float(cols[3])
+
+            # calculate pLDDT
+            token_plddt = _get_bfactor(sampled_structure)
+            plddt = sum(token_plddt) / len(token_plddt)
 
             logger.success(
-                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+                f"Sample={idx:3d}-{key:7s}, "
+                f"Model={sample_index+1:3d}, "
                 f"TM-score={tm_score:6.4f}, "
+                f"LDDT={lddt:6.4f}, "
+                f"pLDDT={plddt:6.2f}, "
+                f"Pocket-RMSD={pocket_rmsd:6.3f}, "
                 f"Kabsch-RMSD={kabsch_rmsd:6.3f}, "
-                f"Pocket-RMSD={pocket_ref_rmsd:6.3f}, "
                 f"Pocket-aligned-RMSD={pocket_aligned_rmsd:6.3f}."
             )
         except Exception as e:
             logger.warning(f"Failed to evaluate sample {idx}, {e}.")
-
-        return {"rmsd": pocket_aligned_rmsd, "tm_score": tm_score}
+        return {"rmsd": pocket_aligned_rmsd, "tm_score": tm_score, "lddt": lddt}
 
 
 class SampledStructureConverter:
@@ -676,19 +573,15 @@ class SampledStructureConverter:
     ) -> Tensor:
         batch_size = batched_data["is_molecule"].size()[0]
         all_results = [None for _ in range(batch_size)]
-        for system_tag in ["molecule", "periodic", "protein", "complex"]:
+        for system_tag in ["molecule", "periodic", "complex"]:
             is_mask = batched_data[f"is_{system_tag}"]
-            if system_tag == "protein":
-                is_mask = batched_data["is_protein"].any(dim=1) & (
-                    ~batched_data["is_complex"]
-                )
             indexes_in_batch = is_mask.nonzero().squeeze(-1)
             if torch.any(is_mask):
                 indexes = batched_data["idx"][is_mask]
-                sampled_structures, plddt = CONVERTER_REGISTER[system_tag]().convert(
+                sampled_structures = CONVERTER_REGISTER[system_tag]().convert(
                     batched_data, batched_data["pos"]
                 )
-                original_structures, _ = CONVERTER_REGISTER[system_tag]().convert(
+                original_structures = CONVERTER_REGISTER[system_tag]().convert(
                     batched_data, original_pos
                 )
                 relaxed_sampled_structures = (
@@ -714,33 +607,15 @@ class SampledStructureConverter:
                     indexes,
                     indexes_in_batch,
                 ):
-                    if "plddt" in batched_data and plddt is not None:
-                        chain_plddt = plddt[index_in_batch]
-                        chain_plddt = sum(chain_plddt) / len(chain_plddt)
-                        chain_pde = batched_data["pde_score"][index_in_batch]
-                        all_results[index_in_batch] = CONVERTER_REGISTER[
-                            system_tag
-                        ]().match(
-                            sampled_structure,
-                            relaxed_sampled_structure,
-                            original_structure,
-                            int(index),
-                            self.sampled_structure_output_path,
-                            sample_index,
-                            self.given_protein,
-                            chain_plddt,
-                            chain_pde,
-                        )
-                    else:
-                        all_results[index_in_batch] = CONVERTER_REGISTER[
-                            system_tag
-                        ]().match(
-                            sampled_structure,
-                            relaxed_sampled_structure,
-                            original_structure,
-                            int(index),
-                            self.sampled_structure_output_path,
-                            sample_index,
-                            self.given_protein,
-                        )
+                    all_results[index_in_batch] = CONVERTER_REGISTER[
+                        system_tag
+                    ]().match(
+                        sampled_structure,
+                        relaxed_sampled_structure,
+                        original_structure,
+                        int(index),
+                        self.sampled_structure_output_path,
+                        sample_index,
+                        self.given_protein,
+                    )
         return all_results
