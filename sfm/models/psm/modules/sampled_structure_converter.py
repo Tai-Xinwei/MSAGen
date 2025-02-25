@@ -493,7 +493,7 @@ class ComplexConverter(BaseConverter):
                 lines = []
                 lines.extend(
                     subprocess.run(
-                        f"TMscore {sampled_path} {original_path}",
+                        f"USalign -TMscore 7 -ter 1 {sampled_path} {original_path}",
                         shell=True,
                         capture_output=True,
                         text=True,
@@ -509,8 +509,12 @@ class ComplexConverter(BaseConverter):
                 )
                 for line in lines:
                     cols = line.split()
-                    if line.startswith("TM-score") and len(cols) > 2:
-                        tm_score = float(cols[2])
+                    if (
+                        line.startswith("TM-score=")
+                        and len(cols) > 6
+                        and cols[6] == "Structure_2:"
+                    ):
+                        tm_score = float(cols[1])
                     elif line.startswith("Global LDDT") and len(cols) > 3:
                         lddt = float(cols[3])
 
@@ -549,6 +553,9 @@ class SampledStructureConverter:
         exitcode, output = subprocess.getstatusoutput("which lddt")
         if exitcode != 0:
             raise ValueError(f"Program 'lddt' not installed, {output}.")
+        exitcode, output = subprocess.getstatusoutput("which USalign")
+        if exitcode != 0:
+            raise ValueError(f"Program 'USalign' not installed, {output}.")
         self.psm_config = psm_config
         self.given_protein = self.psm_config.sample_ligand_only
         self.model = model
