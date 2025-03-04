@@ -77,12 +77,12 @@ def convert_to_mmcif_string(
       )
     ), f'Wrong ligand {ligid} parsed from input structure'
 
-    ligres = hetres[0]
-    ligres.resname = ligid
-    ligres.id = (f'H_{ligid}', 1, ' ')
-    for atom, atomid in zip(ligres.get_atoms(), atomids):
-      atom.id = atomid
-      atom.name = atomid
+    for ligres in hetres:
+      ligres.resname = ligid
+      ligres.id = (f'H_{ligid}', 1, ' ')
+      for atom, atomid in zip(ligres.get_atoms(), atomids):
+        atom.id = atomid
+        atom.name = atomid
 
     with io.StringIO() as sio:
       mmcifio = PDB.MMCIFIO()
@@ -315,6 +315,8 @@ def evaluate_one_model(
     'Name': model['name'],
     'ModelIndex': model['model_index'],
     'RankingScore': model['ranking_score'],
+    'NumReferenceLigs': 0,
+    'NumPredictedLigs': 0,
     'PocketConf': 0.,
     'PocketRMSD': 10000.,
     'LigandConf': 0.,
@@ -334,6 +336,11 @@ def evaluate_one_model(
       model['refcifstr'], model['refccdstr'], ligid)
     inpmodel, inpligs = read_structure_and_ligand_from_mmcif(
       model['inpcifstr'], model['refccdstr'], ligid)
+    score.update({
+      'NumReferenceLigs': len(refligs),
+      'NumPredictedLigs': len(inpligs),
+    })
+
     # Check the consistency between predicted and reference ligand molecules
     smiles = Chem.MolToSmiles(refligs[0][0])
     assert all(Chem.MolToSmiles(_[0]) == smiles for _ in refligs + inpligs), (
