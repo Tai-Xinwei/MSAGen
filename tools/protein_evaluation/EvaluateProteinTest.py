@@ -67,11 +67,18 @@ def collect_models(
         for p in pathlib.Path(result_dir).glob(f'{name}-*'):
             if p.stem.endswith('native'):
                 continue
+
+            inppdbstr = p.read_text()
+            bf = [float(_[60:66].strip())
+                  for _ in inppdbstr.split('\n') if _[:4] == 'ATOM']
+            score = sum(bf) / len(bf)
+
             models.append({
                 'name': name,
                 'model_index': int(p.stem.removeprefix(f'{name}-')),
+                'ranking_score': score,
                 'refpdbstr': pdbstr,
-                'inppdbstr': p.read_text(),
+                'inppdbstr': inppdbstr,
                 'type': _type,
                 'domain': _domain,
             })
@@ -118,7 +125,8 @@ def evaluate_one_model(
     try:
         # check model information
         assert {
-            'name', 'model_index', 'refpdbstr', 'inppdbstr', 'type', 'domain',
+            'name', 'model_index', 'ranking_score', 'refpdbstr', 'inppdbstr',
+            'type', 'domain',
         }.issubset(model.keys()), 'Failed to load model infomation.'
         # calculate score for each domain
         for domstr, domlen, domgroup in model['domain']:
@@ -134,18 +142,16 @@ def evaluate_one_model(
                 residx.update(range(start, finish + 1))
             assert domlen == len(residx), f'domain length!={domlen}'
 
-            bf = [float(_[60:66].strip()) for _ in predlines if _[:4] == 'ATOM']
-            plddt = sum(bf) / len(bf)
             score = calculate_score(predlines, natilines, residx)
 
             scores.append({
                 'Name': domstr.split(':')[0],
                 'Target': model['name'],
                 'ModelIndex': model['model_index'],
+                'RankingScore': model['ranking_score'],
                 'Type': model['type'],
                 'Length': domlen,
                 'Group': domgroup,
-                'pLDDT': plddt,
                 'RMSD': score['RMSD'],
                 'TMscore': score['TMscore'],
                 'GDT_TS': score['GDT_TS'],
@@ -186,7 +192,7 @@ def calculate_average_score(
             'Group': gdf['Group'].iloc[0],
             'Type': gdf['Type'].iloc[0],
         }
-        numtop1 = gdf['ModelIndex'][gdf['pLDDT'].idxmax()]
+        numtop1 = gdf['ModelIndex'][gdf['RankingScore'].idxmax()]
         for col in ['TMscore', 'LDDT']:
             top1score = gdf[gdf['ModelIndex'] == numtop1][col].iloc[0]
             maxscore = -10000.

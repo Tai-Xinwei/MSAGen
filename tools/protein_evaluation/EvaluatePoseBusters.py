@@ -40,6 +40,7 @@ def convert_to_mmcif_string(
 ) -> str:
   """Convert input PDB structure to MMCIF string."""
   mmcif_str = ''
+
   try:
     assert pathlib.Path(inpfile).is_file(), 'Input structure does not exist'
     assert pathlib.Path(inpfile).suffix == '.pdb', 'Input structure must be PDB'
@@ -68,7 +69,7 @@ def convert_to_mmcif_string(
           continue
         hetres.append(residue)
     assert (
-      len(hetres) == 1 and
+      len(hetres) > 0 and
       len(hetres[0]) == len(atomids) and
       all(
         a.element.upper()==_.upper()
@@ -136,9 +137,16 @@ def collect_models(
         else:
           logging.error('Invalid input structure %s', p)
           inpcifstr = ''
+
+        mmcifdict = PDB.MMCIF2Dict.MMCIF2Dict(io.StringIO(inpcifstr))
+        assert '_atom_site.B_iso_or_equiv' in mmcifdict, f'Wrong B_iso in {p}'
+        bf = [float(_) for _ in mmcifdict['_atom_site.B_iso_or_equiv']]
+        score = sum(bf) / len(bf)
+
         models.append({
           'name': name,
           'model_index': int(p.stem.removeprefix(f'{name}-')),
+          'ranking_score': score,
           'refccdstr': strdict['refccd'],
           'refcifstr': strdict['refcif'],
           'refpdbstr': strdict['refpdb'],
@@ -306,16 +314,17 @@ def evaluate_one_model(
     'ID': '{}-{}'.format(model['name'], model['model_index']),
     'Name': model['name'],
     'ModelIndex': model['model_index'],
-    'PocketConf': -1.,
-    'PocketRMSD': -1.,
-    'LigandConf': -1.,
-    'LigandRMSD': -1.,
-    'PocketAlignedConf': -1.,
-    'PocketAlignedRMSD': -1.,
+    'RankingScore': model['ranking_score'],
+    'PocketConf': 0.,
+    'PocketRMSD': 10000.,
+    'LigandConf': 0.,
+    'LigandRMSD': 10000.,
+    'PocketAlignedConf': 0.,
+    'PocketAlignedRMSD': 10000.,
     'OutSDFString': '',
-    'BustRMSD': -1.,
-    'BustKabschRMSD': -1.,
-    'BustCentroidDistance': -1.,
+    'BustRMSD': 10000.,
+    'BustKabschRMSD': 10000.,
+    'BustCentroidDistance': 10000.,
   }
 
   try:
@@ -330,9 +339,6 @@ def evaluate_one_model(
     assert all(Chem.MolToSmiles(_[0]) == smiles for _ in refligs + inpligs), (
       'Mismatch ligand molecules between predicted and reference')
     # Calculate ligand RMSD, pocket RMSD and pocket aligned RMSD
-    ligandconf, pocketconf, pocketalignedconf = 10000., 10000., 10000.
-    ligandrmsd, pocketrmsd, pocketalignedrmsd = 10000., 10000., 10000.
-    outsdfstr = ''
     for refmol, refconf in refligs:
       # Get reference ligand coordinates
       refligcrd = refmol.GetConformer().GetPositions()
@@ -385,16 +391,22 @@ def evaluate_one_model(
           inpligcrd = inpmol.GetConformer().GetPositions()
           # Calculate pocket aligned RMSD
           _rmsd, _r, _t = calc_rmsd(refligcrd, inpligcrd, refpktcrd, inppktcrd)
-          if _rmsd >= pocketalignedrmsd:
+          # Skip this predicted ligand if pocket aligned RMSD is large
+          if _rmsd >= score['PocketAlignedRMSD']:
             continue
           # Update the best aligned RMSD
-          ligandrmsd = calc_rmsd(refligcrd, inpligcrd)[0]
-          ligandconf = inpconf
-          pocketrmsd = calc_rmsd(refpktcrd, inppktcrd)[0]
-          pocketconf = np.array([_['CA'].get_bfactor() for _ in inppkt]).mean()
-          pocketalignedrmsd = _rmsd
-          pocketalignedconf = (ligandconf + pocketconf) / 2
           best_inpligcrd_t = np.dot(inpligcrd, _r) + _t
+          _pocketconf = np.mean(
+            np.array([_['CA'].get_bfactor() for _ in inppkt])
+          )
+          score.update({
+            'PocketConf': _pocketconf,
+            'PocketRMSD': calc_rmsd(refpktcrd, inppktcrd)[0],
+            'LigandConf': inpconf,
+            'LigandRMSD': calc_rmsd(refligcrd, inpligcrd)[0],
+            'PocketAlignedConf': (inpconf + _pocketconf) / 2,
+            'PocketAlignedRMSD': _rmsd,
+          })
           with io.StringIO() as sio:
             with Chem.SDWriter(sio) as w:
               _outmol = Chem.Mol(inpmol)
@@ -403,17 +415,9 @@ def evaluate_one_model(
                 _conformer.SetAtomPosition(i, best_inpligcrd_t[i])
               _outmol.SetProp('_Name', f'{pdbid}_{ligid}_Final')
               w.write(_outmol)
-            outsdfstr = sio.getvalue()
-    assert pocketalignedrmsd < 10000., 'Failed to calculate pocket aligned RMSD'
-    score.update({
-      'PocketConf': pocketconf,
-      'PocketRMSD': pocketrmsd,
-      'LigandConf': ligandconf,
-      'LigandRMSD': ligandrmsd,
-      'PocketAlignedConf': pocketalignedconf,
-      'PocketAlignedRMSD': pocketalignedrmsd,
-      'OutSDFString': outsdfstr,
-    })
+            score['OutSDFString'] = sio.getvalue()
+    assert score['OutSDFString'], 'Failed to calculate pocket aligned RMSD'
+    outsdfstr = score['OutSDFString']
 
     # Run PoseBusters command to evaluate the model
     result = None
@@ -470,6 +474,8 @@ if __name__ == '__main__':
     for _ in tqdm(models, desc='Evaluating models by PoseBusters...')
   )
   df = pd.DataFrame(scores)
+  print(df)
+  df.to_csv(f'{result_dir}_Score4EachModel.csv', index=False)
   logging.info('%d records in evaluation result', len(df))
 
   logging.info('Saving average score for each target to %s.', output_dir)
@@ -489,8 +495,6 @@ if __name__ == '__main__':
       gdf['Oracle'] = range(1, len(gdf) + 1)
       dfs.append(gdf)
     df = pd.concat(dfs).sort_index()
-  print(df)
-  df.to_csv(f'{result_dir}_Score4EachModel.csv', index=False)
   logging.info('Saving score4model to %s', f'{result_dir}_Score4EachModel.csv')
 
   logging.info('Calculating average score for each target...')
