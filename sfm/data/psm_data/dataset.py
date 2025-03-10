@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import zlib
 from functools import lru_cache
 
@@ -3303,3 +3304,130 @@ class PDBComplexHydroDataset(AFDBLMDBDataset):
                 indices.append(idx)
 
         self._keys = [self.keys[idx] for idx in indices]
+
+
+class MSAGenDataset(AFDBLMDBDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        env: Optional[lmdb.Environment] = None,
+        txn: Optional[lmdb.Transaction] = None,
+    ):
+        self.lmdb_path = lmdb_path
+        self.args = args
+
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+        env = lmdb.open(lmdb_path, readonly=True, lock=False, readahead=False)
+        with env.begin() as txn:
+            self.keys = [key for key, _ in txn.cursor()]
+        env.close()
+        self.env = None
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self.env.begin(write=False)
+
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
+
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = json.loads(value.decode("utf-8"))
+
+        data["unique_id"] = key.decode("utf-8")
+        return data
+
+    def split_dataset(self, validation_ratio=0.001, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(12345).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        self._init_db()
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self.keys[idx] for idx in training_indices],
+            env=self._env,
+            txn=self._txn,
+        )
+
+        dataset_val = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self.keys[idx] for idx in validation_indices],
+            env=self._env,
+            txn=self._txn,
+        )
+
+        return dataset_train, dataset_val
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if state["_env"] is not None:
+            state["_env"].close()
+            del state["_env"]
+            state["_env"] = None
+        if state["_txn"] is not None:
+            del state["_txn"]
+            state["_txn"] = None
+        return state
+
+    def collate(self, batch: List[Data]) -> Data:
+        result = collate_fn(batch)
+        polymer_len = torch.tensor([i["polymer_len"] for i in batch])
+        result.update(dict(polymer_len=polymer_len))
+        return result
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self._env.begin(write=False)

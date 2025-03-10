@@ -22,6 +22,7 @@ from sfm.data.psm_data.dataset import (
     GEOMDataset,
     MatterSimDataset,
     MGnifyDataset,
+    MSAGenDataset,
     PDBComplexDataset,
     PDBComplexHydroDataset,
     PDBDataset,
@@ -268,6 +269,13 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 train_dataset = dataset_dict["train"]
                 valid_dataset = dataset_dict["valid"]
                 len_total = len(train_dataset) + len(valid_dataset)
+            elif dataset_name == "MSAgeneration":
+                dataset = MSAGenDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset(
+                    validation_ratio=0.01
+                )
+                len_total = len(dataset)
+
             else:
                 raise ValueError(f"Invalid dataset name:{dataset_name}")
 
