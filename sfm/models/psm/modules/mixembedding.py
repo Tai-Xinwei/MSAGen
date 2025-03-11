@@ -1497,3 +1497,41 @@ class PSMMixSeqEmbedding(PSMSeqEmbedding):
             x,
             x_pair,
         )
+
+
+class MSAGenSeqEmbedding(nn.Module):
+    """
+    Class for the embedding layer in the MSAGen model.
+    """
+
+    def __init__(self, psm_config: PSMConfig):
+        super().__init__()
+
+        self.embed = nn.Embedding(30, psm_config.encoder_embed_dim)
+
+        self.psm_config = psm_config
+
+    def forward(
+        self,
+        batched_data: Dict,
+    ) -> Tensor:
+        """
+        Forward pass of the PSMMixEmbedding class.
+        Args:
+            batched_data: Input data for the forward pass.
+        Returns:
+            x: The embedding representation.
+            padding_mask: The padding mask.
+        """
+        token_id = batched_data["token_type"]
+
+        padding_mask = token_id.eq(0)  # B x T x 1
+
+        mask_token_type = token_id
+
+        x = self.embed(mask_token_type)
+
+        return (
+            x,
+            padding_mask,
+        )

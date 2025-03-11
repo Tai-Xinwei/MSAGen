@@ -1,0 +1,99 @@
+ # Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: exp4v2.0
+
+env_defaults:
+  NODES: 1
+  GPUS: 8
+  WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
+
+target:
+  service: sing
+  # name: palisades11
+  # name: msrresrchvc
+  # name: msroctovc
+  # name: quickdevvc
+  name: whitney02
+  workspace_name: sfm-ws
+
+# environment:
+#   image: ai4s-sfm:20240531.170731
+#   registry: msrmoldyn.azurecr.io
+#   username: msrmoldyn
+
+# environment:
+#   image: ai4s-sfm/amd:20241022.151209
+#   registry: msrmoldyn.azurecr.io
+#   username: msrmoldyn
+#   setup:
+#   - eval "$$(conda shell.bash hook)" && conda activate sfm
+#   - python setup_cython.py build_ext --inplace
+
+environment:
+  image: ai4s-sfm/amd:20241022.151209
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+  setup:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+
+storage:
+  sfm:
+    storage_account_name: sfmarca100
+    container_name: sfm
+    mount_dir: /sfm
+
+  westus:
+    storage_account_name: sfmdatawestus
+    container_name: psm
+    mount_dir: /psm
+
+  # mlla:
+  #   storage_account_name: msralaphilly2
+  #   container_name: ml-la
+  #   mount_dir: /blob
+  # sfmdata:
+  #   storage_account_name: sfmarca100
+  #   container_name: sfm
+  #   mount_dir: /sfm
+  # nlmdata:
+  #   storage_account_name: sfmdataeastus2
+  #   container_name: nlm
+  #   mount_dir: /nlm
+  # eastus2:
+  #   storage_account_name: sfmdataeastus2 # Storage account
+  #   container_name: psm # Container name
+  #   mount_dir: /psm
+
+code:
+  local_dir: ../PSM
+
+jobs:
+- name: MSAGen
+  submit_args:
+    max_run_duration_seconds: 1209600 # 14days
+    env:
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+  preemptible: false
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS}
+  mpi: true
+  identity: managed
+  priority: High
+  process_count_per_node: 1
+  command:
+  - mkdir -p ../msadata
+  - wget -O azcopy_v10.tar.gz https://aka.ms/downloadazcopy-v10-linux && tar -xf azcopy_v10.tar.gz --strip-components=1
+  - ./azcopy copy "https://sfmdataeastus.blob.core.windows.net/pdb/20250101_processed/msadata/protein_msa_40.lmdb/?<sas>" ../msadata --recursive
+  # - ./azcopy copy "https://sfmdataeastus2.blob.core.windows.net/psm/data/AFDB50-plddt70.lmdb?<sas>" ./datadisk --recursive
+  # - cp /psm/exp/v-xinweitai/zhanka/src/code ./
+  # - chmod -R 777 code
+  # - ./code tunnel --name=d227_o4 --accept-server-license-terms
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install nvidia-dali-cuda120
+  - bash ./scripts/psm/pretrain_msagen.sh

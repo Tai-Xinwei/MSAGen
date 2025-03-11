@@ -6,6 +6,7 @@ from typing import Iterator, Optional
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import IterableDataset
 from torch.utils.data.distributed import DistributedSampler
 
@@ -269,7 +270,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 train_dataset = dataset_dict["train"]
                 valid_dataset = dataset_dict["valid"]
                 len_total = len(train_dataset) + len(valid_dataset)
-            elif dataset_name == "MSAgeneration":
+            elif dataset_name == "msageneration":
                 dataset = MSAGenDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset(
                     validation_ratio=0.01
@@ -374,6 +375,71 @@ class BatchedDataDatasetForUnifiedSampler(BatchedDataDataset):
             if idx >= self.dataset_ranges[i] and idx < self.dataset_ranges[i + 1]:
                 return self.dataset_list[i][idx - self.dataset_ranges[i]]
         raise ValueError(f"Data with index {idx} not found in any subset.")
+
+
+class BatchedDataDatasetForMSAData(BatchedDataDataset):
+    def __init__(
+        self,
+        args,
+        dataset_list,
+        len_data,
+        **kwargs,
+    ):
+        super().__init__(args, dataset_list, len_data, **kwargs)
+        self.dataset_lens = [len(dataset) for dataset in self.dataset_list]
+        self.dataset_ranges = np.cumsum([0] + self.dataset_lens)
+
+    def __getitem__(self, idx):
+        for i in range(self.num_datasets):
+            if idx >= self.dataset_ranges[i] and idx < self.dataset_ranges[i + 1]:
+                return self.dataset_list[i][idx - self.dataset_ranges[i]]
+        raise ValueError(f"Data with index {idx} not found in any subset.")
+
+    def collate(self, batch):
+        max_length = max(item["token_type"].shape[0] for item in batch)
+        max_depth = max(item["msa_token_type"].shape[0] for item in batch)
+
+        padded_token_types = []
+        padded_msa_token_types = []
+        padded_pos_ids = []
+        for item in batch:
+            token_type = item["token_type"]  # shape: (L)
+            position_ids = item["position_ids"]
+            msa_token_type = item["msa_token_type"]  # shape: (D, L)
+            L_current = token_type.shape[0]
+            pad_len = max_length - L_current  # pad to the right
+            if pad_len > 0:
+                padded_token = F.pad(token_type, (0, pad_len), mode="constant", value=0)
+                padded_pos = F.pad(position_ids, (0, pad_len), mode="constant", value=0)
+            else:
+                padded_token = token_type
+                padded_pos = position_ids
+            padded_pos_ids.append(padded_pos)
+            padded_token_types.append(padded_token)
+            D_current, L_current_msa = msa_token_type.shape
+            pad_depth = max_depth - D_current
+            pad_length = max_length - L_current_msa
+            if pad_depth > 0 or pad_length > 0:
+                padded_msa = F.pad(
+                    msa_token_type,
+                    (0, pad_length, 0, pad_depth),
+                    mode="constant",
+                    value=0,
+                )
+            else:
+                padded_msa = msa_token_type
+            padded_msa_token_types.append(padded_msa)
+        batch_collated = {
+            "token_type": torch.stack(
+                padded_token_types, dim=0
+            ),  # shape: (B,  max_length)
+            "position_ids": torch.stack(padded_pos_ids, dim=0),
+            "msa_token_type": torch.stack(
+                padded_msa_token_types, dim=0
+            ),  # shape: (B, max_depth, max_length)
+            "unique_ids": [item["unique_id"] for item in batch],
+        }
+        return batch_collated
 
 
 class StackedIterableDataset(IterableDataset):

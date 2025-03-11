@@ -12,6 +12,7 @@ import glob
 import os
 import pickle as pkl
 import random
+import string
 from typing import Any, List, Optional, Union
 
 import lmdb
@@ -33,6 +34,7 @@ from sfm.data.prot_data.util import bstr2obj
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.crop import spatial_crop_psm
 from sfm.data.psm_data.utils import (
+    MSAVOCAB,
     PM6_ATOM_ENERGY_OUTLIER_LIST,
     PM6_ATOM_REFERENCE_LIST,
     VOCAB,
@@ -3306,7 +3308,7 @@ class PDBComplexHydroDataset(AFDBLMDBDataset):
         self._keys = [self.keys[idx] for idx in indices]
 
 
-class MSAGenDataset(AFDBLMDBDataset):
+class MSAGenDataset(FoundationModelDataset):
     def __init__(
         self,
         args: PSMConfig,
@@ -3320,13 +3322,24 @@ class MSAGenDataset(AFDBLMDBDataset):
 
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
-        self._sizes, self._keys = None, None
+        self._keys = None
 
-        env = lmdb.open(lmdb_path, readonly=True, lock=False, readahead=False)
-        with env.begin() as txn:
-            self.keys = [key for key, _ in txn.cursor()]
-        env.close()
-        self.env = None
+        if keys is not None:
+            if env is not None:
+                self._env = env
+                self._txn = txn
+            else:
+                self._env = lmdb.open(
+                    str(self.lmdb_path),
+                    subdir=True,
+                    readonly=True,
+                    lock=False,
+                    readahead=False,
+                    meminit=False,
+                )
+                self._txn = self._env.begin(write=False)
+
+            self._keys = keys
 
     def _init_db(self):
         self._env = lmdb.open(
@@ -3338,6 +3351,8 @@ class MSAGenDataset(AFDBLMDBDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
+
+        self._keys = [key for key, _ in self._txn.cursor()]
 
     def _close_db(self):
         if self._env is not None:
@@ -3357,14 +3372,38 @@ class MSAGenDataset(AFDBLMDBDataset):
             self._init_db()
         return self._txn
 
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
+
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
-        value = self.txn.get(key.encode())
+        value = self.txn.get(key)
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         data = json.loads(value.decode("utf-8"))
-
+        token_type = data["query_sequence"]
+        x = torch.tensor([MSAVOCAB[tok] for tok in token_type], dtype=torch.int32)
+        deletion_table = str.maketrans("", "", string.ascii_lowercase)
+        msa_x = torch.tensor(
+            [
+                [MSAVOCAB[tok] for tok in sequence.translate(deletion_table)]
+                for sequence in data["unpaired_msaseq"]
+            ],
+            dtype=torch.int32,
+        )
+        msa_len = len(data["unpaired_msaseq"])
+        data["msa_token_type"] = msa_x
+        data["token_type"] = x
+        data["msa_len"] = msa_len
         data["unique_id"] = key.decode("utf-8")
+        random_start_pos_id = np.random.randint(0, 2000)
+        position_ids = range(
+            random_start_pos_id, random_start_pos_id + len(data["query_sequence"])
+        )
+        data["position_ids"] = torch.tensor(position_ids, dtype=torch.int32)
         return data
 
     def split_dataset(self, validation_ratio=0.001, sort=False):
@@ -3413,12 +3452,6 @@ class MSAGenDataset(AFDBLMDBDataset):
             del state["_txn"]
             state["_txn"] = None
         return state
-
-    def collate(self, batch: List[Data]) -> Data:
-        result = collate_fn(batch)
-        polymer_len = torch.tensor([i["polymer_len"] for i in batch])
-        result.update(dict(polymer_len=polymer_len))
-        return result
 
     def __setstate__(self, state):
         self.__dict__.update(state)
