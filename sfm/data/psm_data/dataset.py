@@ -3351,8 +3351,8 @@ class MSAGenDataset(FoundationModelDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
-
-        self._keys = [key for key, _ in self._txn.cursor()]
+        metadata = self._txn.get("_metadata_keys".encode("utf-8"))
+        self._keys = json.loads(metadata.decode("utf-8"))
 
     def _close_db(self):
         if self._env is not None:
@@ -3380,7 +3380,7 @@ class MSAGenDataset(FoundationModelDataset):
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
-        value = self.txn.get(key)
+        value = self.txn.get(key.encode("utf-8"))
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         data = json.loads(value.decode("utf-8"))
@@ -3398,7 +3398,7 @@ class MSAGenDataset(FoundationModelDataset):
         data["msa_token_type"] = msa_x
         data["token_type"] = x
         data["msa_len"] = msa_len
-        data["unique_id"] = key.decode("utf-8")
+        data["unique_id"] = key
         random_start_pos_id = np.random.randint(0, 2000)
         position_ids = range(
             random_start_pos_id, random_start_pos_id + len(data["query_sequence"])

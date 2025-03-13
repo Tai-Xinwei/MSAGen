@@ -9,7 +9,9 @@ import random
 from contextlib import nullcontext
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -314,20 +316,10 @@ class MSAGenModel(Model):
         Returns:
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
-        B, D, L = batched_data["msa_token_type"].shape
-        msa_padding_mask = (
-            batched_data["msa_token_type"].ne(0).unsqueeze(-1)
-        )  # false means padding
 
-        msa_one_hot = F.one_hot(batched_data["msa_token_type"].long(), num_classes=27)
-        msa_one_hot = msa_one_hot[..., 1:]
-
-        true_prob = msa_one_hot.sum(dim=1)
-
-        true_prob = true_prob / msa_padding_mask.sum(dim=1).clamp(min=1)
-
-        model_prob = F.log_softmax(model_output["decoder_x"], dim=-1)
-        loss = F.kl_div(model_prob, true_prob, reduction="none")
+        loss = F.kl_div(
+            model_output["model_log_prob"], model_output["true_prob"], reduction="none"
+        )
         loss = loss.sum(dim=-1)
         mask = ~model_output["padding_mask"]
         loss = (loss * mask).sum() / mask.sum()
@@ -345,7 +337,11 @@ class MSAGenModel(Model):
                 loss, logging_output, model_output, batched_data
             )
 
-        return ModelOutput(loss=loss, num_examples=B, log_output=logging_output)
+        return ModelOutput(
+            loss=loss,
+            num_examples=model_output["model_prob"].shape[0],
+            log_output=logging_output,
+        )
 
     def config_optimizer(self, model: Optional[nn.Module]):
         """
@@ -392,6 +388,119 @@ class MSAGen(nn.Module):
             nn.Linear(psm_config.embedding_dim // 2, 26, bias=False),
         )
 
+    def plot_probability_heatmaps(
+        self, true_prob, pred_prob, padding_mask, batched_data
+    ):
+        """
+        绘制真实概率分布、模型预测概率分布和它们的差异热图，并保存到磁盘。
+
+        参数：
+        true_prob: numpy 数组或 torch.Tensor，形状 (B, L, 26)，真实概率分布，经过 softmax 后的概率。
+        pred_prob: numpy 数组或 torch.Tensor，形状 (B, L, 26)，模型预测概率分布（经过 softmax）。
+        padding_mask: numpy 数组或 torch.Tensor，形状 (B, L)，布尔类型，其中 True 表示该位置为 padding（无效）。
+        batched_data: 包含其他信息，如 "unique_ids"，用于标识每个样本。
+        """
+        save_dir = "./output/vis"
+        os.makedirs(save_dir, exist_ok=True)
+
+        # 如果输入是 torch.Tensor，则转换为 numpy 数组
+        if hasattr(true_prob, "detach"):
+            true_prob = true_prob.detach().cpu().numpy()
+        if hasattr(pred_prob, "detach"):
+            pred_prob = pred_prob.detach().cpu().numpy()
+        if hasattr(padding_mask, "detach"):
+            padding_mask = padding_mask.detach().cpu().numpy()
+
+        B, L, num_classes = true_prob.shape
+        # 计算差异热图：预测 - 真实
+        diff = pred_prob - true_prob
+
+        # 类别标签：26个类别
+        class_labels = [
+            "A",
+            "R",
+            "N",
+            "D",
+            "C",
+            "Q",
+            "E",
+            "G",
+            "H",
+            "I",
+            "L",
+            "K",
+            "M",
+            "F",
+            "P",
+            "S",
+            "T",
+            "W",
+            "Y",
+            "V",
+            "X",
+            "B",
+            "U",
+            "Z",
+            "O",
+            "-",
+        ]
+
+        # 遍历每个样本
+        for i in range(B):
+            unique_id = batched_data["unique_ids"][i]
+            # 获取当前样本对应的概率分布和差异
+            sample_true = true_prob[i]  # (L, 26)
+            sample_pred = pred_prob[i]  # (L, 26)
+            sample_diff = diff[i]  # (L, 26)
+            # 扩展 padding_mask: 原始 padding_mask[i] 形状为 (L,)
+            # 这里 pad_mask 中 True 表示无效，将其扩展到 (L,26)
+            sample_mask = np.broadcast_to(padding_mask[i][:, None], sample_true.shape)
+
+            # 绘制真实概率分布热图
+            plt.figure(figsize=(10, 8))
+            ax = sns.heatmap(
+                sample_true, mask=sample_mask, cmap="viridis", xticklabels=class_labels
+            )
+            ax.set_title(f"True Probability Distribution for Sample {unique_id}")
+            ax.set_xlabel("Classes")
+            ax.set_ylabel("Sequence Position")
+            plt.tight_layout()
+            save_path = os.path.join(save_dir, f"heatmap_true_{unique_id}.png")
+            plt.savefig(save_path)
+            plt.close()
+
+            # 绘制预测概率分布热图
+            plt.figure(figsize=(10, 8))
+            ax = sns.heatmap(
+                sample_pred, mask=sample_mask, cmap="viridis", xticklabels=class_labels
+            )
+            ax.set_title(f"Predicted Probability Distribution for Sample {unique_id}")
+            ax.set_xlabel("Classes")
+            ax.set_ylabel("Sequence Position")
+            plt.tight_layout()
+            save_path = os.path.join(save_dir, f"heatmap_pred_{unique_id}.png")
+            plt.savefig(save_path)
+            plt.close()
+
+            # 绘制差异热图（预测 - 真实）
+            plt.figure(figsize=(10, 8))
+            ax = sns.heatmap(
+                sample_diff,
+                mask=sample_mask,
+                cmap="coolwarm",
+                center=0,
+                xticklabels=class_labels,
+            )
+            ax.set_title(f"Difference Heatmap for Sample {unique_id}")
+            ax.set_xlabel("Classes")
+            ax.set_ylabel("Sequence Position")
+            plt.tight_layout()
+            save_path = os.path.join(save_dir, f"heatmap_diff_{unique_id}.png")
+            plt.savefig(save_path)
+            plt.close()
+
+            print(f"Saved heatmaps for sample {unique_id} to {save_dir}")
+
     def forward(
         self,
         batched_data,
@@ -405,19 +514,41 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-        token_embedding, paddind_mask = self.embedding(batched_data)
+        token_embedding, padding_mask = self.embedding(batched_data)
 
         encoder_x = self.encoder(
-            token_embedding.transpose(0, 1), paddind_mask, batched_data
+            token_embedding.transpose(0, 1), padding_mask, batched_data
         )
 
         decoder_x = self.x_proj(encoder_x)
 
-        result_dict = {
-            "decoder_x": decoder_x.transpose(0, 1),
-            "padding_mask": paddind_mask,
-        }
+        B, D, L = batched_data["msa_token_type"].shape
 
+        msa_token_type_t = batched_data["msa_token_type"].transpose(1, 2)  # B L D
+        # (batched_data["msa_token_type"].ne(0).unsqueeze(-1))  # false means padding
+        counts = torch.zeros(
+            B, L, 26, device=batched_data["msa_token_type"].device, dtype=torch.int32
+        )
+
+        indices = (msa_token_type_t - 1).clamp(min=0)
+        valid_mask = msa_token_type_t.ne(0)  # B L D
+        counts.scatter_add_(2, indices.long(), valid_mask.int())
+        true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
+        model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
+        model_log_prob = F.log_softmax(decoder_x.transpose(0, 1), dim=-1)
+        result_dict = {
+            "true_prob": true_prob,
+            "model_prob": model_prob,
+            "model_log_prob": model_log_prob,
+            "decoder_x": decoder_x.transpose(0, 1),
+            "padding_mask": padding_mask,
+        }
+        self.plot_probability_heatmaps(
+            true_prob.detach().cpu().numpy(),
+            model_prob.detach().cpu().numpy(),
+            padding_mask.detach().cpu().numpy(),
+            batched_data,
+        )
         return result_dict
 
     def init_state_dict_weight(self, weight, bias):

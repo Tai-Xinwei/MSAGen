@@ -62,7 +62,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -202,7 +202,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}_local
+# [ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_bigger-$(date +"%Y%m%d")-lr${max_lr}-bsz4_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
+[ -z "${wandb_run_name}"] && wandb_run_name=infer
 [ -z "${wandb_group}" ] && wandb_group=msagen
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=MSAGen
@@ -266,8 +267,8 @@ echo "Random number: ${random_number}"
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
-# [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
-[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
+[ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
+#[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
 
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
