@@ -29,12 +29,29 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
 
+# [ -z "${layers}" ] && layers=12
+# [ -z "${hidden_size}" ] && hidden_size=1024
+# [ -z "${ffn_size}" ] && ffn_size=4096
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
+
+#85M
+# [ -z "${layers}" ] && layers=12
+# [ -z "${hidden_size}" ] && hidden_size=768
+# [ -z "${ffn_size}" ] && ffn_size=3072
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
+
+
+#38M
 [ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -62,7 +79,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -165,7 +182,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_3k.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
@@ -202,8 +219,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-# [ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_bigger-$(date +"%Y%m%d")-lr${max_lr}-bsz4_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
-[ -z "${wandb_run_name}"] && wandb_run_name=infer
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_38M-$(date +"%Y%m%d")-lr${max_lr}-bsz4_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
+# [ -z "${wandb_run_name}"] && wandb_run_name=infer
 [ -z "${wandb_group}" ] && wandb_group=msagen
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=MSAGen

@@ -543,12 +543,12 @@ class MSAGen(nn.Module):
             "decoder_x": decoder_x.transpose(0, 1),
             "padding_mask": padding_mask,
         }
-        self.plot_probability_heatmaps(
-            true_prob.detach().cpu().numpy(),
-            model_prob.detach().cpu().numpy(),
-            padding_mask.detach().cpu().numpy(),
-            batched_data,
-        )
+        # self.plot_probability_heatmaps(
+        #     true_prob.detach().cpu().numpy(),
+        #     model_prob.detach().cpu().numpy(),
+        #     padding_mask.detach().cpu().numpy(),
+        #     batched_data,
+        # )
         return result_dict
 
     def init_state_dict_weight(self, weight, bias):

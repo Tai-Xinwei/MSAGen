@@ -8,8 +8,8 @@ defaults:
 model_type: psm
 num_classes: 1
 encoder_attention_heads: 32
-encoder_ffn_embed_dim: 4096
-encoder_embed_dim: 1024
+encoder_ffn_embed_dim: 3072
+encoder_embed_dim: 768
 encoder_layers: 12
 num_pred_attn_layer: 12
 num_3d_bias_kernel: 32
@@ -28,7 +28,7 @@ d_tilde: 1.0
 pbc_cutoff: 40.0
 data_path: ../msadata
 dataset_names: ''
-loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGen-20250312-lr4e-5-bsz4_4-steps2000000-warm1000_local/global_step12915/mp_rank_00_model_states.pt'
+loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGen_85M-20250313-lr4e-5-bsz4_2-steps2000000-warm1000/global_step18368/mp_rank_00_model_states.pt'
 add_3d: false
 no_2d: false
 ft: false
@@ -77,8 +77,8 @@ num_structure_encoder_layer: 4
 encoder_pair_embed_dim: 64
 structure_ffn_dim: 2028
 structure_hidden_dim: 512
-decoder_ffn_dim: 1024
-decoder_hidden_dim: 1024
+decoder_ffn_dim: 768
+decoder_hidden_dim: 768
 task: mae
 sample_mode: false
 train_data_path: ''

@@ -3323,7 +3323,8 @@ class MSAGenDataset(FoundationModelDataset):
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
         self._keys = None
-
+        self._train_keys = None
+        self._valid_keys = None
         if keys is not None:
             if env is not None:
                 self._env = env
@@ -3352,7 +3353,11 @@ class MSAGenDataset(FoundationModelDataset):
         )
         self._txn = self.env.begin(write=False)
         metadata = self._txn.get("_metadata_keys".encode("utf-8"))
+        train_keys = self._txn.get("_train_keys".encode("utf-8"))
+        valid_keys = self._txn.get("_valid_keys".encode("utf-8"))
         self._keys = json.loads(metadata.decode("utf-8"))
+        self._train_keys = json.loads(train_keys.decode("utf-8"))
+        self._valid_keys = json.loads(valid_keys.decode("utf-8"))
 
     def _close_db(self):
         if self._env is not None:
@@ -3377,6 +3382,18 @@ class MSAGenDataset(FoundationModelDataset):
         if self._keys is None:
             self._init_db()
         return self._keys
+
+    @property
+    def train_keys(self):
+        if self._train_keys is None:
+            self._init_db()
+        return self._train_keys
+
+    @property
+    def valid_keys(self):
+        if self._valid_keys is None:
+            self._init_db()
+        return self._valid_keys
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
@@ -3415,8 +3432,8 @@ class MSAGenDataset(FoundationModelDataset):
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
 
-        training_indices = indices[:num_training_samples]
-        validation_indices = indices[num_training_samples:]
+        indices[:num_training_samples]
+        indices[num_training_samples:]
 
         self._init_db()
 
@@ -3424,7 +3441,7 @@ class MSAGenDataset(FoundationModelDataset):
         dataset_train = self.__class__(
             self.args,
             self.lmdb_path,
-            keys=[self.keys[idx] for idx in training_indices],
+            keys=self.train_keys,
             env=self._env,
             txn=self._txn,
         )
@@ -3432,7 +3449,7 @@ class MSAGenDataset(FoundationModelDataset):
         dataset_val = self.__class__(
             self.args,
             self.lmdb_path,
-            keys=[self.keys[idx] for idx in validation_indices],
+            keys=self.valid_keys,
             env=self._env,
             txn=self._txn,
         )
