@@ -73,7 +73,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: MSAGen_38M
+- name: MSAGenv2.0_85M
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:

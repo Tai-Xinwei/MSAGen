@@ -1514,6 +1514,8 @@ class MSAGenSeqEmbedding(nn.Module):
     def forward(
         self,
         batched_data: Dict,
+        aa_mask: Optional[Tensor] = None,
+        padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Forward pass of the PSMMixEmbedding class.
@@ -1524,14 +1526,21 @@ class MSAGenSeqEmbedding(nn.Module):
             padding_mask: The padding mask.
         """
         token_id = batched_data["token_type"]
-
-        padding_mask = token_id.eq(0)  # B x T x 1
-
-        mask_token_type = token_id
+        if aa_mask is not None:
+            # 80% mask ,10% repalce,10% keep
+            prob = torch.rand(token_id.shape, device=token_id.device)
+            mask_token_type = token_id.clone()
+            mask_token_type[prob < 0.8] = 27  # 80%mask
+            mask_token_type[(prob >= 0.8) & (prob < 0.9)] = torch.randint(
+                1, 26, token_id.shape, device=token_id.device, dtype=torch.int32
+            )[
+                (prob >= 0.8) & (prob < 0.9)
+            ]  # 10% replace
+            # 10% remains unchanged
+            mask_token_type = torch.where(aa_mask, mask_token_type, token_id)
+        else:
+            mask_token_type = token_id
 
         x = self.embed(mask_token_type)
 
-        return (
-            x,
-            padding_mask,
-        )
+        return x

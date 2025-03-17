@@ -134,7 +134,7 @@ class MSAGenModel(Model):
 
         if reload_checkpoint:
             self.checkpoint_loaded = self.reload_checkpoint()
-
+        self.aa_mlm_loss = nn.CrossEntropyLoss(reduction="mean")
         # self.loss_fn = loss_fn(args)
 
     def reload_checkpoint(self):
@@ -317,15 +317,24 @@ class MSAGenModel(Model):
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
 
-        loss = F.kl_div(
+        kl_loss = F.kl_div(
             model_output["model_log_prob"], model_output["true_prob"], reduction="none"
         )
-        loss = loss.sum(dim=-1)
+        kl_loss = kl_loss.sum(dim=-1)
         mask = ~model_output["padding_mask"]
-        loss = (loss * mask).sum() / mask.sum()
-
+        kl_loss = (kl_loss * mask).sum() / mask.sum()
+        if batched_data["aa_mask"].any():
+            aa_mask = batched_data["aa_mask"]
+            logits = model_output["aa_logits"][aa_mask]
+            aa_mlm_loss = self.aa_mlm_loss(
+                logits,
+                batched_data["token_type"][aa_mask].long(),
+            )
+        loss = kl_loss + aa_mlm_loss
         logging_output = {
-            "KL_loss": float(loss.detach()),
+            "total_loss": float(loss.detach()),
+            "KL_loss": float(kl_loss.detach()),
+            "aa_mlm_loss": float(aa_mlm_loss.detach()),
         }
         # loss, logging_output = self.loss_fn(model_output, batched_data)
         if (
@@ -386,6 +395,13 @@ class MSAGen(nn.Module):
             ),
             nn.SiLU(),
             nn.Linear(psm_config.embedding_dim // 2, 26, bias=False),
+        )
+        self.aa_mask_head = nn.Sequential(
+            nn.Linear(
+                psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
+            ),
+            nn.SiLU(),
+            nn.Linear(psm_config.embedding_dim // 2, 30, bias=False),
         )
 
     def plot_probability_heatmaps(
@@ -514,29 +530,40 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-        token_embedding, padding_mask = self.embedding(batched_data)
+        token_id = batched_data["token_type"]
+        padding_mask = token_id.eq(0)  # B x T x 1
+        mask_ratio = 0.15
+        aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
+        aa_mask = aa_mask & ~padding_mask
+        batched_data["aa_mask"] = aa_mask
+        token_embedding = self.embedding(batched_data, aa_mask, padding_mask)
 
         encoder_x = self.encoder(
             token_embedding.transpose(0, 1), padding_mask, batched_data
         )
-
         decoder_x = self.x_proj(encoder_x)
 
         B, D, L = batched_data["msa_token_type"].shape
 
+        token_id = batched_data["token_type"]
+        # calculate true prob
         msa_token_type_t = batched_data["msa_token_type"].transpose(1, 2)  # B L D
-        # (batched_data["msa_token_type"].ne(0).unsqueeze(-1))  # false means padding
+
         counts = torch.zeros(
             B, L, 26, device=batched_data["msa_token_type"].device, dtype=torch.int32
         )
-
-        indices = (msa_token_type_t - 1).clamp(min=0)
+        indices = (msa_token_type_t - 1).clamp(
+            min=0
+        )  # B L D minus 1 so that 0 means indices=0 which indicates the first aa
         valid_mask = msa_token_type_t.ne(0)  # B L D
+        # count num of valid according indices
         counts.scatter_add_(2, indices.long(), valid_mask.int())
         true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
         model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
         model_log_prob = F.log_softmax(decoder_x.transpose(0, 1), dim=-1)
+        aa_logits = self.aa_mask_head(encoder_x)
         result_dict = {
+            "aa_logits": aa_logits.transpose(0, 1),
             "true_prob": true_prob,
             "model_prob": model_prob,
             "model_log_prob": model_log_prob,
