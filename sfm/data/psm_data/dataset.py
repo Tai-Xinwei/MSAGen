@@ -3430,10 +3430,7 @@ class MSAGenDataset(FoundationModelDataset):
         random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
-        num_training_samples = num_samples - num_validation_samples
-
-        indices[:num_training_samples]
-        indices[num_training_samples:]
+        num_samples - num_validation_samples
 
         self._init_db()
 

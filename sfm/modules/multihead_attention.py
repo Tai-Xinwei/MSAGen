@@ -688,6 +688,10 @@ class RowSelfAttention(nn.Module):
         embed_dim,
         num_heads,
         dropout=0.0,
+        k_bias=False,
+        q_bias=False,
+        v_bias=False,
+        o_bias=False,
         max_tokens_per_msa: int = 2**16,
     ):
         super().__init__()
@@ -698,11 +702,11 @@ class RowSelfAttention(nn.Module):
         self.max_tokens_per_msa = max_tokens_per_msa
         self.attn_shape = "hnij"
 
-        self.k_proj = nn.Linear(embed_dim, embed_dim)
-        self.v_proj = nn.Linear(embed_dim, embed_dim)
-        self.q_proj = nn.Linear(embed_dim, embed_dim)
+        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=k_bias)
+        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=v_bias)
+        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=q_bias)
 
-        self.out_proj = nn.Linear(embed_dim, embed_dim)
+        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=o_bias)
         self.dropout_module = nn.Dropout(dropout)
 
     def align_scaling(self, q):
@@ -823,6 +827,10 @@ class ColumnSelfAttention(nn.Module):
         self,
         embed_dim,
         num_heads,
+        k_bias=False,
+        q_bias=False,
+        v_bias=False,
+        o_bias=False,
         dropout=0.0,
         max_tokens_per_msa: int = 2**16,
     ):
@@ -834,11 +842,11 @@ class ColumnSelfAttention(nn.Module):
         self.scaling = self.head_dim**-0.5
         self.max_tokens_per_msa = max_tokens_per_msa
 
-        self.k_proj = nn.Linear(embed_dim, embed_dim)
-        self.v_proj = nn.Linear(embed_dim, embed_dim)
-        self.q_proj = nn.Linear(embed_dim, embed_dim)
+        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=k_bias)
+        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=v_bias)
+        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=q_bias)
 
-        self.out_proj = nn.Linear(embed_dim, embed_dim)
+        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=o_bias)
         self.dropout_module = nn.Dropout(dropout)
 
     def _batched_forward(

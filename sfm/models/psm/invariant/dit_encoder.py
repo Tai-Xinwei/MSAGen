@@ -10,6 +10,7 @@ from sfm.models.psm.modules.multihead_attention import (
 )
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.mem_eff_attn import MemEffAttn
+from sfm.modules.multihead_attention import ColumnSelfAttention, RowSelfAttention
 
 
 def modulate(x, shift, scale):
@@ -163,7 +164,7 @@ class PSMDiTEncoder(nn.Module):
 
 class MSADiTBlock(nn.Module):
     """
-    A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
+    A DiT block with Cross-Attention conditioning.
     """
 
     def __init__(
@@ -186,29 +187,29 @@ class MSADiTBlock(nn.Module):
 
         self.norm1 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.psm_config = psm_config
-
-        if not self.psm_config.use_memory_efficient_attention:
-            attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
-        elif psm_config.only_use_rotary_embedding_for_protein:
-            attn_cls = MemEffAttnWithProteinRotaryEmbedding
-        else:
-            attn_cls = MemEffAttn
-
-        self.attn = attn_cls(
-            embedding_dim,
-            num_attention_heads,
+        # attn input shape num_rows, num_cols, bsz, dim
+        self.row_attn = RowSelfAttention(
+            embed_dim=embedding_dim,
+            num_heads=num_attention_heads,
             dropout=psm_config.dropout,
             k_bias=False,
             q_bias=False,
             v_bias=False,
             o_bias=False,
-            add_rope=True,
-            layer_norm=False,
-            use_smooth_softmax=psm_config.use_smooth_softmax,
-            smooth_factor=psm_config.smooth_factor,
+        )
+        self.norm2 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+
+        self.colattn = ColumnSelfAttention(
+            embed_dim=embedding_dim,
+            num_heads=num_attention_heads,
+            dropout=psm_config.dropout,
+            k_bias=False,
+            q_bias=False,
+            v_bias=False,
+            o_bias=False,
         )
 
-        self.norm2 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+        self.norm3 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),

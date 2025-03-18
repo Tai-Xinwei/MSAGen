@@ -22,13 +22,13 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
 
-# [ -z "${layers}" ] && layers=26
-# [ -z "${hidden_size}" ] && hidden_size=1536
-# [ -z "${ffn_size}" ] && ffn_size=6144
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
-
+[ -z "${layers}" ] && layers=26
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+#150M
 # [ -z "${layers}" ] && layers=12
 # [ -z "${hidden_size}" ] && hidden_size=1024
 # [ -z "${ffn_size}" ] && ffn_size=4096
@@ -37,12 +37,12 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
 
 #85M
-[ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=3072
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
+# [ -z "${layers}" ] && layers=12
+# [ -z "${hidden_size}" ] && hidden_size=768
+# [ -z "${ffn_size}" ] && ffn_size=3072
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 
 
 #38M
@@ -219,7 +219,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv2.0_85M-$(date +"%Y%m%d")-lr${max_lr}-bsz4_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv2.0_bigger-$(date +"%Y%m%d")-lr${max_lr}-bsz4_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
 # [ -z "${wandb_run_name}"] && wandb_run_name=infer
 [ -z "${wandb_group}" ] && wandb_group=msagenv2.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm

@@ -517,6 +517,49 @@ class MSAGen(nn.Module):
 
             print(f"Saved heatmaps for sample {unique_id} to {save_dir}")
 
+    def _pre_forward_operation(
+        self,
+        batched_data,
+    ):
+        """
+        pre forward operation
+        """
+        # set padding_mask
+        token_id = batched_data["token_type"]
+        padding_mask = token_id.eq(0)  # B x T x 1
+        B, D, L = batched_data["msa_token_type"].shape
+        msa_token_type = batched_data["msa_token_type"]
+        batched_data["padding_mask"] = padding_mask
+        batched_data["row_padding_mask"] = (msa_token_type == 0).all(dim=-1)
+        batched_data["col_padding_mask"] = (msa_token_type == 0).all(dim=1)
+        batched_data["2D_padding_mask"] = msa_token_type == 0
+        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :128, :]
+        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :128]
+        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :128]
+        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][
+            :, :128, :
+        ]
+        # set aa_mask
+        mask_ratio = 0.15
+        aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
+        aa_mask = aa_mask & ~padding_mask
+        batched_data["aa_mask"] = aa_mask
+
+        # calculate true prob
+        msa_token_type_t = batched_data["msa_token_type"].transpose(1, 2)  # B L D
+
+        counts = torch.zeros(
+            B, L, 26, device=batched_data["msa_token_type"].device, dtype=torch.int32
+        )
+        indices = (msa_token_type_t - 1).clamp(
+            min=0
+        )  # B L D minus 1 so that 0 means indicates=0 which indicates the first aa
+        valid_mask = msa_token_type_t.ne(0)  # B L D
+        # count num of valid according indices
+        counts.scatter_add_(2, indices.long(), valid_mask.int())
+        true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
+        batched_data["true_prob"] = true_prob
+
     def forward(
         self,
         batched_data,
@@ -530,45 +573,29 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-        token_id = batched_data["token_type"]
-        padding_mask = token_id.eq(0)  # B x T x 1
-        mask_ratio = 0.15
-        aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
-        aa_mask = aa_mask & ~padding_mask
-        batched_data["aa_mask"] = aa_mask
-        token_embedding = self.embedding(batched_data, aa_mask, padding_mask)
+        self._pre_forward_operation(batched_data)
+
+        token_embedding = self.embedding(
+            batched_data, batched_data["aa_mask"], batched_data["padding_mask"]
+        )
 
         encoder_x = self.encoder(
-            token_embedding.transpose(0, 1), padding_mask, batched_data
+            token_embedding.transpose(0, 1), batched_data["padding_mask"], batched_data
         )
         decoder_x = self.x_proj(encoder_x)
 
-        B, D, L = batched_data["msa_token_type"].shape
-
-        token_id = batched_data["token_type"]
-        # calculate true prob
-        msa_token_type_t = batched_data["msa_token_type"].transpose(1, 2)  # B L D
-
-        counts = torch.zeros(
-            B, L, 26, device=batched_data["msa_token_type"].device, dtype=torch.int32
-        )
-        indices = (msa_token_type_t - 1).clamp(
-            min=0
-        )  # B L D minus 1 so that 0 means indices=0 which indicates the first aa
-        valid_mask = msa_token_type_t.ne(0)  # B L D
-        # count num of valid according indices
-        counts.scatter_add_(2, indices.long(), valid_mask.int())
-        true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
         model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
-        model_log_prob = F.log_softmax(decoder_x.transpose(0, 1), dim=-1)
+        model_log_prob = F.log_softmax(
+            decoder_x.transpose(0, 1), dim=-1
+        )  # calculate kl loss which needs log softmax first
         aa_logits = self.aa_mask_head(encoder_x)
         result_dict = {
             "aa_logits": aa_logits.transpose(0, 1),
-            "true_prob": true_prob,
+            "true_prob": batched_data["true_prob"],
             "model_prob": model_prob,
             "model_log_prob": model_log_prob,
             "decoder_x": decoder_x.transpose(0, 1),
-            "padding_mask": padding_mask,
+            "padding_mask": batched_data["padding_mask"],
         }
         # self.plot_probability_heatmaps(
         #     true_prob.detach().cpu().numpy(),
