@@ -210,6 +210,18 @@ class MSADiTBlock(nn.Module):
         )
 
         self.norm3 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+
+        self.crossattn = RowSelfAttention(
+            embed_dim=embedding_dim,
+            num_heads=num_attention_heads,
+            dropout=psm_config.dropout,
+            k_bias=False,
+            q_bias=False,
+            v_bias=False,
+            o_bias=False,
+        )
+
+        self.norm1
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),
