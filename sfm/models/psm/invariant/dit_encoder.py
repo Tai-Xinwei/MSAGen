@@ -10,7 +10,11 @@ from sfm.models.psm.modules.multihead_attention import (
 )
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.mem_eff_attn import MemEffAttn
-from sfm.modules.multihead_attention import ColumnSelfAttention, RowSelfAttention
+from sfm.modules.multihead_attention import (
+    ColumnSelfAttention,
+    CrossAttention,
+    RowSelfAttention,
+)
 
 
 def modulate(x, shift, scale):
@@ -211,7 +215,7 @@ class MSADiTBlock(nn.Module):
 
         self.norm3 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
 
-        self.crossattn = RowSelfAttention(
+        self.crossattn = CrossAttention(
             embed_dim=embedding_dim,
             num_heads=num_attention_heads,
             dropout=psm_config.dropout,
@@ -221,7 +225,6 @@ class MSADiTBlock(nn.Module):
             o_bias=False,
         )
 
-        self.norm1
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),
@@ -244,6 +247,13 @@ class MSADiTBlock(nn.Module):
     ):
         math_kernel = ifbackprop  # and pbc_expand_batched is not None
 
+        x = self.norm1(x)  # shape B,D,L,H
+
+        x = x + self.row_attn(
+            x, self_attn_padding_mask=padding_mask
+        )  # padding mask should be B,D,L
+
+        x = self.norm2(x)
         (
             shift_msa,
             scale_msa,

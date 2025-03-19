@@ -983,6 +983,7 @@ class CrossAttention(nn.Module):
     def _batched_forward(
         self,
         x,
+        c,
         self_attn_mask=None,
         self_attn_padding_mask=None,
     ):
@@ -993,6 +994,7 @@ class CrossAttention(nn.Module):
         for start in range(0, num_rows, max_rows):
             attn_weights = self.compute_attention_weights(
                 x[start : start + max_rows],
+                c[start : start + max_rows],
                 scaling,
                 self_attn_mask=self_attn_mask,
                 self_attn_padding_mask=self_attn_padding_mask[
@@ -1008,7 +1010,7 @@ class CrossAttention(nn.Module):
         outputs = []
         for start in range(0, num_rows, max_rows):
             output = self.compute_attention_update(
-                x[start : start + max_rows], attn_probs
+                x[start : start + max_rows], c[start : start + max_rows], attn_probs
             )
             outputs.append(output)
 
@@ -1018,6 +1020,7 @@ class CrossAttention(nn.Module):
     def compute_attention_weights(
         self,
         x,
+        c,
         scaling: float,
         self_attn_mask=None,
         self_attn_padding_mask=None,
@@ -1026,7 +1029,7 @@ class CrossAttention(nn.Module):
         q = self.q_proj(x).view(
             num_rows, num_cols, batch_size, self.num_heads, self.head_dim
         )
-        k = self.k_proj(x).view(
+        k = self.k_proj(c).view(
             num_rows, num_cols, batch_size, self.num_heads, self.head_dim
         )
         q *= scaling
@@ -1054,10 +1057,11 @@ class CrossAttention(nn.Module):
     def compute_attention_update(
         self,
         x,
+        c,
         attn_probs,
     ):
         num_rows, num_cols, batch_size, embed_dim = x.size()
-        v = self.v_proj(x).view(
+        v = self.v_proj(c).view(
             num_rows, num_cols, batch_size, self.num_heads, self.head_dim
         )
         context = torch.einsum(f"{self.attn_shape},rjnhd->rinhd", attn_probs, v)
@@ -1068,6 +1072,7 @@ class CrossAttention(nn.Module):
     def forward(
         self,
         x,
+        c,
         self_attn_mask=None,
         self_attn_padding_mask=None,
     ):
@@ -1075,11 +1080,11 @@ class CrossAttention(nn.Module):
         if (
             num_rows * num_cols > self.max_tokens_per_msa
         ) and not torch.is_grad_enabled():
-            return self._batched_forward(x, self_attn_mask, self_attn_padding_mask)
+            return self._batched_forward(x, c, self_attn_mask, self_attn_padding_mask)
         else:
             scaling = self.align_scaling(x)
             attn_weights = self.compute_attention_weights(
-                x, scaling, self_attn_mask, self_attn_padding_mask
+                x, c, scaling, self_attn_mask, self_attn_padding_mask
             )
             attn_probs = attn_weights.softmax(-1)
             attn_probs = self.dropout_module(attn_probs)
