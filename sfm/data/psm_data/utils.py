@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 import copy
 import gc
+import os
 from argparse import Namespace
 
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 ##################################################################
 # WHEN pretrain with molecule energy, the system/atom reference need
@@ -1737,3 +1740,115 @@ def convert_to_single_emb(x, offset: int = 512):
     feature_offset = torch.arange(0, feature_num * offset, offset, dtype=torch.long)
     x = x + feature_offset
     return x
+
+
+def plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data):
+    """
+    绘制真实概率分布、模型预测概率分布和它们的差异热图，并保存到磁盘。
+
+    参数：
+    true_prob: numpy 数组或 torch.Tensor，形状 (B, L, 26)，真实概率分布，经过 softmax 后的概率。
+    pred_prob: numpy 数组或 torch.Tensor，形状 (B, L, 26)，模型预测概率分布（经过 softmax）。
+    padding_mask: numpy 数组或 torch.Tensor，形状 (B, L)，布尔类型，其中 True 表示该位置为 padding（无效）。
+    batched_data: 包含其他信息，如 "unique_ids"，用于标识每个样本。
+    """
+    save_dir = "./output/vis"
+    os.makedirs(save_dir, exist_ok=True)
+
+    # 如果输入是 torch.Tensor，则转换为 numpy 数组
+    if hasattr(true_prob, "detach"):
+        true_prob = true_prob.detach().cpu().numpy()
+    if hasattr(pred_prob, "detach"):
+        pred_prob = pred_prob.detach().cpu().numpy()
+    if hasattr(padding_mask, "detach"):
+        padding_mask = padding_mask.detach().cpu().numpy()
+
+    B, L, num_classes = true_prob.shape
+    # 计算差异热图：预测 - 真实
+    diff = pred_prob - true_prob
+
+    # 类别标签：26个类别
+    class_labels = [
+        "A",
+        "R",
+        "N",
+        "D",
+        "C",
+        "Q",
+        "E",
+        "G",
+        "H",
+        "I",
+        "L",
+        "K",
+        "M",
+        "F",
+        "P",
+        "S",
+        "T",
+        "W",
+        "Y",
+        "V",
+        "X",
+        "B",
+        "U",
+        "Z",
+        "O",
+        "-",
+    ]
+
+    # 遍历每个样本
+    for i in range(B):
+        unique_id = batched_data["unique_ids"][i]
+        # 获取当前样本对应的概率分布和差异
+        sample_true = true_prob[i]  # (L, 26)
+        sample_pred = pred_prob[i]  # (L, 26)
+        sample_diff = diff[i]  # (L, 26)
+        # 扩展 padding_mask: 原始 padding_mask[i] 形状为 (L,)
+        # 这里 pad_mask 中 True 表示无效，将其扩展到 (L,26)
+        sample_mask = np.broadcast_to(padding_mask[i][:, None], sample_true.shape)
+
+        # 绘制真实概率分布热图
+        plt.figure(figsize=(10, 8))
+        ax = sns.heatmap(
+            sample_true, mask=sample_mask, cmap="viridis", xticklabels=class_labels
+        )
+        ax.set_title(f"True Probability Distribution for Sample {unique_id}")
+        ax.set_xlabel("Classes")
+        ax.set_ylabel("Sequence Position")
+        plt.tight_layout()
+        save_path = os.path.join(save_dir, f"heatmap_true_{unique_id}.png")
+        plt.savefig(save_path)
+        plt.close()
+
+        # 绘制预测概率分布热图
+        plt.figure(figsize=(10, 8))
+        ax = sns.heatmap(
+            sample_pred, mask=sample_mask, cmap="viridis", xticklabels=class_labels
+        )
+        ax.set_title(f"Predicted Probability Distribution for Sample {unique_id}")
+        ax.set_xlabel("Classes")
+        ax.set_ylabel("Sequence Position")
+        plt.tight_layout()
+        save_path = os.path.join(save_dir, f"heatmap_pred_{unique_id}.png")
+        plt.savefig(save_path)
+        plt.close()
+
+        # 绘制差异热图（预测 - 真实）
+        plt.figure(figsize=(10, 8))
+        ax = sns.heatmap(
+            sample_diff,
+            mask=sample_mask,
+            cmap="coolwarm",
+            center=0,
+            xticklabels=class_labels,
+        )
+        ax.set_title(f"Difference Heatmap for Sample {unique_id}")
+        ax.set_xlabel("Classes")
+        ax.set_ylabel("Sequence Position")
+        plt.tight_layout()
+        save_path = os.path.join(save_dir, f"heatmap_diff_{unique_id}.png")
+        plt.savefig(save_path)
+        plt.close()
+
+        print(f"Saved heatmaps for sample {unique_id} to {save_dir}")

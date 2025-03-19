@@ -866,7 +866,8 @@ class MSADiffusionModule(nn.Module):
         dist_map: Optional[Tensor] = None,
         clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        x_t = x_t.transpose(0, 1)
+        # x_t = x_t.transpose(0, 1)
+        B, D, L, H = x_t.shape.size()
         time_emb = self.time_emb(time)
         if self.training:
             with torch.no_grad():
@@ -886,9 +887,13 @@ class MSADiffusionModule(nn.Module):
         else:
             x0_selfcond = None
         if x0_selfcond is not None:
-            x = x_t + time_emb + x0_selfcond
+            x = (
+                x_t
+                + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
+                + x0_selfcond
+            )
         else:
-            x = x_t + time_emb
+            x = x_t + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
         for _, layer in enumerate(self.layers):
             x0_pred = layer(
                 x,
@@ -916,8 +921,9 @@ class MSADiffusionModule(nn.Module):
         dist_map: Optional[torch.Tensor],
         clean_mask: Optional[torch.Tensor],
     ) -> torch.Tensor:
-        time_emb = self.time_emb(time)
-        x = x_input + time_emb
+        time_emb = self.time_emb(time)  # B,H
+        B, D, L, H = x_input.shape.size()
+        x = x_input + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
         for layer in self.layers:
             x = layer(
                 x,

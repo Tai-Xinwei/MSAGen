@@ -225,6 +225,7 @@ class MSADiTBlock(nn.Module):
             o_bias=False,
         )
 
+        self.norm4 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),
@@ -245,41 +246,46 @@ class MSADiTBlock(nn.Module):
         mixed_attn_bias=None,
         ifbackprop=False,
     ):
-        math_kernel = ifbackprop  # and pbc_expand_batched is not None
-
-        x = self.norm1(x)  # shape B,D,L,H
+        # input shape B,D,L,H
+        x = x.permute(1, 2, 0, 3)  # D,L,B,H
 
         x = x + self.row_attn(
-            x, self_attn_padding_mask=padding_mask
+            self.norm1(x), self_attn_padding_mask=padding_mask
         )  # padding mask should be B,D,L
 
-        x = self.norm2(x)
-        (
-            shift_msa,
-            scale_msa,
-            gate_msa,
-            shift_mlp,
-            scale_mlp,
-            gate_mlp,
-        ) = self.adaLN_modulation(c).chunk(6, dim=2)
-        if self.psm_config.only_use_rotary_embedding_for_protein:
-            x = x + gate_msa * self.attn(
-                modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
-                key_padding_mask=padding_mask,
-                is_protein=batched_data["is_protein"],
-                position_ids=batched_data["position_ids"],
-                pbc_expand_batched=pbc_expand_batched,
-                attn_bias=mixed_attn_bias,
-                math_kernel=math_kernel,
-            )[0].transpose(0, 1)
-        else:
-            x = x + gate_msa * self.attn(
-                modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
-                key_padding_mask=padding_mask,
-                position_ids=batched_data["position_ids"],
-                pbc_expand_batched=pbc_expand_batched,
-                attn_bias=mixed_attn_bias,
-                math_kernel=math_kernel,
-            )[0].transpose(0, 1)
-        x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
-        return x
+        x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)
+
+        x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)
+
+        x = self.mlp(self.norm4(x))
+
+        return x.permute(2, 0, 1, 3)
+        # (
+        #     shift_msa,
+        #     scale_msa,
+        #     gate_msa,
+        #     shift_mlp,
+        #     scale_mlp,
+        #     gate_mlp,
+        # ) = self.adaLN_modulation(c).chunk(6, dim=2)
+        # if self.psm_config.only_use_rotary_embedding_for_protein:
+        #     x = x + gate_msa * self.attn(
+        #         modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
+        #         key_padding_mask=padding_mask,
+        #         is_protein=batched_data["is_protein"],
+        #         position_ids=batched_data["position_ids"],
+        #         pbc_expand_batched=pbc_expand_batched,
+        #         attn_bias=mixed_attn_bias,
+        #         math_kernel=math_kernel,
+        #     )[0].transpose(0, 1)
+        # else:
+        #     x = x + gate_msa * self.attn(
+        #         modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
+        #         key_padding_mask=padding_mask,
+        #         position_ids=batched_data["position_ids"],
+        #         pbc_expand_batched=pbc_expand_batched,
+        #         attn_bias=mixed_attn_bias,
+        #         math_kernel=math_kernel,
+        #     )[0].transpose(0, 1)
+        # x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
+        # return x
