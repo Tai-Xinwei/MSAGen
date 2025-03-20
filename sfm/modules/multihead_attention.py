@@ -1088,5 +1088,5 @@ class CrossAttention(nn.Module):
             )
             attn_probs = attn_weights.softmax(-1)
             attn_probs = self.dropout_module(attn_probs)
-            output = self.compute_attention_update(x, attn_probs)
+            output = self.compute_attention_update(x, c, attn_probs)
             return output, attn_probs

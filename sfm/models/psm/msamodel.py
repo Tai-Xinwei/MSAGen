@@ -121,14 +121,8 @@ class MSAGenModel(Model):
         self.net = MSAGen(
             args,
             self.psm_config,
-            molecule_energy_per_atom_std=molecule_energy_per_atom_std,
-            periodic_energy_per_atom_std=periodic_energy_per_atom_std,
-            molecule_force_std=molecule_force_std,
-            periodic_force_std=periodic_force_std,
-            periodic_stress_mean=periodic_stress_mean,
-            periodic_stress_std=periodic_stress_std,
         )
-
+        self.diffusion = Diffsuion_LM()
         self.psm_finetune_head = psm_finetune_head
 
         if reload_checkpoint:
@@ -224,6 +218,90 @@ class MSAGenModel(Model):
         """
         return self.net.max_positions
 
+    def _set_noise(self, batched_data):
+        B, D, L = batched_data["msa_token_type"].shape
+        device = batched_data["msa_token_type"].device
+        t = torch.randint(0, 1000, (B,), device=device)
+        x_t = self.diffusion.q_sample(
+            batched_data["128_msa_one_hot"],
+            t,
+            ~batched_data["128_2D_padding_mask"],
+            device,
+        )
+        batched_data["ori_128_msa_one_hot"] = x_t
+        batched_data["time_step"] = t
+        # return x_t,t
+
+    def _pre_forward_operation(
+        self,
+        batched_data,
+    ):
+        """
+        pre forward operation
+        """
+        # set padding_mask
+        token_id = batched_data["token_type"]
+        padding_mask = token_id.eq(0)  # B x T x 1
+        B, D, L = batched_data["msa_token_type"].shape
+        msa_token_type = batched_data["msa_token_type"]
+        batched_data["padding_mask"] = padding_mask
+        batched_data["row_padding_mask"] = (msa_token_type == 0).all(dim=-1)
+        batched_data["col_padding_mask"] = (msa_token_type == 0).all(dim=1)
+        batched_data["2D_padding_mask"] = msa_token_type == 0
+        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :128, :]
+        batched_data["128_msa_one_hot"] = F.one_hot(
+            batched_data["128_msa_token_type"].long(), num_classes=27
+        ).float()  # 26 plus <pad>
+        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :128]
+        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :128]
+        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][
+            :, :128, :
+        ]
+        # set aa_mask
+        mask_ratio = 0.15
+        aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
+        aa_mask = aa_mask & ~padding_mask
+        batched_data["aa_mask"] = aa_mask
+
+        # calculate true prob
+        msa_token_type_t = batched_data["msa_token_type"].transpose(1, 2)  # B L D
+
+        counts = torch.zeros(
+            B, L, 26, device=batched_data["msa_token_type"].device, dtype=torch.int32
+        )
+        indices = (msa_token_type_t - 1).clamp(
+            min=0
+        )  # B L D minus 1 so that 0 means indicates=0 which indicates the first aa
+        valid_mask = msa_token_type_t.ne(0)  # B L D
+        # count num of valid according indices
+        counts.scatter_add_(2, indices.long(), valid_mask.int())
+        true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
+        batched_data["true_prob"] = true_prob
+        self._set_noise(batched_data)
+
+    def _KL_reconstruction_loss(
+        x0, x0_pred, x_t, t, beta_t, beta_t_pre, alpha_t, alpha_t_bar, alpha_t_pre_bar
+    ):
+        one_minus_alpha_t_bar = 1 - alpha_t_bar
+        one_minus_alpha_t_pre_bar = 1 - alpha_t_pre_bar
+        sqrt_alpha_t_pre_bar = torch.sqrt(alpha_t_pre_bar)
+        sqrt_alpha_t = torch.sqrt(alpha_t)
+        x_t_pre_pred = (
+            sqrt_alpha_t_pre_bar * beta_t * x0_pred / one_minus_alpha_t_bar
+            + sqrt_alpha_t * one_minus_alpha_t_pre_bar * x_t / one_minus_alpha_t_bar
+        )
+
+        x_t_pre = (
+            sqrt_alpha_t_pre_bar * beta_t * x0 / one_minus_alpha_t_bar
+            + sqrt_alpha_t * one_minus_alpha_t_pre_bar * x_t / one_minus_alpha_t_bar
+        )
+
+        theta_t_square = one_minus_alpha_t_pre_bar * beta_t / one_minus_alpha_t_bar
+
+        return F.kl_div(x_t_pre_pred, x_t_pre, reduction="batchmean") / (
+            2 * theta_t_square
+        )
+
     def _forward_net(self, batched_data, skip_sample=False, **kwargs):
         """
         Forward pass of the model.
@@ -260,6 +338,8 @@ class MSAGenModel(Model):
             batched_data: Input data for the forward pass.
             **kwargs: Additional keyword arguments.
         """
+
+        self._pre_forward_operation(batched_data)
 
         if (
             self.psm_config.sample_in_validation
@@ -370,12 +450,6 @@ class MSAGen(nn.Module):
         self,
         args,
         psm_config: PSMConfig,
-        molecule_energy_per_atom_std=1.0,
-        periodic_energy_per_atom_std=1.0,
-        molecule_force_std=1.0,
-        periodic_force_std=1.0,
-        periodic_stress_mean=0.0,
-        periodic_stress_std=1.0,
     ):
         super().__init__()
         self.max_positions = args.max_positions
@@ -383,7 +457,7 @@ class MSAGen(nn.Module):
         self.backbone = args.backbone
 
         self.psm_config = psm_config
-
+        self.diffusion_num_steps = 1000
         self.embedding = MSAGenSeqEmbedding(psm_config)
 
         self.encoder = MSAGenEncoder(args, psm_config)
@@ -402,54 +476,8 @@ class MSAGen(nn.Module):
             nn.SiLU(),
             nn.Linear(psm_config.embedding_dim // 2, 30, bias=False),
         )
-        self.diffusion = Diffsuion_LM()
-        self.decoder = MSADiffusionModule(args, psm_config)
 
-    def _pre_forward_operation(
-        self,
-        batched_data,
-    ):
-        """
-        pre forward operation
-        """
-        # set padding_mask
-        token_id = batched_data["token_type"]
-        padding_mask = token_id.eq(0)  # B x T x 1
-        B, D, L = batched_data["msa_token_type"].shape
-        msa_token_type = batched_data["msa_token_type"]
-        batched_data["padding_mask"] = padding_mask
-        batched_data["row_padding_mask"] = (msa_token_type == 0).all(dim=-1)
-        batched_data["col_padding_mask"] = (msa_token_type == 0).all(dim=1)
-        batched_data["2D_padding_mask"] = msa_token_type == 0
-        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :128, :]
-        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :128]
-        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :128]
-        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][
-            :, :128, :
-        ]
-        # set aa_mask
-        mask_ratio = 0.15
-        aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
-        aa_mask = aa_mask & ~padding_mask
-        batched_data["aa_mask"] = aa_mask
-
-        # calculate true prob
-        msa_token_type_t = batched_data["msa_token_type"].transpose(1, 2)  # B L D
-
-        counts = torch.zeros(
-            B, L, 26, device=batched_data["msa_token_type"].device, dtype=torch.int32
-        )
-        indices = (msa_token_type_t - 1).clamp(
-            min=0
-        )  # B L D minus 1 so that 0 means indicates=0 which indicates the first aa
-        valid_mask = msa_token_type_t.ne(0)  # B L D
-        # count num of valid according indices
-        counts.scatter_add_(2, indices.long(), valid_mask.int())
-        true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
-        batched_data["true_prob"] = true_prob
-
-    def _set_noise(self, batched_data):
-        pass
+        self.decoder = MSADiffusionModule(args, psm_config, self.diffusion_num_steps)
 
     def forward(
         self,
@@ -464,7 +492,6 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-        self._pre_forward_operation(batched_data)
 
         token_embedding = self.embedding(
             batched_data, batched_data["aa_mask"], batched_data["padding_mask"]
@@ -474,13 +501,22 @@ class MSAGen(nn.Module):
             token_embedding.transpose(0, 1), batched_data["padding_mask"], batched_data
         )
         decoder_x = self.x_proj(encoder_x)
-
+        msa_embedding = batched_data["128_msa_one_hot"]
+        x0_pred = self.decoder(
+            batched_data,
+            msa_embedding,
+            encoder_x.transpose(0, 1)
+            .unsqueeze(1)
+            .repeat(1, msa_embedding.shape[1], 1, 1),
+            batched_data["128_2D_padding_mask"],
+        )
         model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
         model_log_prob = F.log_softmax(
             decoder_x.transpose(0, 1), dim=-1
         )  # calculate kl loss which needs log softmax first
         aa_logits = self.aa_mask_head(encoder_x)
         result_dict = {
+            "x0_pred": x0_pred,
             "aa_logits": aa_logits.transpose(0, 1),
             "true_prob": batched_data["true_prob"],
             "model_prob": model_prob,

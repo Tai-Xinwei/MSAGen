@@ -4,7 +4,7 @@
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
 
-description: exp4v2.0
+description: msagen
 
 env_defaults:
   NODES: 1
@@ -15,15 +15,15 @@ target:
   service: sing
   # name: palisades11
   # name: msrresrchvc
-  # name: msroctovc
+  name: msroctovc
   # name: quickdevvc
-  name: whitney02
+  # name: whitney02
   workspace_name: sfm-ws
 
-# environment:
-#   image: ai4s-sfm:20240531.170731
-#   registry: msrmoldyn.azurecr.io
-#   username: msrmoldyn
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
 
 # environment:
 #   image: ai4s-sfm/amd:20241022.151209
@@ -33,13 +33,13 @@ target:
 #   - eval "$$(conda shell.bash hook)" && conda activate sfm
 #   - python setup_cython.py build_ext --inplace
 
-environment:
-  image: ai4s-sfm/amd:20241022.151209
-  registry: msrmoldyn.azurecr.io
-  username: msrmoldyn
-  setup:
-  - eval "$$(conda shell.bash hook)" && conda activate sfm
-  - python setup_cython.py build_ext --inplace
+# environment:
+#   image: ai4s-sfm/amd:20241022.151209
+#   registry: msrmoldyn.azurecr.io
+#   username: msrmoldyn
+#   setup:
+#   - eval "$$(conda shell.bash hook)" && conda activate sfm
+#   - python setup_cython.py build_ext --inplace
 
 storage:
   sfm:
@@ -88,7 +88,7 @@ jobs:
   command:
   - mkdir -p ../msadata
   - wget -O azcopy_v10.tar.gz https://aka.ms/downloadazcopy-v10-linux && tar -xf azcopy_v10.tar.gz --strip-components=1
-  - ./azcopy copy "https://sfmdataeastus.blob.core.windows.net/pdb/20250101_processed/msadata/protein_msa_40.lmdb/?<sas>" ../msadata --recursive
+  - ./azcopy copy "https://sfmdataeastus.blob.core.windows.net/pdb/20250101_processed/msadata/protein_msa_40_0.1_3k.lmdb/?<sas>" ../msadata --recursive
   # - ./azcopy copy "https://sfmdataeastus2.blob.core.windows.net/psm/data/AFDB50-plddt70.lmdb?<sas>" ./datadisk --recursive
   # - cp /psm/exp/v-xinweitai/zhanka/src/code ./
   # - chmod -R 777 code
@@ -96,4 +96,6 @@ jobs:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
+  - pip install seaborn
+  - pip install matplotlib
   - bash ./scripts/psm/pretrain_msagen.sh

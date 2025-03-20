@@ -30,12 +30,12 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
 
 #150M
-[ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
+# [ -z "${layers}" ] && layers=12
+# [ -z "${hidden_size}" ] && hidden_size=1024
+# [ -z "${ffn_size}" ] && ffn_size=4096
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
 #85M
 # [ -z "${layers}" ] && layers=12
 # [ -z "${hidden_size}" ] && hidden_size=768
@@ -50,6 +50,13 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+#57M
+[ -z "${layers}" ] && layers=8
+[ -z "${hidden_size}" ] && hidden_size=768
+[ -z "${ffn_size}" ] && ffn_size=3072
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -74,10 +81,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=100
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -217,8 +224,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}_local
-[ -z "${wandb_group}" ] && wandb_group=msagen
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv2.0-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
+[ -z "${wandb_group}" ] && wandb_group=msagen_debug
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=MSAGen
 [ -z "${wandb_key}" ] && wandb_key=local-4475b85516f93bca7c53acde577024463126c48c

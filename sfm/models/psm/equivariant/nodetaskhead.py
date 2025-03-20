@@ -836,8 +836,8 @@ class MSADiffusionModule(nn.Module):
         super().__init__()
 
         self.layers = nn.ModuleList([])
-
-        self.time_emb = nn.Linear(T + 1, psm_config.embedding_dim, bias=False)
+        self.x_proj = nn.Linear(27, psm_config.embedding_dim, bias=False)
+        self.time_emb = nn.Embedding(T + 1, psm_config.embedding_dim)
 
         for nl in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
@@ -855,8 +855,8 @@ class MSADiffusionModule(nn.Module):
         self,
         batched_data: Dict,
         x_t,
-        x_t_next,
-        time,
+        # x_t_next,
+        # time,
         c,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
@@ -867,33 +867,36 @@ class MSADiffusionModule(nn.Module):
         clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         # x_t = x_t.transpose(0, 1)
-        B, D, L, H = x_t.shape.size()
+        x_t = self.x_proj(x_t)
+        B, D, L, H = x_t.size()
+        time = batched_data["time_step"]
         time_emb = self.time_emb(time)
-        if self.training:
-            with torch.no_grad():
-                x0_selfcond = self._predict_x0(
-                    batched_data,
-                    x_t_next,
-                    time + 1,
-                    c,
-                    padding_mask,
-                    mixed_attn_bias,
-                    pbc_expand_batched,
-                    ifbackprop,
-                    pair_feat,
-                    dist_map,
-                    clean_mask,
-                )
-        else:
-            x0_selfcond = None
-        if x0_selfcond is not None:
-            x = (
-                x_t
-                + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
-                + x0_selfcond
-            )
-        else:
-            x = x_t + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
+        # if self.training:
+        #     with torch.no_grad():
+        #         x0_selfcond = self._predict_x0(
+        #             batched_data,
+        #             x_t_next,
+        #             time + 1,
+        #             c,
+        #             padding_mask,
+        #             mixed_attn_bias,
+        #             pbc_expand_batched,
+        #             ifbackprop,
+        #             pair_feat,
+        #             dist_map,
+        #             clean_mask,
+        #         )
+        # else:
+        #     x0_selfcond = None
+        # if x0_selfcond is not None:
+        #     x = (
+        #         x_t
+        #         + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
+        #         + x0_selfcond
+        #     )
+        # else:
+
+        x = x_t + time_emb.unsqueeze(1).unsqueeze(2).repeat(1, D, L, 1)
         for _, layer in enumerate(self.layers):
             x0_pred = layer(
                 x,
@@ -907,32 +910,32 @@ class MSADiffusionModule(nn.Module):
 
         return x0_pred
 
-    def _predict_x0(
-        self,
-        batched_data: Dict,
-        x_input: torch.Tensor,
-        time: torch.Tensor,
-        c: torch.Tensor,
-        padding_mask: torch.Tensor,
-        mixed_attn_bias: Optional[torch.Tensor],
-        pbc_expand_batched: Optional[Dict],
-        ifbackprop: bool,
-        pair_feat: Optional[torch.Tensor],
-        dist_map: Optional[torch.Tensor],
-        clean_mask: Optional[torch.Tensor],
-    ) -> torch.Tensor:
-        time_emb = self.time_emb(time)  # B,H
-        B, D, L, H = x_input.shape.size()
-        x = x_input + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
-        for layer in self.layers:
-            x = layer(
-                x,
-                c,
-                padding_mask,
-                batched_data,
-                self_cond=None,  # 不传 self-conditioning 信息
-                pbc_expand_batched=pbc_expand_batched,
-                mixed_attn_bias=mixed_attn_bias,
-                ifbackprop=ifbackprop,
-            )
-        return x
+    # def _predict_x0(
+    #     self,
+    #     batched_data: Dict,
+    #     x_input: torch.Tensor,
+    #     time: torch.Tensor,
+    #     c: torch.Tensor,
+    #     padding_mask: torch.Tensor,
+    #     mixed_attn_bias: Optional[torch.Tensor],
+    #     pbc_expand_batched: Optional[Dict],
+    #     ifbackprop: bool,
+    #     pair_feat: Optional[torch.Tensor],
+    #     dist_map: Optional[torch.Tensor],
+    #     clean_mask: Optional[torch.Tensor],
+    # ) -> torch.Tensor:
+    #     time_emb = self.time_emb(time)  # B,H
+    #     B, D, L, H = x_input.size()
+    #     x = x_input + time_emb.unsqueeze(1).unsqueeze(2).repeat(B, D, L, H)
+    #     for layer in self.layers:
+    #         x = layer(
+    #             x,
+    #             c,
+    #             padding_mask,
+    #             batched_data,
+    #             self_cond=None,  # 不传 self-conditioning 信息
+    #             pbc_expand_batched=pbc_expand_batched,
+    #             mixed_attn_bias=mixed_attn_bias,
+    #             ifbackprop=ifbackprop,
+    #         )
+    #     return x
