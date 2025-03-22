@@ -255,8 +255,25 @@ class MSADiTBlock(nn.Module):
 
         x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
 
-        x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
+        x = self.norm3(x)
+        # x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
+        D = x.shape[0]
+        new_x = []
+        for i in range(D):
+            try:
+                tmpx = self.crossattn(
+                    x[i].unsqueeze(0),
+                    c.permute(1, 2, 0, 3)[i].unsqueeze(0),
+                    self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
+                )[0]
+            except:
+                print(i)  # print(f"{i}:{tmpx.shape}")
+            new_x.extend(tmpx)
 
+        new_x = torch.stack(new_x, dim=0)
+
+        x = x + torch.tensor(new_x, device=x.device, dtype=x.dtype)
+        new_x = []
         x = self.mlp(self.norm4(x))
 
         return x.permute(2, 0, 1, 3)

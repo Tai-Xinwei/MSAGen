@@ -71,7 +71,6 @@ def main(args: DictConfig) -> None:
     seed_everything(args.seed)
     env_init.set_env(args)
 
-    ### define psm dataset here
     dataset = UnifiedPSMDataset(
         args.data_path, args.data_path_list, args.dataset_name_list, args
     )

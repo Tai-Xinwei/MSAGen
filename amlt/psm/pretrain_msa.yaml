@@ -14,8 +14,8 @@ env_defaults:
 target:
   service: sing
   # name: palisades11
-  # name: msrresrchvc
-  name: msroctovc
+  name: msrresrchvc
+  # name: msroctovc
   # name: quickdevvc
   # name: whitney02
   workspace_name: sfm-ws
@@ -73,7 +73,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: MSAGen
+- name: MSAGenv3.0
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
@@ -88,7 +88,7 @@ jobs:
   command:
   - mkdir -p ../msadata
   - wget -O azcopy_v10.tar.gz https://aka.ms/downloadazcopy-v10-linux && tar -xf azcopy_v10.tar.gz --strip-components=1
-  - ./azcopy copy "https://sfmdataeastus.blob.core.windows.net/pdb/20250101_processed/msadata/protein_msa_40_0.1_3k.lmdb/?<sas>" ../msadata --recursive
+  - ./azcopy copy "https://sfmdataeastus.blob.core.windows.net/pdb/20250101_processed/msadata/protein_msa_40_0.1_3k.lmdb/<sas>" ../msadata --recursive
   # - ./azcopy copy "https://sfmdataeastus2.blob.core.windows.net/psm/data/AFDB50-plddt70.lmdb?<sas>" ./datadisk --recursive
   # - cp /psm/exp/v-xinweitai/zhanka/src/code ./
   # - chmod -R 777 code

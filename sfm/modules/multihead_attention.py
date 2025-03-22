@@ -967,7 +967,7 @@ class CrossAttention(nn.Module):
         self.head_dim = embed_dim // num_heads
         self.scaling = self.head_dim**-0.5
         self.max_tokens_per_msa = max_tokens_per_msa
-        self.attn_shape = "hrnij"
+        self.attn_shape = "hnij"
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=k_bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=v_bias)
@@ -983,7 +983,6 @@ class CrossAttention(nn.Module):
     def _batched_forward(
         self,
         x,
-        c,
         self_attn_mask=None,
         self_attn_padding_mask=None,
     ):
@@ -994,7 +993,6 @@ class CrossAttention(nn.Module):
         for start in range(0, num_rows, max_rows):
             attn_weights = self.compute_attention_weights(
                 x[start : start + max_rows],
-                c[start : start + max_rows],
                 scaling,
                 self_attn_mask=self_attn_mask,
                 self_attn_padding_mask=self_attn_padding_mask[
@@ -1010,7 +1008,7 @@ class CrossAttention(nn.Module):
         outputs = []
         for start in range(0, num_rows, max_rows):
             output = self.compute_attention_update(
-                x[start : start + max_rows], c[start : start + max_rows], attn_probs
+                x[start : start + max_rows], attn_probs
             )
             outputs.append(output)
 
@@ -1048,8 +1046,8 @@ class CrossAttention(nn.Module):
 
         if self_attn_padding_mask is not None:
             attn_weights = attn_weights.masked_fill(
-                self_attn_padding_mask[:, 0].unsqueeze(0).unsqueeze(2),
-                -10000,
+                self_attn_padding_mask[:, 0].unsqueeze(0).unsqueeze(2).to(torch.bool),
+                float("-inf"),
             )
 
         return attn_weights
@@ -1080,7 +1078,7 @@ class CrossAttention(nn.Module):
         if (
             num_rows * num_cols > self.max_tokens_per_msa
         ) and not torch.is_grad_enabled():
-            return self._batched_forward(x, c, self_attn_mask, self_attn_padding_mask)
+            return self._batched_forward(x, self_attn_mask, self_attn_padding_mask)
         else:
             scaling = self.align_scaling(x)
             attn_weights = self.compute_attention_weights(

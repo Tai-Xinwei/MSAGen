@@ -850,6 +850,7 @@ class MSADiffusionModule(nn.Module):
                     )
                 ]
             )
+        self.out_proj = nn.Linear(psm_config.embedding_dim, 27, bias=False)
 
     def forward(
         self,
@@ -868,6 +869,7 @@ class MSADiffusionModule(nn.Module):
     ) -> Tensor:
         # x_t = x_t.transpose(0, 1)
         x_t = self.x_proj(x_t)
+        print(x_t.shape)
         B, D, L, H = x_t.size()
         time = batched_data["time_step"]
         time_emb = self.time_emb(time)
@@ -907,7 +909,7 @@ class MSADiffusionModule(nn.Module):
                 mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=ifbackprop,
             )
-
+        x0_pred = self.out_proj(x0_pred)
         return x0_pred
 
     # def _predict_x0(

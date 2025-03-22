@@ -44,19 +44,19 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 #38M
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=512
-# [ -z "${ffn_size}" ] && ffn_size=2048
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
-#57M
 [ -z "${layers}" ] && layers=8
-[ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=3072
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+#57M
+# [ -z "${layers}" ] && layers=8
+# [ -z "${hidden_size}" ] && hidden_size=768
+# [ -z "${ffn_size}" ] && ffn_size=3072
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -216,7 +216,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=False
+[ -z "${fp16}" ] && fp16=True
 [ -z "${bf16}" ] && bf16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
@@ -224,8 +224,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv2.0-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
-[ -z "${wandb_group}" ] && wandb_group=msagen_debug
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv3.0-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
+[ -z "${wandb_group}" ] && wandb_group=msagenv3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=MSAGen
 [ -z "${wandb_key}" ] && wandb_key=local-4475b85516f93bca7c53acde577024463126c48c

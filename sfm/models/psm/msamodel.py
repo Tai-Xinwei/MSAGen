@@ -409,9 +409,18 @@ class MSAGenModel(Model):
                 logits,
                 batched_data["token_type"][aa_mask].long(),
             )
-        loss = kl_loss + aa_mlm_loss
+
+        filter_mask = ~batched_data["128_2D_padding_mask"]
+
+        cross_entropy_loss = self.compute_cross_entropy_loss(
+            model_output["x0_pred"],
+            batched_data["128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1),
+            filter_mask,
+        )
+        loss = kl_loss + aa_mlm_loss + cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
+            "cross_entropy_loss": float(cross_entropy_loss.detach()),
             "KL_loss": float(kl_loss.detach()),
             "aa_mlm_loss": float(aa_mlm_loss.detach()),
         }
@@ -430,6 +439,15 @@ class MSAGenModel(Model):
             num_examples=model_output["model_prob"].shape[0],
             log_output=logging_output,
         )
+
+    def compute_cross_entropy_loss(self, logits, target, filter_mask):
+        """
+        compute cross entropy loss
+        """
+        log_prob = F.log_softmax(logits, dim=-1)  # B,D,L,num_classes
+        loss = -(target * log_prob).sum(dim=-1)
+        loss = loss[filter_mask]
+        return loss.mean()
 
     def config_optimizer(self, model: Optional[nn.Module]):
         """
@@ -500,16 +518,21 @@ class MSAGen(nn.Module):
         encoder_x = self.encoder(
             token_embedding.transpose(0, 1), batched_data["padding_mask"], batched_data
         )
-        decoder_x = self.x_proj(encoder_x)
-        msa_embedding = batched_data["128_msa_one_hot"]
-        x0_pred = self.decoder(
-            batched_data,
-            msa_embedding,
-            encoder_x.transpose(0, 1)
-            .unsqueeze(1)
-            .repeat(1, msa_embedding.shape[1], 1, 1),
-            batched_data["128_2D_padding_mask"],
-        )
+        with (
+            torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+            if self.args.fp16
+            else nullcontext()
+        ):
+            decoder_x = self.x_proj(encoder_x)
+            msa_embedding = batched_data["128_msa_one_hot"]
+            x0_pred = self.decoder(
+                batched_data,
+                msa_embedding,
+                encoder_x.transpose(0, 1)
+                .unsqueeze(1)
+                .repeat(1, msa_embedding.shape[1], 1, 1),
+                batched_data["128_2D_padding_mask"],
+            )
         model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
         model_log_prob = F.log_softmax(
             decoder_x.transpose(0, 1), dim=-1
