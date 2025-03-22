@@ -417,11 +417,11 @@ class MSAGenModel(Model):
             batched_data["128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1),
             filter_mask,
         )
-        loss = kl_loss + aa_mlm_loss + cross_entropy_loss
+        loss = aa_mlm_loss + cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
             "cross_entropy_loss": float(cross_entropy_loss.detach()),
-            "KL_loss": float(kl_loss.detach()),
+            # "KL_loss": float(kl_loss.detach()),
             "aa_mlm_loss": float(aa_mlm_loss.detach()),
         }
         # loss, logging_output = self.loss_fn(model_output, batched_data)
