@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
+from torch.utils.checkpoint import checkpoint
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
@@ -202,7 +203,20 @@ class MSADiTBlock(nn.Module):
             o_bias=False,
         )
         self.norm2 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
-
+        attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
+        self.attn = attn_cls(
+            embedding_dim,
+            num_attention_heads,
+            dropout=psm_config.dropout,
+            k_bias=False,
+            q_bias=False,
+            v_bias=False,
+            o_bias=False,
+            add_rope=True,
+            layer_norm=False,
+            use_smooth_softmax=psm_config.use_smooth_softmax,
+            smooth_factor=psm_config.smooth_factor,
+        )
         self.colattn = ColumnSelfAttention(
             embed_dim=embedding_dim,
             num_heads=num_attention_heads,
@@ -247,36 +261,36 @@ class MSADiTBlock(nn.Module):
         ifbackprop=False,
     ):
         # input shape B,D,L,H
-        x = x.permute(1, 2, 0, 3)  # D,L,B,H
+        # x = x.permute(1, 2, 0, 3)  # D,L,B,H
 
-        x = (
-            x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
+        x = x + self.attn(self.norm1(x).transpose(0, 1))[0].transpose(
+            0, 1
         )  # padding mask should be B,D,L
 
-        x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
+        # x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
 
-        x = self.norm3(x)
-        # x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
-        D = x.shape[0]
-        new_x = []
-        for i in range(D):
-            try:
-                tmpx = self.crossattn(
-                    x[i].unsqueeze(0),
-                    c.permute(1, 2, 0, 3)[i].unsqueeze(0),
-                    self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
-                )[0]
-            except:
-                print(i)  # print(f"{i}:{tmpx.shape}")
-            new_x.extend(tmpx)
+        # x = self.norm3(x)
+        # # x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
+        # D = x.shape[0]
+        # new_x = []
+        # for i in range(D):
+        #     try:
+        #         tmpx = self.crossattn(
+        #             x[i].unsqueeze(0),
+        #             c.permute(1, 2, 0, 3)[i].unsqueeze(0),
+        #             self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
+        #         )[0]
+        #         new_x.extend(tmpx)
+        #     except Exception as e:
+        #         print(f"Error at index {i}: {e}")
 
-        new_x = torch.stack(new_x, dim=0)
+        # new_x = torch.stack(new_x, dim=0)
 
-        x = x + torch.tensor(new_x, device=x.device, dtype=x.dtype)
-        new_x = []
+        # x = x + new_x
+        # new_x = []
         x = self.mlp(self.norm4(x))
-
-        return x.permute(2, 0, 1, 3)
+        return x
+        # return x.permute(2, 0, 1, 3)
         # (
         #     shift_msa,
         #     scale_msa,

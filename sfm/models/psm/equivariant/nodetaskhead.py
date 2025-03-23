@@ -868,11 +868,12 @@ class MSADiffusionModule(nn.Module):
         clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         # x_t = x_t.transpose(0, 1)
-        x_t = self.x_proj(x_t)
-        print(x_t.shape)
+        # x_t = self.x_proj(x_t)
+
         B, D, L, H = x_t.size()
-        time = batched_data["time_step"]
-        time_emb = self.time_emb(time)
+        x_t = x_t.view(B, D * L, H)
+        batched_data["time_step"]
+        # time_emb = self.time_emb(time)
         # if self.training:
         #     with torch.no_grad():
         #         x0_selfcond = self._predict_x0(
@@ -898,7 +899,8 @@ class MSADiffusionModule(nn.Module):
         #     )
         # else:
 
-        x = x_t + time_emb.unsqueeze(1).unsqueeze(2).repeat(1, D, L, 1)
+        # x = x_t + time_emb.unsqueeze(1).unsqueeze(2).repeat(1, D, L, 1)
+        x = x_t
         for _, layer in enumerate(self.layers):
             x0_pred = layer(
                 x,

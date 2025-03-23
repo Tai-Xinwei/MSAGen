@@ -228,7 +228,8 @@ class MSAGenModel(Model):
             ~batched_data["128_2D_padding_mask"],
             device,
         )
-        batched_data["ori_128_msa_one_hot"] = x_t
+        batched_data["ori_128_msa_one_hot"] = batched_data["128_msa_one_hot"].clone()
+        batched_data["128_msa_one_hot"] = x_t
         batched_data["time_step"] = t
         # return x_t,t
 
@@ -248,15 +249,13 @@ class MSAGenModel(Model):
         batched_data["row_padding_mask"] = (msa_token_type == 0).all(dim=-1)
         batched_data["col_padding_mask"] = (msa_token_type == 0).all(dim=1)
         batched_data["2D_padding_mask"] = msa_token_type == 0
-        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :128, :]
+        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :64, :]
         batched_data["128_msa_one_hot"] = F.one_hot(
             batched_data["128_msa_token_type"].long(), num_classes=27
         ).float()  # 26 plus <pad>
-        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :128]
-        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :128]
-        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][
-            :, :128, :
-        ]
+        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :64]
+        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :64]
+        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][:, :64, :]
         # set aa_mask
         mask_ratio = 0.15
         aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
@@ -414,10 +413,11 @@ class MSAGenModel(Model):
 
         cross_entropy_loss = self.compute_cross_entropy_loss(
             model_output["x0_pred"],
-            batched_data["128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1),
+            batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1),
             filter_mask,
         )
-        loss = aa_mlm_loss + cross_entropy_loss
+        # loss = aa_mlm_loss + cross_entropy_loss
+        loss = cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
             "cross_entropy_loss": float(cross_entropy_loss.detach()),
@@ -512,9 +512,11 @@ class MSAGen(nn.Module):
         """
 
         token_embedding = self.embedding(
-            batched_data, batched_data["aa_mask"], batched_data["padding_mask"]
+            batched_data["token_type"],
+            batched_data["aa_mask"],
+            batched_data["padding_mask"],
         )
-
+        msa_embedding = self.embedding(batched_data["128_msa_token_type"])
         encoder_x = self.encoder(
             token_embedding.transpose(0, 1), batched_data["padding_mask"], batched_data
         )
@@ -524,7 +526,7 @@ class MSAGen(nn.Module):
             else nullcontext()
         ):
             decoder_x = self.x_proj(encoder_x)
-            msa_embedding = batched_data["128_msa_one_hot"]
+            # msa_embedding = batched_data["128_msa_one_hot"]
             x0_pred = self.decoder(
                 batched_data,
                 msa_embedding,

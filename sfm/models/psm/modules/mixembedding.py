@@ -1513,7 +1513,7 @@ class MSAGenSeqEmbedding(nn.Module):
 
     def forward(
         self,
-        batched_data: Dict,
+        token_type: Tensor,
         aa_mask: Optional[Tensor] = None,
         padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
@@ -1525,7 +1525,7 @@ class MSAGenSeqEmbedding(nn.Module):
             x: The embedding representation.
             padding_mask: The padding mask.
         """
-        token_id = batched_data["token_type"]
+        token_id = token_type
         if aa_mask is not None:
             # 80% mask ,10% repalce,10% keep
             prob = torch.rand(token_id.shape, device=token_id.device)

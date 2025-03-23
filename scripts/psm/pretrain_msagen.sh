@@ -22,12 +22,12 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
 
-# [ -z "${layers}" ] && layers=26
-# [ -z "${hidden_size}" ] && hidden_size=1536
-# [ -z "${ffn_size}" ] && ffn_size=6144
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+[ -z "${layers}" ] && layers=26
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
 
 #150M
 # [ -z "${layers}" ] && layers=12
@@ -44,13 +44,13 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 #38M
-[ -z "${layers}" ] && layers=8
-[ -z "${hidden_size}" ] && hidden_size=512
-[ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
-#57M
+# [ -z "${layers}" ] && layers=8
+# [ -z "${hidden_size}" ] && hidden_size=512
+# [ -z "${ffn_size}" ] && ffn_size=2048
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+# 57M
 # [ -z "${layers}" ] && layers=8
 # [ -z "${hidden_size}" ] && hidden_size=768
 # [ -z "${ffn_size}" ] && ffn_size=3072
@@ -224,8 +224,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv3.0_no_kl_loss-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
-[ -z "${wandb_group}" ] && wandb_group=msagenv3.0
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv3.0_debug-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
+[ -z "${wandb_group}" ] && wandb_group=msagen_debug
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=MSAGen
 [ -z "${wandb_key}" ] && wandb_key=local-4475b85516f93bca7c53acde577024463126c48c
