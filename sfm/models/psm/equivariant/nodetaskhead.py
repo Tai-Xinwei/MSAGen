@@ -850,7 +850,58 @@ class MSADiffusionModule(nn.Module):
                     )
                 ]
             )
-        self.out_proj = nn.Linear(psm_config.embedding_dim, 27, bias=False)
+        self.out_proj = nn.Sequential(
+            nn.Linear(
+                psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
+            ),
+            nn.SiLU(),
+            nn.Linear(psm_config.embedding_dim // 2, 27, bias=False),
+        )
+
+    def add_2d_positional_encoding(self, x):
+        """
+        对输入 tensor x 添加 2D 正弦位置编码。
+
+        参数:
+            x: [B, D, L, H]，其中 B 为批次大小，D 为“行”数（高度），L 为“列”数（宽度），H 为嵌入维度，且 H 必须为偶数。
+
+        返回:
+            加上位置编码后的 tensor，形状同 x。
+        """
+        B, D, L, H = x.shape
+        if H % 2 != 0:
+            raise ValueError("H must be even")
+
+        d_model_half = H // 2  # 一半用于 D 维编码，一半用于 L 维编码
+
+        # 生成 D 维（行）的1D位置编码，shape: [D, d_model_half]
+        pe_d = torch.zeros(D, d_model_half, device=x.device, dtype=x.dtype)
+        pos_d = torch.arange(0, D, device=x.device, dtype=x.dtype).unsqueeze(1)
+        div_term_d = torch.exp(
+            torch.arange(0, d_model_half, 2, device=x.device, dtype=x.dtype)
+            * (-math.log(10000.0) / d_model_half)
+        )
+        pe_d[:, 0::2] = torch.sin(pos_d * div_term_d)
+        pe_d[:, 1::2] = torch.cos(pos_d * div_term_d)
+
+        # 生成 L 维（列）的1D位置编码，shape: [L, d_model_half]
+        pe_l = torch.zeros(L, d_model_half, device=x.device, dtype=x.dtype)
+        pos_l = torch.arange(0, L, device=x.device, dtype=x.dtype).unsqueeze(1)
+        div_term_l = torch.exp(
+            torch.arange(0, d_model_half, 2, device=x.device, dtype=x.dtype)
+            * (-math.log(10000.0) / d_model_half)
+        )
+        pe_l[:, 0::2] = torch.sin(pos_l * div_term_l)
+        pe_l[:, 1::2] = torch.cos(pos_l * div_term_l)
+
+        # 将两部分位置编码扩展并拼接，得到2D位置编码，shape: [D, L, H]
+        pe_d = pe_d.unsqueeze(1).expand(D, L, d_model_half)  # 每一行的编码扩展到所有列
+        pe_l = pe_l.unsqueeze(0).expand(D, L, d_model_half)  # 每一列的编码扩展到所有行
+        pe = torch.cat([pe_d, pe_l], dim=-1)  # shape: [D, L, H]
+
+        # 扩展 batch 维度，并加到输入上
+        pe = pe.unsqueeze(0)  # shape: [1, D, L, H]
+        return x + pe
 
     def forward(
         self,
@@ -868,11 +919,12 @@ class MSADiffusionModule(nn.Module):
         clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         # x_t = x_t.transpose(0, 1)
-        # x_t = self.x_proj(x_t)
+        x_t = self.x_proj(x_t)
 
         B, D, L, H = x_t.size()
-        x_t = x_t.view(B, D * L, H)
-        batched_data["time_step"]
+        x_t = self.add_2d_positional_encoding(x_t)
+        # x_t = x_t.view(B, D * L, H)
+        # time = batched_data["time_step"]
         # time_emb = self.time_emb(time)
         # if self.training:
         #     with torch.no_grad():

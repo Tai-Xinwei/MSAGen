@@ -410,10 +410,11 @@ class MSAGenModel(Model):
             )
 
         filter_mask = ~batched_data["128_2D_padding_mask"]
-
+        B, D, L = batched_data["128_2D_padding_mask"].size()
         cross_entropy_loss = self.compute_cross_entropy_loss(
             model_output["x0_pred"],
             batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1),
+            # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             filter_mask,
         )
         # loss = aa_mlm_loss + cross_entropy_loss
@@ -510,23 +511,26 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-
-        token_embedding = self.embedding(
-            batched_data["token_type"],
-            batched_data["aa_mask"],
-            batched_data["padding_mask"],
-        )
-        msa_embedding = self.embedding(batched_data["128_msa_token_type"])
-        encoder_x = self.encoder(
-            token_embedding.transpose(0, 1), batched_data["padding_mask"], batched_data
-        )
         with (
-            torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+            torch.cuda.amp.autocast(enabled=True, dtype=torch.float16)
             if self.args.fp16
             else nullcontext()
         ):
+            token_embedding = self.embedding(
+                batched_data["token_type"],
+                batched_data["aa_mask"],
+                batched_data["padding_mask"],
+            )
+
+            encoder_x = self.encoder(
+                token_embedding.transpose(0, 1),
+                batched_data["padding_mask"],
+                batched_data,
+            )
+
+            # msa_embedding = self.embedding(batched_data["128_msa_token_type"])
             decoder_x = self.x_proj(encoder_x)
-            # msa_embedding = batched_data["128_msa_one_hot"]
+            msa_embedding = batched_data["128_msa_one_hot"]
             x0_pred = self.decoder(
                 batched_data,
                 msa_embedding,
