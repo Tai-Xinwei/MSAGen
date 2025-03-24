@@ -79,7 +79,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-2
+[ -z "${max_lr}" ] && max_lr=2e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=100
 [ -z "${train_batch_size}" ] && train_batch_size=1024
@@ -216,7 +216,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=True
+[ -z "${fp16}" ] && fp16=False
 [ -z "${bf16}" ] && bf16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False

@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
+from torch.optim import Adam
 
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
@@ -110,9 +111,9 @@ def main(args: DictConfig) -> None:
             weight_decay=args.weight_decay,
         )
     elif args.fp16:
-        optimizer = AdamFP16(
+        optimizer = Adam(
             model.parameters(),
-            distributed_strategy=args.strategy,
+            # distributed_strategy=args.strategy,
             lr=args.max_lr,
             betas=(0.9, 0.999),
             eps=1e-8,

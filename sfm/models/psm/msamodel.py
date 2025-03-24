@@ -249,15 +249,15 @@ class MSAGenModel(Model):
         batched_data["row_padding_mask"] = (msa_token_type == 0).all(dim=-1)
         batched_data["col_padding_mask"] = (msa_token_type == 0).all(dim=1)
         batched_data["2D_padding_mask"] = msa_token_type == 0
-        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :64, :]
+        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :1, :]
         batched_data["128_msa_one_hot"] = F.one_hot(
             batched_data["128_msa_token_type"].long(), num_classes=27
         ).float()  # 26 plus <pad>
-        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :64]
-        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :64]
-        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][:, :64, :]
+        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :1]
+        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :1]
+        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][:, :1, :]
         # set aa_mask
-        mask_ratio = 0.15
+        mask_ratio = 0.0
         aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
         aa_mask = aa_mask & ~padding_mask
         batched_data["aa_mask"] = aa_mask
@@ -314,12 +314,12 @@ class MSAGenModel(Model):
         if self.psm_config.psm_sample_structure_in_finetune:
             self.net.eval()
 
-        context = torch.no_grad() if self.psm_config.freeze_backbone else nullcontext()
-        with context:
-            result_dict = self.net(
-                batched_data,
-                **kwargs,
-            )
+        # context = torch.no_grad() if self.psm_config.freeze_backbone else nullcontext()
+        # with context:
+        result_dict = self.net(
+            batched_data,
+            **kwargs,
+        )
 
         result_dict["data_name"] = (
             batched_data["data_name"] if "data_name" in batched_data else None
@@ -395,48 +395,39 @@ class MSAGenModel(Model):
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
 
-        kl_loss = F.kl_div(
-            model_output["model_log_prob"], model_output["true_prob"], reduction="none"
-        )
-        kl_loss = kl_loss.sum(dim=-1)
-        mask = ~model_output["padding_mask"]
-        kl_loss = (kl_loss * mask).sum() / mask.sum()
-        if batched_data["aa_mask"].any():
-            aa_mask = batched_data["aa_mask"]
-            logits = model_output["aa_logits"][aa_mask]
-            aa_mlm_loss = self.aa_mlm_loss(
-                logits,
-                batched_data["token_type"][aa_mask].long(),
-            )
+        # kl_loss = F.kl_div(
+        #     model_output["model_log_prob"], model_output["true_prob"], reduction="none"
+        # )
+        # kl_loss = kl_loss.sum(dim=-1)
+        # mask = ~model_output["padding_mask"]
+        # kl_loss = (kl_loss * mask).sum() / mask.sum()
+        # if batched_data["aa_mask"].any():
+        #     aa_mask = batched_data["aa_mask"]
+        # logits = model_output["aa_logits"][aa_mask]
+        # aa_mlm_loss = self.aa_mlm_loss(
+        #     logits,
+        #     batched_data["token_type"][aa_mask].long(),
+        # )
 
         filter_mask = ~batched_data["128_2D_padding_mask"]
         B, D, L = batched_data["128_2D_padding_mask"].size()
         cross_entropy_loss = self.compute_cross_entropy_loss(
             model_output["x0_pred"],
-            batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1),
+            batched_data["ori_128_msa_one_hot"].argmax(dim=-1),
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             filter_mask,
         )
-        l1_loss = self.compute_l1_loss(
-            model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
-        )
+        # l1_loss = self.compute_l1_loss(
+        #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
+        # )
         # loss = aa_mlm_loss + cross_entropy_loss
-        loss = l1_loss
+        loss = cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
             "cross_entropy_loss": float(cross_entropy_loss.detach()),
             # "KL_loss": float(kl_loss.detach()),
-            "aa_mlm_loss": float(aa_mlm_loss.detach()),
+            # "aa_mlm_loss": float(aa_mlm_loss.detach()),
         }
-        # loss, logging_output = self.loss_fn(model_output, batched_data)
-        if (
-            self.psm_finetune_head
-            and hasattr(self.psm_finetune_head, "update_loss")
-            and self.training
-        ):
-            loss, logging_output = self.psm_finetune_head.update_loss(
-                loss, logging_output, model_output, batched_data
-            )
 
         return ModelOutput(
             loss=loss,
@@ -448,10 +439,15 @@ class MSAGenModel(Model):
         """
         compute cross entropy loss
         """
-        log_prob = F.log_softmax(logits, dim=-1)  # B,D,L,num_classes
-        loss = -(target * log_prob).sum(dim=-1)
-        loss = loss[filter_mask]
-        return loss.mean()
+
+        # log_prob = F.log_softmax(logits, dim=-1)  # B,D,L,num_classes
+        # loss = -(target * log_prob).sum(dim=-1)
+        # loss = loss[filter_mask]
+        B, D, L, C = logits.size()
+        logits = logits.view(B, D * L, C).float().permute(0, 2, 1)
+        target = target.view(B, D * L)
+        loss = self.aa_mlm_loss(logits, target)
+        return loss
 
     def compute_l1_loss(self, logits, target):
         """
@@ -495,7 +491,7 @@ class MSAGen(nn.Module):
                 psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
             ),
             nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim // 2, 26, bias=False),
+            nn.Linear(psm_config.embedding_dim // 2, 27, bias=False),
         )
         self.aa_mask_head = nn.Sequential(
             nn.Linear(
@@ -520,34 +516,42 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-        with (
-            torch.cuda.amp.autocast(enabled=True, dtype=torch.float16)
-            if self.args.fp16
-            else nullcontext()
-        ):
-            token_embedding = self.embedding(
-                batched_data["token_type"],
-                batched_data["aa_mask"],
-                batched_data["padding_mask"],
-            )
+        # with (
+        #     torch.cuda.amp.autocast(enabled=True, dtype=torch.float16)
+        #     if self.args.fp16
+        #     else nullcontext()
+        # ):
+        token_embedding = self.embedding(
+            batched_data["token_type"],
+            batched_data["aa_mask"],
+            batched_data["padding_mask"],
+        )
 
-            encoder_x = self.encoder(
-                token_embedding.transpose(0, 1),
-                batched_data["padding_mask"],
-                batched_data,
-            )
+        encoder_x = self.encoder(
+            token_embedding.transpose(0, 1),
+            batched_data["padding_mask"],
+            batched_data,
+        )
 
-            # msa_embedding = self.embedding(batched_data["128_msa_token_type"])
-            decoder_x = self.x_proj(encoder_x)
-            msa_embedding = batched_data["128_msa_one_hot"]
-            x0_pred = self.decoder(
-                batched_data,
-                msa_embedding,
-                encoder_x.transpose(0, 1)
-                .unsqueeze(1)
-                .repeat(1, msa_embedding.shape[1], 1, 1),
-                batched_data["128_2D_padding_mask"],
-            )
+        # msa_embedding = self.embedding(batched_data["128_msa_token_type"])
+        decoder_x = self.x_proj(encoder_x)
+        msa_embedding = batched_data["128_msa_one_hot"]
+
+        # x0_pred = self.decoder(
+        #     batched_data,
+        #     msa_embedding,
+        #     encoder_x.transpose(0, 1)
+        #     .unsqueeze(1)
+        #     .repeat(1, msa_embedding.shape[1], 1, 1),
+        #     batched_data["128_2D_padding_mask"],
+        # )
+        # print(decoder_x.shape)
+        x0_pred = (
+            decoder_x.transpose(0, 1)
+            .unsqueeze(1)
+            .repeat(1, msa_embedding.shape[1], 1, 1)
+        )
+
         model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
         model_log_prob = F.log_softmax(
             decoder_x.transpose(0, 1), dim=-1

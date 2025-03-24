@@ -919,7 +919,7 @@ class MSADiffusionModule(nn.Module):
         clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         # x_t = x_t.transpose(0, 1)
-        x_t = self.x_proj(x_t)
+        # x_t = self.x_proj(x_t)
 
         B, D, L, H = x_t.size()
         x_t = self.add_2d_positional_encoding(x_t)

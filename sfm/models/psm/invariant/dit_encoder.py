@@ -265,11 +265,11 @@ class MSADiTBlock(nn.Module):
         # input shape B,D,L,H
         x = x.permute(1, 2, 0, 3)  # D,L,B,H
 
-        x = (
-            x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
-        )  # padding mask should be B,D,L
+        # x = (
+        #     x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
+        # )  # padding mask should be B,D,L
 
-        x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
+        # x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
 
         # x = self.norm3(x)
         # x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
