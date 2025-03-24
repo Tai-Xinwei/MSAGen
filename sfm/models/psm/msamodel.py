@@ -417,8 +417,11 @@ class MSAGenModel(Model):
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             filter_mask,
         )
+        l1_loss = self.compute_l1_loss(
+            model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
+        )
         # loss = aa_mlm_loss + cross_entropy_loss
-        loss = cross_entropy_loss
+        loss = l1_loss
         logging_output = {
             "total_loss": float(loss.detach()),
             "cross_entropy_loss": float(cross_entropy_loss.detach()),
@@ -449,6 +452,12 @@ class MSAGenModel(Model):
         loss = -(target * log_prob).sum(dim=-1)
         loss = loss[filter_mask]
         return loss.mean()
+
+    def compute_l1_loss(self, logits, target):
+        """
+        compute L1 loss
+        """
+        return F.l1_loss(logits, target, reduction="mean")
 
     def config_optimizer(self, model: Optional[nn.Module]):
         """
