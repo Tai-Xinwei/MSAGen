@@ -112,7 +112,7 @@ class MSAGenModel(Model):
         super().__init__()
         if not_init:
             return
-
+        self.cut_off = 64
         self.psm_config = PSMConfig(args)
         self.args = self.psm_config.args
         if args.rank == 0:
@@ -122,7 +122,8 @@ class MSAGenModel(Model):
             args,
             self.psm_config,
         )
-        self.diffusion = Diffsuion_LM()
+        self.T = 1000
+        self.diffusion = Diffsuion_LM(self.T)
         self.psm_finetune_head = psm_finetune_head
 
         if reload_checkpoint:
@@ -217,6 +218,24 @@ class MSAGenModel(Model):
         Returns the maximum positions of the net.
         """
         return self.net.max_positions
+
+    @torch.no_grad()
+    def sample(self, batched_data):
+        """
+        Sapmle mathod for diffusion model
+        """
+        self.net.eval()
+        B, L = batched_data["token_type"].size()
+        device = batched_data["token_type"].device
+        for sample_time_index in range(self.psm_config.num_sampling_time):
+            batched_data["128_msa_token_type"] = torch.zeros(B, self.cut_off, L)
+            padding_mask = (
+                batched_data["token_type"].eq(0).repeat(1, self.cut_off, 1, 1)
+            )
+            clean_mask = torch.zeros(
+                B, self.cut_off, L, dtype=torch.bool, device=device
+            )
+            clean_mask = clean_mask.masked_fill(padding_mask, True)
 
     def _set_noise(self, batched_data):
         B, D, L = batched_data["msa_token_type"].shape
