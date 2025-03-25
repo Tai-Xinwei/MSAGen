@@ -233,7 +233,7 @@ class MSAGenModel(Model):
         batched_data["aa_mask"] = torch.zeros_like(
             token_id, dtype=torch.bool, device=device
         )
-
+        samples = []
         for sample_time_index in range(self.psm_config.num_sampling_time):
             batched_data["128_msa_one_hot"] = torch.zeros(B, self.cut_off, L, 27)
             padding_mask_2D = (
@@ -244,14 +244,22 @@ class MSAGenModel(Model):
             )
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             batched_data["clean_mask"] = clean_mask
-            for t in reversed(range(1, self.T + 1)):
-                batched_data["time_step"] = t
-                x_t = self.diffusion.q_sample(
-                    batched_data["128_msa_one_hot"], t, clean_mask, device
-                )
-                batched_data["128_msa_one_hot"] = x_t
+            T = torch.full((B,), self.T, device=device)
+            x_T = self.diffusion.q_sample(
+                batched_data["128_msa_one_hot"], T, clean_mask, device
+            )
+            batched_data["128_msa_one_hot"] = x_T
+            batched_data["time_step"] = T
+            for t in reversed(range(1, self.T)):
                 net_result = self.net(batched_data)
-                net_result["x0_pred"]
+                t = torch.full((B,), t, device=device)
+                x_t = self.diffusion.q_sample(
+                    net_result["x0_pred"], t, clean_mask, device
+                )
+                batched_data["128_msa_ont_hot"] = x_t
+                batched_data["time_step"] = T
+            samples.append(x_t)
+        return torch.stack(samples, dim=0)
 
     def _set_noise(self, batched_data):
         B, D, L = batched_data["msa_token_type"].shape
@@ -471,8 +479,8 @@ class MSAGenModel(Model):
         # l1_loss = self.compute_l1_loss(
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
-        loss = aa_mlm_loss + cross_entropy_loss
-        loss += cross_entropy_loss
+        loss = aa_mlm_loss + cross_entropy_loss + kl_loss
+        # loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
             "cross_entropy_loss": float(cross_entropy_loss.detach()),
