@@ -265,30 +265,30 @@ class MSADiTBlock(nn.Module):
         # input shape B,D,L,H
         x = x.permute(1, 2, 0, 3)  # D,L,B,H
 
-        # x = (
-        #     x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
-        # )  # padding mask should be B,D,L
+        x = (
+            x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
+        )  # padding mask should be B,D,L
 
-        # x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
+        x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
 
-        # x = self.norm3(x)
+        x = self.norm3(x)
         # x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
-        # D = x.shape[0]
-        # new_x = []
-        # for i in range(D):
-        #     try:
-        #         tmpx = self.crossattn(
-        #             x[i].unsqueeze(0),
-        #             c.permute(1, 2, 0, 3)[i].unsqueeze(0),
-        #             self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
-        #         )[0]
-        #         new_x.extend(tmpx)
-        #     except Exception as e:
-        #         print(f"Error at index {i}: {e}")
+        D = x.shape[0]
+        new_x = []
+        for i in range(D):
+            try:
+                tmpx = self.crossattn(
+                    x[i].unsqueeze(0),
+                    c.permute(1, 2, 0, 3)[i].unsqueeze(0),
+                    self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
+                )[0]
+                new_x.extend(tmpx)
+            except Exception as e:
+                print(f"Error at index {i}: {e}")
 
-        # new_x = torch.stack(new_x, dim=0)
+        new_x = torch.stack(new_x, dim=0)
 
-        # x = x + new_x
+        x = x + new_x
         # new_x = []
         x = self.mlp(self.norm4(x))
         # return x

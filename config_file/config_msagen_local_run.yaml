@@ -257,7 +257,7 @@ warmup_factor: 0.06
 warmup_lr: 1.0e-06
 warmup_num_epochs: 10
 gradient_accumulation_steps: 2
-fp16: true
+fp16: false
 auto_cast: false
 grad_scaler_init: 1.0
 bf16: false

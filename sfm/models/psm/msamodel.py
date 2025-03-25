@@ -220,17 +220,23 @@ class MSAGenModel(Model):
 
     def _set_noise(self, batched_data):
         B, D, L = batched_data["msa_token_type"].shape
+        min_D = min(D, batched_data["cut_off"])
         device = batched_data["msa_token_type"].device
         t = torch.randint(0, 1000, (B,), device=device)
+        # set aa_mask and padding to clean
+        clean_mask = (batched_data["aa_mask"]).repeat(1, min_D, 1) | batched_data[
+            "128_2D_padding_mask"
+        ]
         x_t = self.diffusion.q_sample(
             batched_data["128_msa_one_hot"],
             t,
-            ~batched_data["128_2D_padding_mask"],
+            clean_mask,
             device,
         )
         batched_data["ori_128_msa_one_hot"] = batched_data["128_msa_one_hot"].clone()
         batched_data["128_msa_one_hot"] = x_t
         batched_data["time_step"] = t
+        batched_data["clean_mask"] = clean_mask
         # return x_t,t
 
     def _pre_forward_operation(
@@ -241,6 +247,8 @@ class MSAGenModel(Model):
         pre forward operation
         """
         # set padding_mask
+        cut_off = 64
+        batched_data["cut_off"] = 64
         token_id = batched_data["token_type"]
         padding_mask = token_id.eq(0)  # B x T x 1
         B, D, L = batched_data["msa_token_type"].shape
@@ -249,15 +257,23 @@ class MSAGenModel(Model):
         batched_data["row_padding_mask"] = (msa_token_type == 0).all(dim=-1)
         batched_data["col_padding_mask"] = (msa_token_type == 0).all(dim=1)
         batched_data["2D_padding_mask"] = msa_token_type == 0
-        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][:, :1, :]
+        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][
+            :, :cut_off, :
+        ]
         batched_data["128_msa_one_hot"] = F.one_hot(
             batched_data["128_msa_token_type"].long(), num_classes=27
         ).float()  # 26 plus <pad>
-        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][:, :1]
-        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][:, :1]
-        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][:, :1, :]
+        batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][
+            :, :cut_off
+        ]
+        batched_data["128_col_padding_mask"] = batched_data["col_padding_mask"][
+            :, :cut_off
+        ]
+        batched_data["128_2D_padding_mask"] = batched_data["2D_padding_mask"][
+            :, :cut_off, :
+        ]
         # set aa_mask
-        mask_ratio = 0.0
+        mask_ratio = 0.15
         aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
         aa_mask = aa_mask & ~padding_mask
         batched_data["aa_mask"] = aa_mask
@@ -395,38 +411,38 @@ class MSAGenModel(Model):
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
 
-        # kl_loss = F.kl_div(
-        #     model_output["model_log_prob"], model_output["true_prob"], reduction="none"
-        # )
-        # kl_loss = kl_loss.sum(dim=-1)
-        # mask = ~model_output["padding_mask"]
-        # kl_loss = (kl_loss * mask).sum() / mask.sum()
-        # if batched_data["aa_mask"].any():
-        #     aa_mask = batched_data["aa_mask"]
-        # logits = model_output["aa_logits"][aa_mask]
-        # aa_mlm_loss = self.aa_mlm_loss(
-        #     logits,
-        #     batched_data["token_type"][aa_mask].long(),
-        # )
+        kl_loss = F.kl_div(
+            model_output["model_log_prob"], model_output["true_prob"], reduction="none"
+        )
+        kl_loss = kl_loss.sum(dim=-1)
+        mask = ~model_output["padding_mask"]
+        kl_loss = (kl_loss * mask).sum() / mask.sum()
+        if batched_data["aa_mask"].any():
+            aa_mask = batched_data["aa_mask"]
+        logits = model_output["aa_logits"][aa_mask]
+        aa_mlm_loss = self.aa_mlm_loss(
+            logits,
+            batched_data["token_type"][aa_mask].long(),
+        )
 
-        filter_mask = ~batched_data["128_2D_padding_mask"]
+        filter_mask = ~batched_data["clean_mask"]  # B D L
         B, D, L = batched_data["128_2D_padding_mask"].size()
         cross_entropy_loss = self.compute_cross_entropy_loss(
-            model_output["x0_pred"],
-            batched_data["ori_128_msa_one_hot"].argmax(dim=-1),
+            model_output["x0_pred"][filter_mask],
+            batched_data["ori_128_msa_one_hot"][filter_mask].argmax(dim=-1),
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             filter_mask,
         )
         # l1_loss = self.compute_l1_loss(
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
-        # loss = aa_mlm_loss + cross_entropy_loss
-        loss = cross_entropy_loss
+        loss = aa_mlm_loss + cross_entropy_loss
+        loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
             "cross_entropy_loss": float(cross_entropy_loss.detach()),
-            # "KL_loss": float(kl_loss.detach()),
-            # "aa_mlm_loss": float(aa_mlm_loss.detach()),
+            "KL_loss": float(kl_loss.detach()),
+            "aa_mlm_loss": float(aa_mlm_loss.detach()),
         }
 
         return ModelOutput(
@@ -440,20 +456,20 @@ class MSAGenModel(Model):
         compute cross entropy loss
         """
 
-        # log_prob = F.log_softmax(logits, dim=-1)  # B,D,L,num_classes
+        # log_prob = F.log_softmax(logits.float(), dim=-1)  # B,D,L,num_classes
         # loss = -(target * log_prob).sum(dim=-1)
         # loss = loss[filter_mask]
-        B, D, L, C = logits.size()
-        logits = logits.view(B, D * L, C).float().permute(0, 2, 1)
-        target = target.view(B, D * L)
+        # B, D, L, C = logits.size()
+        # logits = logits.view(B, D * L, C).float().permute(0, 2, 1)
+        # target = target.view(B, D * L)
         loss = self.aa_mlm_loss(logits, target)
         return loss
 
-    def compute_l1_loss(self, logits, target):
-        """
-        compute L1 loss
-        """
-        return F.l1_loss(logits, target, reduction="mean")
+    # def compute_l1_loss(self, logits, target):
+    #     """
+    #     compute L1 loss
+    #     """
+    #     return F.l1_loss(logits, target, reduction="mean")
 
     def config_optimizer(self, model: Optional[nn.Module]):
         """
@@ -491,7 +507,7 @@ class MSAGen(nn.Module):
                 psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
             ),
             nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim // 2, 27, bias=False),
+            nn.Linear(psm_config.embedding_dim // 2, 26, bias=False),
         )
         self.aa_mask_head = nn.Sequential(
             nn.Linear(
@@ -516,11 +532,6 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-        # with (
-        #     torch.cuda.amp.autocast(enabled=True, dtype=torch.float16)
-        #     if self.args.fp16
-        #     else nullcontext()
-        # ):
         token_embedding = self.embedding(
             batched_data["token_type"],
             batched_data["aa_mask"],
@@ -537,20 +548,20 @@ class MSAGen(nn.Module):
         decoder_x = self.x_proj(encoder_x)
         msa_embedding = batched_data["128_msa_one_hot"]
 
-        # x0_pred = self.decoder(
-        #     batched_data,
-        #     msa_embedding,
-        #     encoder_x.transpose(0, 1)
-        #     .unsqueeze(1)
-        #     .repeat(1, msa_embedding.shape[1], 1, 1),
-        #     batched_data["128_2D_padding_mask"],
-        # )
-        # print(decoder_x.shape)
-        x0_pred = (
-            decoder_x.transpose(0, 1)
+        x0_pred = self.decoder(
+            batched_data,
+            msa_embedding,
+            encoder_x.transpose(0, 1)
             .unsqueeze(1)
-            .repeat(1, msa_embedding.shape[1], 1, 1)
+            .repeat(1, msa_embedding.shape[1], 1, 1),
+            batched_data["128_2D_padding_mask"],
         )
+        # print(decoder_x.shape)
+        # x0_pred = (
+        #     decoder_x.transpose(0, 1)
+        #     .unsqueeze(1)
+        #     .repeat(1, msa_embedding.shape[1], 1, 1)
+        # )
 
         model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
         model_log_prob = F.log_softmax(
