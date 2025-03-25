@@ -227,15 +227,31 @@ class MSAGenModel(Model):
         self.net.eval()
         B, L = batched_data["token_type"].size()
         device = batched_data["token_type"].device
+        token_id = batched_data["token_type"]
+        padding_mask = token_id.eq(0)
+        batched_data["padding_mask"] = padding_mask
+        batched_data["aa_mask"] = torch.zeros_like(
+            token_id, dtype=torch.bool, device=device
+        )
+
         for sample_time_index in range(self.psm_config.num_sampling_time):
-            batched_data["128_msa_token_type"] = torch.zeros(B, self.cut_off, L)
-            padding_mask = (
+            batched_data["128_msa_one_hot"] = torch.zeros(B, self.cut_off, L, 27)
+            padding_mask_2D = (
                 batched_data["token_type"].eq(0).repeat(1, self.cut_off, 1, 1)
             )
             clean_mask = torch.zeros(
                 B, self.cut_off, L, dtype=torch.bool, device=device
             )
-            clean_mask = clean_mask.masked_fill(padding_mask, True)
+            clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
+            batched_data["clean_mask"] = clean_mask
+            for t in reversed(range(1, self.T + 1)):
+                batched_data["time_step"] = t
+                x_t = self.diffusion.q_sample(
+                    batched_data["128_msa_one_hot"], t, clean_mask, device
+                )
+                batched_data["128_msa_one_hot"] = x_t
+                net_result = self.net(batched_data)
+                net_result["x0_pred"]
 
     def _set_noise(self, batched_data):
         B, D, L = batched_data["msa_token_type"].shape
