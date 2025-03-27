@@ -224,7 +224,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv3.0_38M-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv3.0_38M_addcoef-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa

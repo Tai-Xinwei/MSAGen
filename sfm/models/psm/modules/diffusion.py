@@ -940,6 +940,17 @@ class Diffsuion_LM:
 
         return x_sample
 
+    def p_sample(self, x_start, x_t, t, mask=None, DEVICE=None):
+        x_sample = (
+            _extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
+            + _extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * x_t
+        )
+
+        if mask is not None:
+            x_sample[mask] = x_start[mask]
+
+        return x_sample
+
     def q_posterior_mean_variance(self, x_start, x_t, t):
         """
         Compute the mean and variance of the diffusion posterior:
@@ -994,6 +1005,11 @@ class Diffsuion_LM:
         return torch.tensor(
             [gmm.sample() for _ in range(np.prod(tensor_like.shape))]
         ).reshape(tensor_like.shape)
+
+    def get_loss_weight(self, t, device):
+        alpha_bar = _extract(self.sqrt_alphas_cumprod, t, t.shape).to(device)
+        weight = 1.0 / (1.0 - alpha_bar + 1e-8)
+        return weight
 
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):

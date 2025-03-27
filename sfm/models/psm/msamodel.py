@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from sfm.data.psm_data.utils import VOCAB
+from sfm.data.psm_data.utils import MSAVOCAB, VOCAB, plot_probability_heatmaps
 from sfm.logging import logger
 from sfm.models.psm.equivariant.e2former import E2former
 from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
@@ -235,31 +235,77 @@ class MSAGenModel(Model):
         )
         samples = []
         for sample_time_index in range(self.psm_config.num_sampling_time):
-            batched_data["128_msa_one_hot"] = torch.zeros(B, self.cut_off, L, 27)
+            batched_data["128_msa_one_hot"] = torch.zeros(
+                B, self.cut_off, L, 27, device=device
+            )
             padding_mask_2D = (
-                batched_data["token_type"].eq(0).repeat(1, self.cut_off, 1, 1)
+                batched_data["token_type"].eq(0).repeat(1, self.cut_off, 1)
             )
             clean_mask = torch.zeros(
                 B, self.cut_off, L, dtype=torch.bool, device=device
             )
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             batched_data["clean_mask"] = clean_mask
-            T = torch.full((B,), self.T, device=device)
+            T = torch.full((B,), self.T - 1, device=device)
             x_T = self.diffusion.q_sample(
                 batched_data["128_msa_one_hot"], T, clean_mask, device
             )
+            batched_data["128_2D_padding_mask"] = padding_mask_2D
             batched_data["128_msa_one_hot"] = x_T
             batched_data["time_step"] = T
-            for t in reversed(range(1, self.T)):
+            true_prob = self.calculate_prob(batched_data["msa_token_type"])
+            for t in reversed(range(0, self.T - 1)):
                 net_result = self.net(batched_data)
                 t = torch.full((B,), t, device=device)
-                x_t = self.diffusion.q_sample(
-                    net_result["x0_pred"], t, clean_mask, device
-                )
-                batched_data["128_msa_ont_hot"] = x_t
-                batched_data["time_step"] = T
-            samples.append(x_t)
+                if t[0].item() != 0:
+                    x_t = self.diffusion.q_sample(
+                        net_result["x0_pred"], t, clean_mask, device
+                    )
+                    batched_data["128_msa_one_hot"] = x_t
+                else:
+                    batched_data["128_msa_one_hot"] = net_result["x0_pred"]
+                batched_data["time_step"] = t
+            # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
+            pred_prob = self.calculate_prob(x_t.argmax(dim=-1))
+            samples.append(self.convert(x_t.argmax(dim=-1)))
+        # self.net.train()
+        plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
         return torch.stack(samples, dim=0)
+
+    def calculate_prob(self, x):
+        # calculate true prob
+        B, D, L = x.size()
+        msa_token_type_t = x.transpose(1, 2)  # B L D
+
+        counts = torch.zeros(B, L, 26, device=x.device, dtype=torch.int32)
+        indices = (msa_token_type_t - 1).clamp(
+            min=0
+        )  # B L D minus 1 so that 0 means indicates=0 which indicates the first aa
+        valid_mask = msa_token_type_t.ne(0)  # B L D
+        # count num of valid according indices
+        counts.scatter_add_(2, indices.long(), valid_mask.int())
+        true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
+        return true_prob
+
+    def convert(self, x):
+        inv_vocab = {v: k for k, v in MSAVOCAB.items()}
+        # indices = x.argmax(dim=-1)
+        indices = x
+        B, D, L = indices.shape
+        sequences = []
+        for b in range(B):
+            sample_seqs = []
+            for d in range(D):
+                token_ids = indices[b, d].tolist()
+                tokens = []
+                for idx in token_ids:
+                    if idx == 0:
+                        print("error")
+                        continue
+                    tokens.append(inv_vocab.get(idx))
+                sample_seqs.append("".join(tokens))
+            sequences.append(sample_seqs)
+        return sequences
 
     def _set_noise(self, batched_data):
         B, D, L = batched_data["msa_token_type"].shape
@@ -397,15 +443,14 @@ class MSAGenModel(Model):
             **kwargs: Additional keyword arguments.
         """
 
-        self._pre_forward_operation(batched_data)
-
         if (
             self.psm_config.sample_in_validation
-            and not self.training
-            and not skip_sample
+            # and not self.training
+            # and not skip_sample
         ):
-            match_results = self.sample_and_calc_match_metric(batched_data)
+            results = self.sample(batched_data)
 
+        self._pre_forward_operation(batched_data)
         result_dict = self._forward_net(batched_data, skip_sample, **kwargs)
 
         if (
@@ -413,32 +458,7 @@ class MSAGenModel(Model):
             and not self.training
             and not skip_sample
         ):
-            result_dict.update(match_results)
-
-        if self.psm_finetune_head and not self.psm_config.sample_in_validation:
-            if self.psm_config.psm_sample_structure_in_finetune:
-                self.eval()
-                if (
-                    self.psm_config.diffusion_mode == "edm"
-                    and self.psm_config.diffusion_sampling == "edm"
-                ):
-                    random.random()
-                    # if select < 0.6:
-                    #     self.psm_config.edm_sample_num_steps = 12
-                    # elif select < 0.7:
-                    #     self.psm_config.edm_sample_num_steps = 11
-                    # else:
-                    # self.psm_config.edm_sample_num_steps = 20
-
-                    sampled_output = self.sample_AF3(batched_data)
-                else:
-                    sampled_output = self.sample(batched_data)
-
-                for k, v in sampled_output.items():
-                    result_dict[k + "_sample"] = v
-                self.train()
-
-            result_dict = self.psm_finetune_head(result_dict)
+            result_dict.update(results)
 
         return result_dict
 
@@ -455,7 +475,7 @@ class MSAGenModel(Model):
         """
 
         kl_loss = F.kl_div(
-            model_output["model_log_prob"], model_output["true_prob"], reduction="none"
+            model_output["model_log_prob"], batched_data["true_prob"], reduction="none"
         )
         kl_loss = kl_loss.sum(dim=-1)
         mask = ~model_output["padding_mask"]
@@ -476,6 +496,12 @@ class MSAGenModel(Model):
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             filter_mask,
         )
+
+        time_coefficient = self.diffusion.get_loss_weight(
+            batched_data["time_step"], device=batched_data["time_step"].device
+        )
+        # print(time_coefficient.shape)
+        cross_entropy_loss *= time_coefficient[0]
         # l1_loss = self.compute_l1_loss(
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
@@ -614,7 +640,7 @@ class MSAGen(nn.Module):
         result_dict = {
             "x0_pred": x0_pred,
             "aa_logits": aa_logits.transpose(0, 1),
-            "true_prob": batched_data["true_prob"],
+            # "true_prob": batched_data["true_prob"],
             "model_prob": model_prob,
             "model_log_prob": model_log_prob,
             "decoder_x": decoder_x.transpose(0, 1),
