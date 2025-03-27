@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 import math
 from abc import ABC, ABCMeta, abstractmethod
+from typing import Optional
 
 import numpy as np
 import torch
+import torch.distributed as dist
+import torch.nn as nn
 from torch import Tensor
 
 from sfm.models.psm.psm_config import PSMConfig
@@ -940,16 +943,31 @@ class Diffsuion_LM:
 
         return x_sample
 
-    def p_sample(self, x_start, x_t, t, mask=None, DEVICE=None):
-        x_sample = (
-            _extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
-            + _extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * x_t
-        )
+    def p_sample(self, x0_pred, x_t, t, mask=None, DEVICE=None):
+        (
+            posterior_mean,
+            posterior_variance,
+            posterior_log_variance_clipped,
+        ) = self.q_posterior_mean_variance(x0_pred, x_t, t)
+
+        if isinstance(t, torch.Tensor):
+            t_scalar = t[0].item() if t.numel() > 1 else t.item()
+        else:
+            t_scalar = t
+
+        if t_scalar > 0:
+            noise = torch.randn_like(x_t)
+            # NoiseTerm = sqrt(variance) * noise = exp(0.5 * log_variance) * noise
+            x_t_minus_1 = (
+                posterior_mean + torch.exp(0.5 * posterior_log_variance_clipped) * noise
+            )
+        else:
+            x_t_minus_1 = posterior_mean
 
         if mask is not None:
-            x_sample[mask] = x_start[mask]
+            x_t_minus_1[mask] = x_t_minus_1[mask]
 
-        return x_sample
+        return x_t_minus_1
 
     def q_posterior_mean_variance(self, x_start, x_t, t):
         """
@@ -1078,3 +1096,279 @@ def _extract(arr, timesteps, broadcast_shape):
     while len(res.shape) < len(broadcast_shape):
         res = res[..., None]
     return res.expand(broadcast_shape)
+
+
+class DiffNoise(nn.Module):
+    def __init__(self, psm_config: PSMConfig):
+        super(DiffNoise, self).__init__()
+        self.psm_config = psm_config
+
+        assert psm_config.ddpm_schedule in [
+            "linear",
+            "quadratic",
+            "sigmoid",
+            "cosine",
+            "sqrt",
+        ]
+        (
+            self.sqrt_alphas_cumprod,
+            self.sqrt_one_minus_alphas_cumprod,
+            self.alphas_cumprod,
+            self.beta_list,
+        ) = self._beta_schedule(
+            psm_config.num_timesteps,
+            psm_config.ddpm_beta_start,
+            psm_config.ddpm_beta_end,
+            psm_config.ddpm_schedule,
+        )
+        self.unit_noise_scale = psm_config.diffusion_noise_std
+        self.torch_generator = None
+
+    def _beta_schedule(
+        self, num_timesteps, beta_start, beta_end, schedule_type="sigmoid"
+    ):
+        if schedule_type == "linear":
+            beta_list = torch.linspace(beta_start, beta_end, num_timesteps)
+        elif schedule_type == "quadratic":
+            beta_list = (
+                torch.linspace(beta_start**0.5, beta_end**0.5, num_timesteps) ** 2
+            )
+        elif schedule_type == "sigmoid":
+            betas = torch.linspace(-6, 6, num_timesteps)
+            beta_list = torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
+        elif schedule_type == "sqrt":
+            x = 1 - torch.sqrt(torch.linspace(0, 1, num_timesteps + 1) + 0.0001)
+            beta_list = 1 - x[1:] / x[:-1]
+            beta_list[beta_list > 0.999] = 0.999
+        elif schedule_type == "cosine":
+            s = 0.008
+            steps = num_timesteps + 1
+            x = torch.linspace(0, num_timesteps, steps)
+            alphas_cumprod = (
+                torch.cos(((x / num_timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
+            )
+            alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+            betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+            beta_list = torch.clip(betas, 0.0001, 0.9999)
+        else:
+            raise NotImplementedError("only support linear, quadratic, sigmoid, cosine")
+
+        alphas = 1 - beta_list
+        alphas_cumprod = torch.cumprod(alphas, dim=0)
+        sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
+        sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
+        return (
+            sqrt_alphas_cumprod,
+            sqrt_one_minus_alphas_cumprod,
+            alphas_cumprod,
+            beta_list,
+        )
+
+    def _extract(self, a, t, x_shape):
+        if len(t.shape) == 1:
+            batch_size = t.shape[0]
+            out = a.gather(-1, t.cpu().long())
+            return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+        elif len(t.shape) == 2:
+            batch_size, L = t.shape
+            # a is in shape of [num_timesteps], t is in shape of [batch_size, L],
+            out = torch.gather(a.unsqueeze(0).expand(batch_size, -1), 1, t.cpu().long())
+            return out.reshape(batch_size, L, *((1,) * (len(x_shape) - 2))).to(t.device)
+        else:
+            raise Exception(f"t shape: {t.shape} not supported")
+
+    def get_noise(
+        self,
+        pos,
+    ):
+        if self.torch_generator is None:
+            self.torch_generator = torch.Generator(device=pos.device)
+            self.torch_generator.manual_seed(dist.get_rank())
+        noise = (
+            torch.randn(
+                pos.size(),
+                device=pos.device,
+                dtype=pos.dtype,
+                generator=self.torch_generator,
+            )
+            * self.unit_noise_scale
+        )
+        noise_center = noise.mean(dim=2, keepdim=True)
+        noise -= noise_center
+        return noise
+
+    def get_sampling_start(self, init_pos):
+        noise = self.get_noise(
+            init_pos,
+        )
+        return init_pos + noise
+
+    def noise_sample(
+        self,
+        x_start,
+        t,
+        x_init=None,
+        clean_mask: Optional[Tensor] = None,
+    ):
+        t = (t * (self.psm_config.num_timesteps - 1)).long()
+        noise = self.get_noise(x_start)
+
+        sqrt_alphas_cumprod_t = self._extract(
+            self.sqrt_alphas_cumprod, t, x_start.shape
+        )
+        sqrt_one_minus_alphas_cumprod_t = self._extract(
+            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
+        )
+
+        if x_init is None:
+            x_t = (
+                sqrt_alphas_cumprod_t * x_start
+                + sqrt_one_minus_alphas_cumprod_t * noise
+            )
+        else:
+            x_t = (
+                sqrt_alphas_cumprod_t * (x_start - x_init)
+                + sqrt_one_minus_alphas_cumprod_t * noise
+                + x_init
+            )
+        if clean_mask is not None:
+            if len(clean_mask.shape) == 1:
+                x_t = torch.where(
+                    clean_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), x_start, x_t
+                )
+            elif len(clean_mask.shape) == 2:
+                x_t = torch.where(clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_t)
+            elif len(clean_mask.shape) == 3:
+                x_t = torch.where(clean_mask.unsqueeze(-1), x_start, x_t)
+            else:
+                raise ValueError(
+                    f"clean_mask should be [B] or [B, L] or [B, D, L]tensor, but it's shape is {clean_mask.shape}"
+                )
+
+        return x_t, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
+
+    # Here, t is time point in (0, 1]
+    def _angle_noise_sample(self, x_start, t):
+        T = t
+        # T = t / 1000.0
+        T = T.unsqueeze(-1).unsqueeze(-1)
+
+        beta_min = 0.01 * torch.pi
+        beta_max = 1.0 * torch.pi
+
+        sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
+
+        noise = torch.randn_like(x_start) * sigma
+
+        return x_start + noise, noise, sigma
+
+
+class TimeStepSampler:
+    def __init__(self, num_timesteps):
+        self.num_timesteps = num_timesteps
+
+    def sample(self, n_graph, device, dtype, clean_sample_ratio: float = 0.0):
+        time_step = torch.rand(size=(n_graph // 2 + 1,), device=device)
+        time_step = torch.cat([time_step, 1.0 - time_step], dim=0)[:n_graph]
+        time_step = time_step.to(dtype=dtype)
+
+        clean_mask = torch.tensor(
+            np.random.rand(n_graph) <= clean_sample_ratio,
+            dtype=torch.bool,
+            device=device,
+        )
+        return time_step, clean_mask
+
+    def get_continuous_time_step(self, t, n_graph, device, dtype):
+        time_step = torch.zeros(
+            [
+                n_graph,
+            ],
+            device=device,
+            dtype=dtype,
+        )
+        time_step = time_step.fill_(t * 1.0 / self.num_timesteps)
+        return time_step
+
+
+from sfm.models.psm.psm_config import DiffusionTimeStepEncoderType, PSMConfig
+
+
+class SinusoidalPositionEmbeddings(nn.Module):
+    def __init__(
+        self,
+        dim,
+        max_period=10000,
+    ):
+        super().__init__()
+        self.dim = dim
+        assert dim % 2 == 0, "SinusoidalPositionEmbeddings requires dim to be even."
+        self.max_period = max_period
+        self.dummy = nn.Parameter(
+            torch.empty(0, dtype=torch.float), requires_grad=False
+        )  # to detect fp16
+
+    def forward(self, time):
+        device = time.device
+        time = time * self.max_period
+        half_dim = self.dim // 2
+        embeddings = math.log(self.max_period) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        embeddings = embeddings.to(self.dummy.dtype)
+        return embeddings
+
+
+class TimeStepEncoder(nn.Module):
+    def __init__(
+        self,
+        n_timesteps,
+        timestep_emb_dim,
+        timestep_emb_type: DiffusionTimeStepEncoderType,
+        mlp=True,
+    ):
+        super(TimeStepEncoder, self).__init__()
+
+        if timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
+            self.time_proj = SinusoidalPositionEmbeddings(timestep_emb_dim)
+        elif timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
+            self.time_proj = nn.Embedding(n_timesteps + 1, timestep_emb_dim)
+        else:
+            raise NotImplementedError
+
+        if mlp:
+            self.time_embedding = nn.Sequential(
+                nn.Linear(timestep_emb_dim, timestep_emb_dim),
+                nn.GELU(),
+                nn.Linear(timestep_emb_dim, timestep_emb_dim),
+            )
+        else:
+            self.time_embedding = None
+
+        self.n_timesteps = n_timesteps
+        self.timestep_emb_type = timestep_emb_type
+
+    def forward(self, timesteps, clean_mask: Optional[Tensor]):
+        ngraph, nD, nL = timesteps.shape[:3]
+        if self.timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
+            discretized_time_steps = (
+                timesteps * self.n_timesteps
+            ).long()  # in range [0, n_timesteps - 1]
+            if clean_mask is not None:
+                discretized_time_steps[
+                    clean_mask
+                ] = self.n_timesteps  # use last time step embedding for clean samples
+            t_emb = self.time_proj(discretized_time_steps).view(ngraph, nD, nL, -1)
+        elif self.timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
+            if clean_mask is not None:
+                timesteps = timesteps.masked_fill(
+                    clean_mask, 0.0
+                )  # use t = 0 for clean samples with positional time embedding (which is continuous time embedding)
+            t_emb = self.time_proj(timesteps.unsqueeze(-1)).view(ngraph, nD, nL, -1)
+        else:
+            raise ValueError(f"Unkown timestep_emb_type {self.timestep_emb_type}")
+        if self.time_embedding is not None:
+            t_emb = self.time_embedding(t_emb)
+
+        return t_emb

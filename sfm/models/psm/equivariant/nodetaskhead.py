@@ -10,6 +10,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from sfm.models.psm.invariant.dit_encoder import DiTBlock, MSADiTBlock
+from sfm.models.psm.modules.diffusion import TimeStepEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
@@ -837,8 +838,12 @@ class MSADiffusionModule(nn.Module):
 
         self.layers = nn.ModuleList([])
         self.x_proj = nn.Linear(27, psm_config.embedding_dim, bias=False)
-        self.time_emb = nn.Embedding(T + 1, psm_config.embedding_dim)
-
+        # self.time_emb = nn.Embedding(T + 1, psm_config.embedding_dim)
+        self.time_step_encoder = TimeStepEncoder(
+            psm_config.num_timesteps,
+            psm_config.embedding_dim,
+            psm_config.diffusion_time_step_encoder_type,
+        )
         for nl in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
                 [
@@ -924,8 +929,12 @@ class MSADiffusionModule(nn.Module):
         B, D, L, H = x_t.size()
         x_t = self.add_2d_positional_encoding(x_t)
         # x_t = x_t.view(B, D * L, H)
-        time = batched_data["time_step"]
-        time_emb = self.time_emb(time)
+        time_step = batched_data["time_step"]
+
+        time_emb = self.time_step_encoder(
+            time_step.unsqueeze(-1).unsqueeze(-1).repeat(1, D, L),
+            batched_data["clean_mask"],
+        )
         # if self.training:
         #     with torch.no_grad():
         #         x0_selfcond = self._predict_x0(
@@ -951,7 +960,7 @@ class MSADiffusionModule(nn.Module):
         #     )
         # else:
 
-        x = x_t + time_emb.unsqueeze(1).unsqueeze(2).repeat(1, D, L, 1)
+        x = x_t + time_emb
         # x = x_t
         for _, layer in enumerate(self.layers):
             x0_pred = layer(

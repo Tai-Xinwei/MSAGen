@@ -46,7 +46,7 @@ from sfm.models.psm.invariant.plain_encoder import (
     PSMPairPlainEncoder,
     PSMPlainEncoder,
 )
-from sfm.models.psm.modules.diffusion import Diffsuion_LM
+from sfm.models.psm.modules.diffusion import DiffNoise, TimeStepSampler
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.mixembedding import (
     MSAGenSeqEmbedding,
@@ -69,12 +69,6 @@ from .modules.confidence_model import lddt
 from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
-from .modules.timestep_encoder import (
-    DiffNoise,
-    DiffNoiseEDM,
-    NoiseStepSamplerEDM,
-    TimeStepSampler,
-)
 
 
 class MSAGenModel(Model):
@@ -122,13 +116,20 @@ class MSAGenModel(Model):
             args,
             self.psm_config,
         )
-        self.T = 1000
-        self.diffusion = Diffsuion_LM(self.T)
         self.psm_finetune_head = psm_finetune_head
+        self.T = 1000
+        self.diffnoise = DiffNoise(self.psm_config)
 
+        self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
+            self.psm_config.diffusion_sampling
+        ](self.diffnoise.alphas_cumprod, self.psm_config)
+
+        self.noise_loss = nn.L1Loss(reduction="mean")
+        self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
         if reload_checkpoint:
             self.checkpoint_loaded = self.reload_checkpoint()
         self.aa_mlm_loss = nn.CrossEntropyLoss(reduction="mean")
+
         # self.loss_fn = loss_fn(args)
 
     def reload_checkpoint(self):
@@ -235,8 +236,11 @@ class MSAGenModel(Model):
         )
         samples = []
         for sample_time_index in range(self.psm_config.num_sampling_time):
-            batched_data["128_msa_one_hot"] = torch.zeros(
+            batched_data["init_128_msa_one_hot"] = torch.zeros(
                 B, self.cut_off, L, 27, device=device
+            ).float()
+            batched_data["128_msa_one_hot"] = self.diffnoise.get_sampling_start(
+                batched_data["init_128_msa_one_hot"]
             )
             padding_mask_2D = (
                 batched_data["token_type"].eq(0).repeat(1, self.cut_off, 1)
@@ -246,28 +250,51 @@ class MSAGenModel(Model):
             )
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             batched_data["clean_mask"] = clean_mask
-            T = torch.full((B,), self.T - 1, device=device)
-            x_T = self.diffusion.q_sample(
-                batched_data["128_msa_one_hot"], T, clean_mask, device
-            )
+            # T = torch.full((B,), self.T - 1, device=device)
+            # x_T = self.diffusion.q_sample(
+            #     batched_data["128_msa_one_hot"], T, clean_mask, device
+            # )
             batched_data["128_2D_padding_mask"] = padding_mask_2D
-            batched_data["128_msa_one_hot"] = x_T
-            batched_data["time_step"] = T
+            # batched_data["128_msa_one_hot"] = x_T
+            # batched_data["time_step"] = T
             true_prob = self.calculate_prob(batched_data["msa_token_type"])
-            for t in reversed(range(0, self.T - 1)):
+            for t in range(
+                self.psm_config.num_timesteps - 1,
+                -1,
+                self.psm_config.num_timesteps_stepsize,
+            ):
+                # forward
+                time_step = self.time_step_sampler.get_continuous_time_step(
+                    t, B, device=device, dtype=batched_data["128_msa_ont\e_hot"].dtype
+                )
+                x_t = batched_data["128_msa_one_hot"].clone()
+                batched_data[
+                    "sqrt_one_minus_alphas_cumprod_t"
+                ] = self.diffnoise._extract(
+                    self.diffnoise.sqrt_one_minus_alphas_cumprod,
+                    (time_step * self.psm_config.num_timesteps).long(),
+                    batched_data["128_msa_one_hot"].shape,
+                )
+                batched_data["time_step"] = time_step
                 net_result = self.net(batched_data)
-                t = torch.full((B,), t, device=device)
-                if t[0].item() != 0:
-                    x_t = self.diffusion.q_sample(
-                        net_result["x0_pred"], t, clean_mask, device
-                    )
-                    batched_data["128_msa_one_hot"] = x_t
-                else:
-                    batched_data["128_msa_one_hot"] = net_result["x0_pred"]
-                batched_data["time_step"] = t
+                predicted_noise = net_result["noise_pred"]
+                epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
+                batched_data["128_msa_one_hot"] = self.diffusion_process.sample_step(
+                    x_t,
+                    batched_data["init_128_msa_one_hot"],
+                    predicted_noise,
+                    epsilon,
+                    t,
+                    stepsize=-self.psm_config.num_timesteps_stepsize,
+                )
+                batched_data["128_msa_one_hot"] = batched_data[
+                    "128_msa_one_hot"
+                ].detach()
+            pred_msa = batched_data["128_msa_one_hot"].clone()
+
             # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
-            pred_prob = self.calculate_prob(x_t.argmax(dim=-1))
-            samples.append(self.convert(x_t.argmax(dim=-1)))
+            pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
+            samples.append(self.convert(pred_msa.argmax(dim=-1)))
         # self.net.train()
         plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
         return torch.stack(samples, dim=0)
@@ -311,20 +338,42 @@ class MSAGenModel(Model):
         B, D, L = batched_data["msa_token_type"].shape
         min_D = min(D, batched_data["cut_off"])
         device = batched_data["msa_token_type"].device
-        t = torch.randint(0, 1000, (B,), device=device)
+        batched_data["ori_128_msa_one_hot"] = batched_data["128_msa_one_hot"].clone()
+        # time sample
+        time_step, clean_mask = self.time_step_sampler.sample(
+            B,
+            device,
+            batched_data["128_msa_one_hot"].dtype,
+            self.psm_config.clean_sample_ratio,
+        )
+        # t = torch.randint(0, 1000, (B,), device=device)
         # set aa_mask and padding to clean
         clean_mask = (batched_data["aa_mask"]).repeat(1, min_D, 1) | batched_data[
             "128_2D_padding_mask"
         ]
-        x_t = self.diffusion.q_sample(
-            batched_data["128_msa_one_hot"],
-            t,
-            clean_mask,
-            device,
+        (
+            noise_msa,
+            noise,
+            sqrt_one_minus_alphas_cumprod_t,
+            sqrt_alphas_cumprod_t,
+        ) = self.diffnoise.noise_sample(
+            x_start=batched_data["128_msa_one_hot"],
+            t=time_step,
+            clean_mask=clean_mask,
         )
-        batched_data["ori_128_msa_one_hot"] = batched_data["128_msa_one_hot"].clone()
-        batched_data["128_msa_one_hot"] = x_t
-        batched_data["time_step"] = t
+        # x_t = self.diffusion.q_sample(
+        #     batched_data["128_msa_one_hot"],s
+        #     t,
+        #     clean_mask,
+        #     device,
+        # )
+        batched_data["noise"] = noise
+        batched_data[
+            "sqrt_one_minus_alphas_cumprod_t"
+        ] = sqrt_one_minus_alphas_cumprod_t
+        batched_data["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
+        batched_data["128_msa_one_hot"] = noise_msa
+        batched_data["time_step"] = time_step
         batched_data["clean_mask"] = clean_mask
         # return x_t,t
 
@@ -349,9 +398,11 @@ class MSAGenModel(Model):
         batched_data["128_msa_token_type"] = batched_data["msa_token_type"][
             :, :cut_off, :
         ]
-        batched_data["128_msa_one_hot"] = F.one_hot(
-            batched_data["128_msa_token_type"].long(), num_classes=27
-        ).float()  # 26 plus <pad>
+        batched_data["128_msa_one_hot"] = (
+            F.one_hot(batched_data["128_msa_token_type"].long(), num_classes=27).float()
+            * 2
+            - 1
+        )  # 26 plus <pad>
         batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][
             :, :cut_off
         ]
@@ -487,29 +538,24 @@ class MSAGenModel(Model):
             logits,
             batched_data["token_type"][aa_mask].long(),
         )
-
+        noise_label = batched_data["noise"]
+        noise_pred = model_output["noise_pred"]
         filter_mask = ~batched_data["clean_mask"]  # B D L
         B, D, L = batched_data["128_2D_padding_mask"].size()
-        cross_entropy_loss = self.compute_cross_entropy_loss(
-            model_output["x0_pred"][filter_mask],
-            batched_data["ori_128_msa_one_hot"][filter_mask].argmax(dim=-1),
+        diffusion_loss = self.noise_loss(
+            noise_label[filter_mask],
+            noise_pred[filter_mask],
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
-            filter_mask,
         )
 
-        time_coefficient = self.diffusion.get_loss_weight(
-            batched_data["time_step"], device=batched_data["time_step"].device
-        )
-        # print(time_coefficient.shape)
-        cross_entropy_loss *= time_coefficient[0]
         # l1_loss = self.compute_l1_loss(
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
-        loss = aa_mlm_loss + cross_entropy_loss + kl_loss
+        loss = aa_mlm_loss + diffusion_loss + kl_loss
         # loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
-            "cross_entropy_loss": float(cross_entropy_loss.detach()),
+            "diffusion_loss": float(diffusion_loss.detach()),
             "KL_loss": float(kl_loss.detach()),
             "aa_mlm_loss": float(aa_mlm_loss.detach()),
         }
@@ -617,7 +663,7 @@ class MSAGen(nn.Module):
         decoder_x = self.x_proj(encoder_x)
         msa_embedding = batched_data["128_msa_one_hot"]
 
-        x0_pred = self.decoder(
+        noise_pred = self.decoder(
             batched_data,
             msa_embedding,
             encoder_x.transpose(0, 1)
@@ -638,7 +684,7 @@ class MSAGen(nn.Module):
         )  # calculate kl loss which needs log softmax first
         aa_logits = self.aa_mask_head(encoder_x)
         result_dict = {
-            "x0_pred": x0_pred,
+            "noise_pred": noise_pred,
             "aa_logits": aa_logits.transpose(0, 1),
             # "true_prob": batched_data["true_prob"],
             "model_prob": model_prob,
