@@ -832,7 +832,6 @@ class MSADiffusionModule(nn.Module):
         self,
         args,
         psm_config: PSMConfig,
-        T: 1000,
     ):
         super().__init__()
 

@@ -541,9 +541,11 @@ class MSAGenModel(Model):
         noise_pred = model_output["noise_pred"]
         filter_mask = ~batched_data["clean_mask"]  # B D L
         B, D, L = batched_data["128_2D_padding_mask"].size()
-        diffusion_loss = self.noise_loss(
+        is_gap = batched_data["128_msa_token_type"] == 26
+        diffusion_loss = self.compute_noise_loss(
             noise_label[filter_mask],
             noise_pred[filter_mask],
+            is_gap[filter_mask],
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
         )
 
@@ -564,6 +566,20 @@ class MSAGenModel(Model):
             num_examples=model_output["model_prob"].shape[0],
             log_output=logging_output,
         )
+
+    def compute_noise_loss(self, label, pred, is_gap):
+        loss = torch.abs(label - pred).sum(dim=-1)
+
+        weights = torch.where(
+            is_gap,
+            torch.tensor(0.1, device=is_gap.device, dtype=loss.dtype),
+            torch.tensor(1.0, device=is_gap.device, dtype=loss.dtype),
+        )
+
+        loss_weighted = loss * weights
+
+        total_loss = loss_weighted.sum() / loss_weighted.numel()
+        return total_loss
 
     def compute_cross_entropy_loss(self, logits, target, filter_mask):
         """
