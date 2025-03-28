@@ -222,7 +222,7 @@ class MSAGenModel(Model):
     @torch.no_grad()
     def sample(self, batched_data):
         """
-        Sapmle mathod for diffusion model
+        Sapmle method for diffusion model
         """
         self.net.eval()
         B, L = batched_data["token_type"].size()
