@@ -265,7 +265,7 @@ class MSAGenModel(Model):
             ):
                 # forward
                 time_step = self.time_step_sampler.get_continuous_time_step(
-                    t, B, device=device, dtype=batched_data["128_msa_ont\e_hot"].dtype
+                    t, B, device=device, dtype=batched_data["128_msa_one_hot"].dtype
                 )
                 x_t = batched_data["128_msa_one_hot"].clone()
                 batched_data[

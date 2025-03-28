@@ -28,7 +28,7 @@ d_tilde: 1.0
 pbc_cutoff: 40.0
 data_path: ../msadata
 dataset_names: ''
-loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGenv3.0_38M_addcoef-20250326-lr2e-5-bsz1_1-steps2000000-warm100/global_step74000/mp_rank_00_model_states.pt'
+loadcheck_path: ''
 add_3d: false
 no_2d: false
 ft: false
@@ -36,7 +36,7 @@ infer: false
 use_pbc: false
 transformer_m_pretrain: true
 mode_prob: 0.0,1.0,0.0
-num_timesteps: 5000
+num_timesteps: 1000
 num_timesteps_stepsize: -1
 ddpm_beta_start: 1.0e-07
 ddpm_beta_end: 0.006
@@ -216,7 +216,7 @@ relax_lower_deformation: 0
 relax_upper_deformation: 0
 relax_deformation_step: 5
 relax_fmax: 0.01
-seed: 30690
+seed: 18201
 total_num_steps: 2000000
 total_num_epochs: 1000
 max_tokens: 2048
@@ -237,7 +237,7 @@ strategy: Zero1
 pp_partition_layer_name: ''
 pp_part_list: null
 cpu: false
-save_dir: /psm/sfmexpresults/xinwei/MSAGen/MSAGenv2.0-20250321-lr4e-5-bsz1_2-steps2000000-warm100
+save_dir: /psm/sfmexpresults/xinwei/MSAGen/MSAGenv4.0_38M-20250328-lr2e-5-bsz1_1-steps2000000-warm100
 save_batch_interval: 2000
 save_epoch_interval: 1
 log_interval: 20
@@ -245,7 +245,7 @@ finetune_from_checkpoint_dir: null
 finetune_from_checkpoint_id: null
 ifresume: false
 load_ckpt: false
-max_lr: 4.0e-05
+max_lr: 2.0e-05
 init_lr: 8.0e-05
 min_lr: 8.0e-06
 weight_decay: 0.0
@@ -256,7 +256,7 @@ warmup_num_steps: 100
 warmup_factor: 0.06
 warmup_lr: 1.0e-06
 warmup_num_epochs: 10
-gradient_accumulation_steps: 2
+gradient_accumulation_steps: 1
 fp16: false
 auto_cast: false
 grad_scaler_init: 1.0
@@ -272,9 +272,9 @@ ifstack: false
 unified_data_num_workers: 1
 wandb: true
 wandb_team: ai4s-sfm
-wandb_group: msagen_debug
-wandb_project: MSAGen
-wandb_run_name: MSAGenv2.0-20250321-lr4e-5-bsz1_2-steps2000000-warm100
+wandb_group: msagen_v3.0
+wandb_project: psm_msa
+wandb_run_name: MSAGenv4.0_38M-20250328-lr2e-5-bsz1_1-steps2000000-warm100
 early_stopping: false
 early_stopping_patience: 10
 early_stopping_metric: valid_loss
