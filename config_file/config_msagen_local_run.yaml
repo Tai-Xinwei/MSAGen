@@ -28,7 +28,7 @@ d_tilde: 1.0
 pbc_cutoff: 40.0
 data_path: ../msadata
 dataset_names: ''
-loadcheck_path: ''
+loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGenv4.0_38M-20250327-lr2e-5-bsz1_1-steps2000000-warm100/global_step71520/mp_rank_00_model_states.pt'
 add_3d: false
 no_2d: false
 ft: false

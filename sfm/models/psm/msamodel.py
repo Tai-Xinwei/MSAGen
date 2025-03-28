@@ -117,7 +117,6 @@ class MSAGenModel(Model):
             self.psm_config,
         )
         self.psm_finetune_head = psm_finetune_head
-        self.T = 1000
         self.diffnoise = DiffNoise(self.psm_config)
 
         self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
@@ -612,7 +611,7 @@ class MSAGen(nn.Module):
         self.backbone = args.backbone
 
         self.psm_config = psm_config
-        self.diffusion_num_steps = 1000
+
         self.embedding = MSAGenSeqEmbedding(psm_config)
 
         self.encoder = MSAGenEncoder(args, psm_config)
@@ -632,7 +631,7 @@ class MSAGen(nn.Module):
             nn.Linear(psm_config.embedding_dim // 2, 30, bias=False),
         )
 
-        self.decoder = MSADiffusionModule(args, psm_config, self.diffusion_num_steps)
+        self.decoder = MSADiffusionModule(args, psm_config)
 
     def forward(
         self,
