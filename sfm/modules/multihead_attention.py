@@ -1011,7 +1011,7 @@ class CrossAttention(nn.Module):
                 x[start : start + max_rows], attn_probs
             )
             outputs.append(output)
-
+        print("batched_forward")
         output = torch.cat(outputs, 0)
         return output, attn_probs
 

@@ -296,7 +296,7 @@ class MSAGenModel(Model):
             samples.append(self.convert(pred_msa.argmax(dim=-1)))
         # self.net.train()
         plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
-        return torch.stack(samples, dim=0)
+        # return torch.stack(samples, dim=0)
 
     def calculate_prob(self, x):
         # calculate true prob
@@ -347,9 +347,10 @@ class MSAGenModel(Model):
         )
         # t = torch.randint(0, 1000, (B,), device=device)
         # set aa_mask and padding to clean
-        clean_mask = (batched_data["aa_mask"]).repeat(1, min_D, 1) | batched_data[
-            "128_2D_padding_mask"
-        ]
+
+        clean_mask = (batched_data["aa_mask"]).unsqueeze(1).repeat(
+            1, min_D, 1
+        ) | batched_data["128_2D_padding_mask"]
         (
             noise_msa,
             noise,
@@ -371,7 +372,7 @@ class MSAGenModel(Model):
             "sqrt_one_minus_alphas_cumprod_t"
         ] = sqrt_one_minus_alphas_cumprod_t
         batched_data["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
-        batched_data["128_msa_one_hot"] = noise_msa
+        batched_data["128_msa_one_hot"] = noise_msa.to(dtype=time_step.dtype)
         batched_data["time_step"] = time_step
         batched_data["clean_mask"] = clean_mask
         # return x_t,t
@@ -402,6 +403,10 @@ class MSAGenModel(Model):
             * 2
             - 1
         )  # 26 plus <pad>
+        if self.args.fp16:
+            batched_data["128_msa_one_hot"] = batched_data["128_msa_one_hot"].to(
+                torch.float16
+            )
         batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][
             :, :cut_off
         ]
@@ -498,17 +503,17 @@ class MSAGenModel(Model):
             # and not self.training
             # and not skip_sample
         ):
-            results = self.sample(batched_data)
+            self.sample(batched_data)
 
         self._pre_forward_operation(batched_data)
         result_dict = self._forward_net(batched_data, skip_sample, **kwargs)
 
-        if (
-            self.psm_config.sample_in_validation
-            and not self.training
-            and not skip_sample
-        ):
-            result_dict.update(results)
+        # if (
+        #     self.psm_config.sample_in_validation
+        #     and not self.training
+        #     and not skip_sample
+        # ):
+        #     result_dict.update(results)
 
         return result_dict
 
@@ -546,6 +551,8 @@ class MSAGenModel(Model):
             noise_label[filter_mask],
             noise_pred[filter_mask],
             is_gap[filter_mask],
+            1.0,
+            "L1"
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
         )
 
@@ -567,12 +574,14 @@ class MSAGenModel(Model):
             log_output=logging_output,
         )
 
-    def compute_noise_loss(self, label, pred, is_gap):
-        loss = torch.abs(label - pred).sum(dim=-1)
-
+    def compute_noise_loss(self, label, pred, is_gap, gap_weight, loss_type="L1"):
+        if loss_type == "L1":
+            loss = torch.abs(label - pred).mean(dim=-1)
+        elif loss_type == "L2":
+            loss = ((label - pred) ** 2).mean(dim=-1)
         weights = torch.where(
             is_gap,
-            torch.tensor(0.1, device=is_gap.device, dtype=loss.dtype),
+            torch.tensor(gap_weight, device=is_gap.device, dtype=loss.dtype),
             torch.tensor(1.0, device=is_gap.device, dtype=loss.dtype),
         )
 
@@ -676,7 +685,7 @@ class MSAGen(nn.Module):
 
         # msa_embedding = self.embedding(batched_data["128_msa_token_type"])
         decoder_x = self.x_proj(encoder_x)
-        msa_embedding = batched_data["128_msa_one_hot"]
+        msa_embedding = batched_data["128_msa_one_hot"].clone()
 
         noise_pred = self.decoder(
             batched_data,
