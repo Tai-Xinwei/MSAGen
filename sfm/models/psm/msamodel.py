@@ -551,8 +551,8 @@ class MSAGenModel(Model):
             noise_label[filter_mask],
             noise_pred[filter_mask],
             is_gap[filter_mask],
-            1.0,
-            "L1"
+            0.5,
+            "L2"
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
         )
 

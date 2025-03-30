@@ -8,13 +8,13 @@ description: msagen
 
 env_defaults:
   NODES: 1
-  GPUS: 4
+  GPUS: 8
   WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
 
 target:
   service: sing
-  # name: palisades11
-  name: msrresrchvc
+  name: palisades11
+  # name: msrresrchvc
   # name: msroctovc
   # name: quickdevvc
   # name: whitney02
@@ -68,7 +68,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: PSM_msav3.0
+- name: PSM_msav3.0_weight0.5_L2_12layer
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
