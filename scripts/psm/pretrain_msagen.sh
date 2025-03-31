@@ -44,10 +44,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 # 38M
-[ -z "${layers}" ] && layers=8
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=512
 [ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
 [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
 [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
 # 57M
@@ -216,15 +216,15 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=True
-[ -z "${bf16}" ] && bf16=False
+[ -z "${fp16}" ] && fp16=False
+[ -z "${bf16}" ] && bf16=True
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv4.0_8layer_w0_5-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}_L2
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv4.0_12layer_w0_5-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}_L2
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa

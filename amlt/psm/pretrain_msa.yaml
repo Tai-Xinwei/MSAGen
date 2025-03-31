@@ -8,13 +8,13 @@ description: msagen
 
 env_defaults:
   NODES: 1
-  GPUS: 8
+  GPUS: 4
   WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
 
 target:
-  service: sing
-  name: palisades11
-  # name: msrresrchvc
+  # service: sing
+  # name: palisades11
+  name: msrresrchvc
   # name: msroctovc
   # name: quickdevvc
   # name: whitney02
