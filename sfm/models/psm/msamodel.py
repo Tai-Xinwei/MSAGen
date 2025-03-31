@@ -407,6 +407,11 @@ class MSAGenModel(Model):
             batched_data["128_msa_one_hot"] = batched_data["128_msa_one_hot"].to(
                 torch.float16
             )
+        elif self.args.bf16:
+            batched_data["128_msa_one_hot"] = batched_data["128_msa_one_hot"].to(
+                torch.bfloat16
+            )
+
         batched_data["128_row_padding_mask"] = batched_data["row_padding_mask"][
             :, :cut_off
         ]
