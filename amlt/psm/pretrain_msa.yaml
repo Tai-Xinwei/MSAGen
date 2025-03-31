@@ -68,7 +68,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: PSM_msav3.0_weight0.5_L2_12layer
+- name: 4x80g
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
@@ -81,16 +81,21 @@ jobs:
   priority: High
   process_count_per_node: 1
   command:
-  - mkdir -p ../msadata
+  - df -h && nvidia-smi
+  - cd ~
+  - echo "===================== Starting data download... ====================="
+  - mkdir -p ./msadata
   - wget -O azcopy_v10.tar.gz https://aka.ms/downloadazcopy-v10-linux && tar -xf azcopy_v10.tar.gz --strip-components=1
-  - ./azcopy copy "https://sfmdataeastus.blob.core.windows.net/pdb/20250101_processed/msadata/protein_msa_40_0.1_3k.lmdb/?<sas>" ../msadata --recursive
+  - ./azcopy copy "https://sfmdataeastus.blob.core.windows.net/pdb/20250101_processed/msadata/protein_msa_40_0.1_3k.lmdb/?<sas>" ./msadata --recursive
+  - echo "===================== Starting main task... ====================="
+  - cd ~
   # - ./azcopy copy "https://sfmdataeastus2.blob.core.windows.net/psm/data/AFDB50-plddt70.lmdb?<sas>" ./datadisk --recursive
-  # - cp /psm/exp/v-xinweitai/zhanka/src/code ./
-  # - chmod -R 777 code
-  # - ./code tunnel --name=d227_o4 --accept-server-license-terms
-  - eval "$$(conda shell.bash hook)" && conda activate sfm
-  - python setup_cython.py build_ext --inplace
-  - pip install nvidia-dali-cuda120
-  - pip install seaborn
-  - pip install matplotlib
-  - bash ./scripts/psm/pretrain_msagen.sh
+  - cp /psm/exp/v-xinweitai/zhanka/src/code ./
+  - chmod -R 777 code
+  - ./code tunnel --name=A100-4x80g --accept-server-license-terms
+  # - eval "$$(conda shell.bash hook)" && conda activate sfm
+  # - python setup_cython.py build_ext --inplace
+  # - pip install nvidia-dali-cuda120
+  # - pip install seaborn
+  # - pip install matplotlib
+  # - bash ./scripts/psm/pretrain_msagen.sh
