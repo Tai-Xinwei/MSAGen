@@ -128,7 +128,7 @@ class MSAGenModel(Model):
         if reload_checkpoint:
             self.checkpoint_loaded = self.reload_checkpoint()
         self.aa_mlm_loss = nn.CrossEntropyLoss(reduction="mean")
-
+        self.ce_loss = nn.CrossEntropyLoss(reduction="mean")
         # self.loss_fn = loss_fn(args)
 
     def reload_checkpoint(self):
@@ -558,21 +558,45 @@ class MSAGenModel(Model):
             noise_label[filter_mask],
             noise_pred[filter_mask],
             is_gap[filter_mask],
-            0.5,
+            1.0,
             "L2"
             # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
         )
-
+        batched_data["init_128_msa_one_hot"] = torch.zeros(
+            B, D, L, 27, device=batched_data["msa_token_type"].device
+        ).float()
+        batched_data["msa_token_type"].device
+        epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
+        t = (
+            (batched_data["time_step"][0].float() * (self.psm_config.num_timesteps - 1))
+            .long()
+            .cpu()
+        )
+        pred_msa = self.diffusion_process.get_x0(
+            batched_data["128_msa_one_hot"],
+            batched_data["init_128_msa_one_hot"],
+            noise_pred,
+            epsilon,
+            t,
+            stepsize=-self.psm_config.num_timesteps_stepsize,
+        )
+        pred_ori = pred_msa[:, 0, :]
+        ori_ce_loss = self.ce_loss(
+            pred_ori.permute(0, 2, 1),
+            batched_data["token_type"].long(),
+        )
+        # print(pred_ori.shape,batched_data["token_type"].shape)
         # l1_loss = self.compute_l1_loss(
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
-        loss = aa_mlm_loss + diffusion_loss + kl_loss
+        loss = aa_mlm_loss + diffusion_loss + kl_loss + ori_ce_loss
         # loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
             "diffusion_loss": float(diffusion_loss.detach()),
             "KL_loss": float(kl_loss.detach()),
             "aa_mlm_loss": float(aa_mlm_loss.detach()),
+            "ori_ce_loss": float(ori_ce_loss.detach()),
         }
 
         return ModelOutput(

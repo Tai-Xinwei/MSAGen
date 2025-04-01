@@ -66,7 +66,6 @@ class DDPM(DiffusionProcess):
             if t == 0
             else ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt()
         )
-
         x_t_minus_1 = (
             x_t
             - x_init_pos
@@ -74,6 +73,24 @@ class DDPM(DiffusionProcess):
         ) / alpha_t.sqrt() + beta_tilde_t * epsilon
         x_t_minus_1 += x_init_pos
         return x_t_minus_1
+
+    def get_x0(self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1):
+        hat_alpha_t = self.alpha_cummlative_product[t]
+        hat_alpha_t_1 = 1.0 if t == 0 else self.alpha_cummlative_product[t - 1]
+        alpha_t = hat_alpha_t / hat_alpha_t_1
+        beta_t = (1 - alpha_t) * stepsize
+        (
+            0.0
+            if t == 0
+            else ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt()
+        )
+        x0 = (
+            x_t
+            - x_init_pos
+            - (1 - alpha_t) / (1 - hat_alpha_t).sqrt() * predicted_noise
+        ) / alpha_t.sqrt()
+        x0 += x_init_pos
+        return x0
 
     def sample_step_multi_t(
         self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1
