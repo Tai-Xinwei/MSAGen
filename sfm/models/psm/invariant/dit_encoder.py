@@ -14,6 +14,7 @@ from sfm.modules.mem_eff_attn import MemEffAttn
 from sfm.modules.multihead_attention import (
     ColumnSelfAttention,
     CrossAttention,
+    CrossAttention2D,
     RowSelfAttention,
 )
 from sfm.modules.multihead_attention_flash import FlashAttn
@@ -231,7 +232,7 @@ class MSADiTBlock(nn.Module):
 
         self.norm3 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
 
-        self.crossattn = CrossAttention(
+        self.crossattn = CrossAttention2D(
             embed_dim=embedding_dim,
             num_heads=num_attention_heads,
             dropout=psm_config.dropout,
@@ -240,7 +241,16 @@ class MSADiTBlock(nn.Module):
             v_bias=False,
             o_bias=False,
         )
-
+        # self.crossattn = CrossAttention(
+        #     embed_dim=embedding_dim,
+        #     num_heads=num_attention_heads,
+        #     dropout=psm_config.dropout,
+        #     k_bias=False,
+        #     q_bias=False,
+        #     v_bias=False,
+        #     o_bias=False,
+        #     add_rope=False,
+        # )
         self.norm4 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
@@ -285,9 +295,19 @@ class MSADiTBlock(nn.Module):
                 new_x.extend(tmpx)
             except Exception as e:
                 print(f"Error at index {i}: {e}")
-
+        # for i in range(D):
+        #     try:
+        #         tmpx = self.crossattn(
+        #             x[i],
+        #             c.permute(1, 2, 0, 3)[i],
+        #             # self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
+        #         )[0]
+        #         new_x.extend(tmpx.unsqueeze(0))
+        #     except Exception as e:
+        #         print(f"Error at index {i}: {e}")
+        # new_x = self.crossattn(x,c,)
         new_x = torch.stack(new_x, dim=0)
-
+        # new_x = c.permute(1, 2, 0, 3)
         x = x + new_x
         # new_x = []
         x = self.mlp(self.norm4(x))

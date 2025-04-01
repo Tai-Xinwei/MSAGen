@@ -580,6 +580,7 @@ class MSAGenModel(Model):
             t,
             stepsize=-self.psm_config.num_timesteps_stepsize,
         )
+        # pred_msa = model_output["noise_pred"]
         pred_ori = pred_msa[:, 0, :]
         ori_ce_loss = self.ce_loss(
             pred_ori.permute(0, 2, 1),
@@ -590,6 +591,7 @@ class MSAGenModel(Model):
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
         loss = aa_mlm_loss + diffusion_loss + kl_loss + ori_ce_loss
+        # loss = ori_ce_loss
         # loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),

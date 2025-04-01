@@ -88,7 +88,7 @@ class DDPM(DiffusionProcess):
             x_t
             - x_init_pos
             - (1 - alpha_t) / (1 - hat_alpha_t).sqrt() * predicted_noise
-        ) / alpha_t.sqrt()
+        ) / hat_alpha_t.sqrt()
         x0 += x_init_pos
         return x0
 
