@@ -44,12 +44,12 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 # 38M
-[ -z "${layers}" ] && layers=6
-[ -z "${hidden_size}" ] && hidden_size=256
-[ -z "${ffn_size}" ] && ffn_size=1024
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=6
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=256
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
+[ -z "${layers}" ] && layers=8
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
 # 57M
 # [ -z "${layers}" ] && layers=8
 # [ -z "${hidden_size}" ] && hidden_size=768
@@ -224,7 +224,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-# [ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv4.0_8layer_w1_0_4node-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}_L2
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv4.0_8layer_w1_0_fixattn_withce-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-warm${warmup_num_steps}_L2
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa
