@@ -106,7 +106,7 @@ class MSAGenModel(Model):
         super().__init__()
         if not_init:
             return
-        self.cut_off = 64
+        self.cut_off = 1
         self.psm_config = PSMConfig(args)
         self.args = self.psm_config.args
         if args.rank == 0:
@@ -385,8 +385,8 @@ class MSAGenModel(Model):
         pre forward operation
         """
         # set padding_mask
-        cut_off = 64
-        batched_data["cut_off"] = 64
+        cut_off = self.cut_off
+        batched_data["cut_off"] = cut_off
         token_id = batched_data["token_type"]
         padding_mask = token_id.eq(0)  # B x T x 1
         B, D, L = batched_data["msa_token_type"].shape
@@ -590,7 +590,7 @@ class MSAGenModel(Model):
         # l1_loss = self.compute_l1_loss(
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
-        loss = aa_mlm_loss + diffusion_loss + kl_loss + ori_ce_loss
+        loss = aa_mlm_loss + diffusion_loss  # + kl_loss + ori_ce_loss
         # loss = ori_ce_loss
         # loss += cross_entropy_loss
         logging_output = {
@@ -726,7 +726,8 @@ class MSAGen(nn.Module):
             encoder_x.transpose(0, 1)
             .unsqueeze(1)
             .repeat(1, msa_embedding.shape[1], 1, 1),
-            batched_data["128_2D_padding_mask"],
+            # batched_data["128_2D_padding_mask"],
+            batched_data["padding_mask"],
         )
         # print(decoder_x.shape)
         # x0_pred = (

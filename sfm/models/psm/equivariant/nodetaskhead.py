@@ -846,7 +846,7 @@ class MSADiffusionModule(nn.Module):
         for nl in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
                 [
-                    MSADiTBlock(
+                    DiTBlock(
                         args,
                         psm_config,
                         embedding_dim=psm_config.decoder_hidden_dim,
@@ -961,6 +961,11 @@ class MSADiffusionModule(nn.Module):
         # else:
 
         x = x_t + time_emb
+        if x.shape[1] == 1:
+            x = x.squeeze(1)
+            c = c.squeeze(1)
+            # print(x.shape)
+            # print(c.shape)
         # x = x_t
         for _, layer in enumerate(self.layers):
             x0_pred = layer(
@@ -973,6 +978,8 @@ class MSADiffusionModule(nn.Module):
                 ifbackprop=ifbackprop,
             )
         x0_pred = self.out_proj(x0_pred)
+        if len(x0_pred.shape) == 3:
+            x0_pred = x0_pred.unsqueeze(1)
         return x0_pred
 
     # def _predict_x0(

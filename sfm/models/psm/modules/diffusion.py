@@ -1227,10 +1227,7 @@ class DiffNoise(nn.Module):
         x_init=None,
         clean_mask: Optional[Tensor] = None,
     ):
-        tmpt = t
         t = (t.float() * (self.psm_config.num_timesteps - 1)).long()
-        if t >= 1000:
-            print(tmpt)
         noise = self.get_noise(x_start)
 
         sqrt_alphas_cumprod_t = self._extract(

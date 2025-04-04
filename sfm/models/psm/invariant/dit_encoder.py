@@ -7,6 +7,7 @@ from torch.utils.checkpoint import checkpoint
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
+    MultiheadAttention,
     MultiheadAttentionWithProteinRotaryEmbedding,
 )
 from sfm.models.psm.psm_config import PSMConfig
@@ -56,7 +57,7 @@ class DiTBlock(nn.Module):
             attn_cls = MemEffAttnWithProteinRotaryEmbedding
         else:
             attn_cls = MemEffAttn
-
+        attn_cls = MultiheadAttention
         self.attn = attn_cls(
             embedding_dim,
             num_attention_heads,
@@ -116,7 +117,7 @@ class DiTBlock(nn.Module):
             x = x + gate_msa * self.attn(
                 modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
                 key_padding_mask=padding_mask,
-                position_ids=batched_data["position_ids"],
+                # position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
                 attn_bias=mixed_attn_bias,
                 math_kernel=math_kernel,

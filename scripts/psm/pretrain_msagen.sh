@@ -44,10 +44,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 # 38M
-[ -z "${layers}" ] && layers=8
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=512
 [ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
 [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
 [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
 # 57M
@@ -84,7 +84,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -187,7 +187,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_3k.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
@@ -224,7 +224,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv4.0_8layer_w1_0_fixattn_withce-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-warm${warmup_num_steps}_L2
+# [ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv4.0_8layer_w1_0_fixattn_withce-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-warm${warmup_num_steps}_L2
+[ -z "${wandb_run_name}" ] && wandb_run_name=one_to_one
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa
@@ -273,7 +274,7 @@ echo "Random number: ${random_number}"
 [ -z "${sample_in_validation}" ] && sample_in_validation=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
-[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
+[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
