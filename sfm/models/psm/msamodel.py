@@ -106,7 +106,7 @@ class MSAGenModel(Model):
         super().__init__()
         if not_init:
             return
-        self.cut_off = 1
+        self.cut_off = 8
         self.psm_config = PSMConfig(args)
         self.args = self.psm_config.args
         if args.rank == 0:
@@ -542,8 +542,8 @@ class MSAGenModel(Model):
         kl_loss = kl_loss.sum(dim=-1)
         mask = ~model_output["padding_mask"]
         kl_loss = (kl_loss * mask).sum() / mask.sum()
-        if batched_data["aa_mask"].any():
-            aa_mask = batched_data["aa_mask"]
+        # if batched_data["aa_mask"].any():
+        aa_mask = batched_data["aa_mask"]
         logits = model_output["aa_logits"][aa_mask]
         aa_mlm_loss = self.aa_mlm_loss(
             logits,
@@ -565,32 +565,36 @@ class MSAGenModel(Model):
         batched_data["init_128_msa_one_hot"] = torch.zeros(
             B, D, L, 27, device=batched_data["msa_token_type"].device
         ).float()
-        batched_data["msa_token_type"].device
-        epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
-        t = (
-            (batched_data["time_step"][0].float() * (self.psm_config.num_timesteps - 1))
-            .long()
-            .cpu()
-        )
-        pred_msa = self.diffusion_process.get_x0(
-            batched_data["128_msa_one_hot"],
-            batched_data["init_128_msa_one_hot"],
-            noise_pred,
-            epsilon,
-            t,
-            stepsize=-self.psm_config.num_timesteps_stepsize,
-        )
+        # batched_data["msa_token_type"].device
+        # epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
+        # t = (
+        #     (batched_data["time_step"][0].float() * (self.psm_config.num_timesteps - 1))
+        #     .long()
+        #     .cpu()
+        # )
+        # pred_msa = self.diffusion_process.get_x0(
+        #     batched_data["128_msa_one_hot"],
+        #     batched_data["init_128_msa_one_hot"],
+        #     noise_pred,
+        #     epsilon,
+        #     t,
+        #     stepsize=-self.psm_config.num_timesteps_stepsize,
+        # )
         # pred_msa = model_output["noise_pred"]
-        pred_ori = pred_msa[:, 0, :]
-        ori_ce_loss = self.ce_loss(
-            pred_ori.permute(0, 2, 1),
-            batched_data["token_type"].long(),
-        )
+        # pred_ori = pred_msa[:, 0, :, :]
+        # ori_ce_loss = self.ce_loss(
+        #     pred_msa.contiguous().view(B*D,L,27).permute(0, 2, 1),
+        #     batched_data["128_msa_token_type"].contiguous().view(B*D,L).long(),
+        # )
+        # ori_ce_loss = self.ce_loss(
+        #     pred_msa[batched_data["128_2D_padding_mask"]],
+        #     batched_data["128_msa_token_type"][batched_data["128_2D_padding_mask"]].long(),
+        # )
         # print(pred_ori.shape,batched_data["token_type"].shape)
         # l1_loss = self.compute_l1_loss(
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
-        loss = aa_mlm_loss + diffusion_loss  # + kl_loss + ori_ce_loss
+        loss = aa_mlm_loss + diffusion_loss + kl_loss
         # loss = ori_ce_loss
         # loss += cross_entropy_loss
         logging_output = {
@@ -598,7 +602,7 @@ class MSAGenModel(Model):
             "diffusion_loss": float(diffusion_loss.detach()),
             "KL_loss": float(kl_loss.detach()),
             "aa_mlm_loss": float(aa_mlm_loss.detach()),
-            "ori_ce_loss": float(ori_ce_loss.detach()),
+            # "ori_ce_loss": float(ori_ce_loss.detach()),
         }
 
         return ModelOutput(
@@ -726,8 +730,8 @@ class MSAGen(nn.Module):
             encoder_x.transpose(0, 1)
             .unsqueeze(1)
             .repeat(1, msa_embedding.shape[1], 1, 1),
-            # batched_data["128_2D_padding_mask"],
-            batched_data["padding_mask"],
+            batched_data["128_2D_padding_mask"],
+            # batched_data["padding_mask"],
         )
         # print(decoder_x.shape)
         # x0_pred = (

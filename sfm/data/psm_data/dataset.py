@@ -3401,6 +3401,15 @@ class MSAGenDataset(FoundationModelDataset):
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         data = json.loads(value.decode("utf-8"))
+        ori_seq_len = len(data["query_sequence"])
+        if ori_seq_len > self.args.max_length:
+            random_start = random.randint(
+                0, len(data["query_sequence"]) - self.args.max_length
+            )
+            data["query_sequence"] = data["query_sequence"][
+                random_start : random_start + self.args.max_length
+            ]
+            # data["unpaired_msaseq"] = data["unpaired_msaseq"][:,random_start : random_start + self.args.max_length]
         token_type = data["query_sequence"]
         x = torch.tensor([MSAVOCAB[tok] for tok in token_type], dtype=torch.int32)
         deletion_table = str.maketrans("", "", string.ascii_lowercase)
@@ -3411,6 +3420,8 @@ class MSAGenDataset(FoundationModelDataset):
             ],
             dtype=torch.int32,
         )
+        if ori_seq_len > self.args.max_length:
+            msa_x = msa_x[:, random_start : random_start + self.args.max_length]
         msa_len = len(data["unpaired_msaseq"])
         data["msa_token_type"] = msa_x
         data["token_type"] = x

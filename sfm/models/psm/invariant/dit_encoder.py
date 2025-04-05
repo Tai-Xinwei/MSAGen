@@ -233,15 +233,15 @@ class MSADiTBlock(nn.Module):
 
         self.norm3 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
 
-        self.crossattn = CrossAttention2D(
-            embed_dim=embedding_dim,
-            num_heads=num_attention_heads,
-            dropout=psm_config.dropout,
-            k_bias=False,
-            q_bias=False,
-            v_bias=False,
-            o_bias=False,
-        )
+        # self.crossattn = CrossAttention2D(
+        #     embed_dim=embedding_dim,
+        #     num_heads=num_attention_heads,
+        #     dropout=psm_config.dropout,
+        #     k_bias=False,
+        #     q_bias=False,
+        #     v_bias=False,
+        #     o_bias=False,
+        # )
         # self.crossattn = CrossAttention(
         #     embed_dim=embedding_dim,
         #     num_heads=num_attention_heads,
@@ -252,7 +252,7 @@ class MSADiTBlock(nn.Module):
         #     o_bias=False,
         #     add_rope=False,
         # )
-        self.norm4 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+        # self.norm4 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),
@@ -260,7 +260,7 @@ class MSADiTBlock(nn.Module):
         )
         self.adaLN_modulation = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(embedding_dim, 6 * embedding_dim, bias=False),
+            nn.Linear(embedding_dim, 9 * embedding_dim, bias=False),
         )
 
     def forward(
@@ -275,27 +275,58 @@ class MSADiTBlock(nn.Module):
     ):
         # input shape B,D,L,H
         x = x.permute(1, 2, 0, 3)  # D,L,B,H
+        c = c.permute(1, 2, 0, 3)  # D,L,B,H
+        (
+            shift_row,
+            scale_row,
+            gate_row,
+            shift_col,
+            scale_col,
+            gate_col,
+            shift_mlp,
+            scale_mlp,
+            gate_mlp,
+        ) = self.adaLN_modulation(c).chunk(9, dim=-1)
 
         x = (
-            x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
-        )  # padding mask should be B,D,L
+            x
+            + gate_row
+            * self.row_attn(
+                modulate(self.norm1(x), shift_row, scale_row),
+                self_attn_padding_mask=padding_mask,
+            )[0]
+        )
 
-        x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
+        x = (
+            x
+            + gate_col
+            * self.colattn(
+                modulate(self.norm2(x), shift_col, scale_col),
+                self_attn_padding_mask=padding_mask,
+            )[0]
+        )
 
-        x = self.norm3(x)
+        x = x + gate_mlp * self.mlp(modulate(self.norm3(x), shift_mlp, scale_mlp))
+        # x = (
+        #     x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
+        # )  # padding mask should be B,D,L
+
+        # x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
+
+        # x = self.norm3(x)
         # x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
-        D = x.shape[0]
-        new_x = []
-        for i in range(D):
-            try:
-                tmpx = self.crossattn(
-                    x[i].unsqueeze(0),
-                    c.permute(1, 2, 0, 3)[i].unsqueeze(0),
-                    self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
-                )[0]
-                new_x.extend(tmpx)
-            except Exception as e:
-                print(f"Error at index {i}: {e}")
+        # D = x.shape[0]
+        # new_x = []
+        # for i in range(D):
+        #     try:
+        #         tmpx = self.crossattn(
+        #             x[i].unsqueeze(0),
+        #             c.permute(1, 2, 0, 3)[i].unsqueeze(0),
+        #             self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
+        #         )[0]
+        #         new_x.extend(tmpx)
+        #     except Exception as e:
+        #         print(f"Error at index {i}: {e}")
         # for i in range(D):
         #     try:
         #         tmpx = self.crossattn(
@@ -307,11 +338,11 @@ class MSADiTBlock(nn.Module):
         #     except Exception as e:
         #         print(f"Error at index {i}: {e}")
         # new_x = self.crossattn(x,c,)
-        new_x = torch.stack(new_x, dim=0)
+        # new_x = torch.stack(new_x, dim=0)
         # new_x = c.permute(1, 2, 0, 3)
-        x = x + new_x
+        # x = x + new_x
         # new_x = []
-        x = self.mlp(self.norm4(x))
+        # x = self.mlp(self.norm4(x))
         # return x
         return x.permute(2, 0, 1, 3)
         # (

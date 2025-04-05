@@ -44,12 +44,16 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 # 38M
-[ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=512
-[ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+[ -z "${layers}" ] && layers=8
+[ -z "${hidden_size}" ] && hidden_size=128
+[ -z "${ffn_size}" ] && ffn_size=512
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=128
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=512
+# [ -z "${ffn_size}" ] && ffn_size=2048
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
 # 57M
 # [ -z "${layers}" ] && layers=8
 # [ -z "${hidden_size}" ] && hidden_size=768
@@ -225,7 +229,7 @@ export MKL_THREADING_LAYER='GNU'
 
 
 # [ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv4.0_8layer_w1_0_fixattn_withce-$(date +"%Y%m%d")-lr${max_lr}-bsz1_${gradient_accumulation_steps}-warm${warmup_num_steps}_L2
-[ -z "${wandb_run_name}" ] && wandb_run_name=one_to_one
+[ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa
