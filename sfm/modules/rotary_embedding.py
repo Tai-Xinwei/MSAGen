@@ -285,7 +285,7 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
     ):
         super().__init__()
         self.scaling_factor = scaling_factor
-        self.dim = dim
+        self.dim = dim // 2  # for 2D rope, half the dim
         self.max_position_embeddings = max_position_embeddings
         self.base = base
         inv_freq = 1.0 / (
@@ -298,7 +298,9 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
         self.register_buffer("inv_freq", inv_freq, persistent=True)
         self.max_seq_len_cached = max_position_embeddings
 
-    def apply_rotary_pos_emb(self, q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
+    def apply_rotary_pos_emb(
+        self, q, k, x_cos, x_sin, y_cos, y_sin, position_ids=None, unsqueeze_dim=1
+    ):
         """Applies Rotary Position Embedding to the query and key tensors.
 
         Args:
@@ -321,8 +323,16 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
         # cos = cos.unsqueeze(unsqueeze_dim)
         # sin = sin.unsqueeze(unsqueeze_dim)
         sLen = q.shape[-2]
-        q_embed = (q * cos[:, :sLen, :]) + (rotate_half(q) * sin[:, :sLen, :])
-        k_embed = (k * cos) + (rotate_half(k) * sin)
+        q_x = q[..., : self.dim]
+        q_y = q[..., self.dim :]
+        k_x = k[..., : self.dim]
+        k_y = k[..., self.dim :]
+        q_x_embed = (q_x * x_cos[:, :sLen, :]) + (rotate_half(q_x) * x_sin[:, :sLen, :])
+        q_y_embed = (q_y * y_cos[:, :sLen, :]) + (rotate_half(q_y) * y_sin[:, :sLen, :])
+        k_x_embed = (k_x * x_cos) + (rotate_half(k_x) * x_sin)
+        k_y_embed = (k_y * y_cos) + (rotate_half(k_y) * y_sin)
+        q_embed = torch.cat((q_x_embed, q_y_embed), dim=-1)
+        k_embed = torch.cat((k_x_embed, k_y_embed), dim=-1)
         return q_embed, k_embed
 
     def forward(self, q, k, v, position_ids=None, nhead=1):
@@ -337,32 +347,42 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
             k: [bs*num_attention_heads, tgt_dep, seq_len, head_size]
         """
         with torch.no_grad():
+            Bn, D, L = q.shape[0], q.shape[1], q.shape[2]
+            device = q.device
             if position_ids is None:
-                position_ids = (
-                    torch.arange(v.shape[-2], device=q.device)
-                    .type_as(self.inv_freq)
+                x = (
+                    torch.arange(L, device=device)
                     .unsqueeze(0)
-                    .repeat(v.shape[0], 1)
+                    .unsqueeze(0)
+                    .unsqueeze(-1)
                 )
+                x = x.expand(Bn, D, L, 1)
+                y = (
+                    torch.arange(D, device=device)
+                    .unsqueeze(0)
+                    .unsqueeze(-1)
+                    .unsqueeze(-1)
+                )
+                y = y.expand(Bn, D, L, 1)
+                position_ids = torch.cat((x, y), dim=-1)
             else:
-                max_seq_len = position_ids.size()[-1]
                 position_ids = (
                     position_ids.unsqueeze(1)
-                    .repeat(1, nhead, 1)
-                    .reshape(-1, max_seq_len)
+                    .repeat(1, nhead, 1, 1, 1)
+                    .reshape(Bn, D, L, -1)
                 )
 
-            position_ids[..., :1]
+            x_ids = position_ids[:, 0, :, 0]  # B L
 
-            position_ids[..., 1:]
+            y_ids = position_ids[:, :, 0, 1]  # B
 
-            # x: [bs, num_attention_heads, seq_len, head_size]
             inv_freq_expanded = (
                 self.inv_freq[None, :, None]
                 .float()
                 .expand(position_ids.shape[0], -1, 1)
             )
-            position_ids_expanded = position_ids[:, None, :].float()
+            x_ids_expanded = x_ids[:, None, :].float()
+            y_ids_expanded = y_ids[:, None, :].float()
             device_type = v.device.type
             device_type = (
                 device_type
@@ -370,14 +390,25 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
                 else "cpu"
             )
             with torch.autocast(device_type=device_type, enabled=False):
-                freqs = (
-                    inv_freq_expanded.float() @ position_ids_expanded.float()
-                ).transpose(1, 2)
-                emb = torch.cat((freqs, freqs), dim=-1)
-                cos = emb.cos()
-                sin = emb.sin()
+                xfreqs = (inv_freq_expanded.float() @ x_ids_expanded.float()).transpose(
+                    1, 2
+                )
+                x_emb = torch.cat((xfreqs, xfreqs), dim=-1)
+                x_cos = x_emb.cos()
+                x_sin = x_emb.sin()
+                yfreqs = (inv_freq_expanded.float() @ y_ids_expanded.float()).transpose(
+                    1, 2
+                )
+                y_emb = torch.cat((yfreqs, yfreqs), dim=-1)
+                y_cos = y_emb.cos()
+                y_sin = y_emb.sin()
 
-            cos, sin = cos.to(dtype=v.dtype), sin.to(dtype=v.dtype)
+            x_cos, x_sin, y_cos, y_sin = (
+                x_cos.to(dtype=v.dtype),
+                x_sin.to(dtype=v.dtype),
+                y_cos.to(dtype=v.dtype),
+                y_sin.to(dtype=v.dtype),
+            )
 
-        q, k = self.apply_rotary_pos_emb(q, k, cos, sin)
+        q, k = self.apply_rotary_pos_emb(q, k, x_cos, x_sin, y_cos, y_sin)
         return q, k
