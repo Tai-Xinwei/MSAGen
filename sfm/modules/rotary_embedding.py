@@ -323,12 +323,17 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
         # cos = cos.unsqueeze(unsqueeze_dim)
         # sin = sin.unsqueeze(unsqueeze_dim)
         sLen = q.shape[-2]
+        sDep = q.shape[-3]
         q_x = q[..., : self.dim]
         q_y = q[..., self.dim :]
         k_x = k[..., : self.dim]
         k_y = k[..., self.dim :]
-        q_x_embed = (q_x * x_cos[:, :sLen, :]) + (rotate_half(q_x) * x_sin[:, :sLen, :])
-        q_y_embed = (q_y * y_cos[:, :sLen, :]) + (rotate_half(q_y) * y_sin[:, :sLen, :])
+        q_x_embed = (q_x * x_cos[:, :, :sLen, :]) + (
+            rotate_half(q_x) * x_sin[:, :, :sLen, :]
+        )
+        q_y_embed = (q_y * y_cos[:, :sDep, :, :]) + (
+            rotate_half(q_y) * y_sin[:, :sDep, :, :]
+        )
         k_x_embed = (k_x * x_cos) + (rotate_half(k_x) * x_sin)
         k_y_embed = (k_y * y_cos) + (rotate_half(k_y) * y_sin)
         q_embed = torch.cat((q_x_embed, q_y_embed), dim=-1)
@@ -372,9 +377,9 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
                     .reshape(Bn, D, L, -1)
                 )
 
-            x_ids = position_ids[:, 0, :, 0]  # B L
+            x_ids = position_ids[:, 0, :, 0]  # Bn L
 
-            y_ids = position_ids[:, :, 0, 1]  # B
+            y_ids = position_ids[:, :, 0, 1]  # Bn D
 
             inv_freq_expanded = (
                 self.inv_freq[None, :, None]
@@ -393,13 +398,17 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
                 xfreqs = (inv_freq_expanded.float() @ x_ids_expanded.float()).transpose(
                     1, 2
                 )
-                x_emb = torch.cat((xfreqs, xfreqs), dim=-1)
+                x_emb = (
+                    torch.cat((xfreqs, xfreqs), dim=-1).unsqueeze(1).repeat(1, D, 1, 1)
+                )
                 x_cos = x_emb.cos()
                 x_sin = x_emb.sin()
                 yfreqs = (inv_freq_expanded.float() @ y_ids_expanded.float()).transpose(
                     1, 2
                 )
-                y_emb = torch.cat((yfreqs, yfreqs), dim=-1)
+                y_emb = (
+                    torch.cat((yfreqs, yfreqs), dim=-1).unsqueeze(2).repeat(1, 1, L, 1)
+                )
                 y_cos = y_emb.cos()
                 y_sin = y_emb.sin()
 
