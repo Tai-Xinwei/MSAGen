@@ -45,11 +45,11 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 # 38M
 [ -z "${layers}" ] && layers=8
-[ -z "${hidden_size}" ] && hidden_size=128
-[ -z "${ffn_size}" ] && ffn_size=512
+[ -z "${hidden_size}" ] && hidden_size=256
+[ -z "${ffn_size}" ] && ffn_size=1024
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=128
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=512
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=256
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
 # [ -z "${ffn_size}" ] && ffn_size=2048
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
@@ -191,7 +191,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_3k.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
 
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'

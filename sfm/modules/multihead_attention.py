@@ -694,8 +694,22 @@ class RowSelfAttention(nn.Module):
             ).to(q)
 
         if self.rot_emb:
-            q, k = self.rot_emb(q, k, position_ids, self.num_heads)
-
+            q, k = self.rot_emb(
+                q.view(
+                    num_rows, num_cols, batch_size * self.num_heads, self.head_dim
+                ).permute(2, 0, 1, 3),
+                k.view(
+                    num_rows, num_cols, batch_size * self.num_heads, self.head_dim
+                ).permute(2, 0, 1, 3),
+                position_ids,
+                self.num_heads,
+            )
+            q = q.view(
+                batch_size, self.num_heads, num_rows, num_cols, self.head_dim
+            ).permute(2, 3, 0, 1, 4)
+            k = k.view(
+                batch_size, self.num_heads, num_rows, num_cols, self.head_dim
+            ).permute(2, 3, 0, 1, 4)
         attn_weights = torch.einsum(f"rinhd,rjnhd->{self.attn_shape}", q, k)
 
         if self_attn_mask is not None:
@@ -837,7 +851,22 @@ class ColumnSelfAttention(nn.Module):
             )
             q *= self.scaling
             if self.rot_emb:
-                q, k = self.rot_emb(q, k, position_ids, self.num_heads)
+                q, k = self.rot_emb(
+                    q.view(
+                        num_rows, num_cols, batch_size * self.num_heads, self.head_dim
+                    ).permute(2, 0, 1, 3),
+                    k.view(
+                        num_rows, num_cols, batch_size * self.num_heads, self.head_dim
+                    ).permute(2, 0, 1, 3),
+                    position_ids,
+                    self.num_heads,
+                )
+                q = q.view(
+                    batch_size, self.num_heads, num_rows, num_cols, self.head_dim
+                ).permute(2, 3, 0, 1, 4)
+                k = k.view(
+                    batch_size, self.num_heads, num_rows, num_cols, self.head_dim
+                ).permute(2, 3, 0, 1, 4)
             attn_weights = torch.einsum("icnhd,jcnhd->hcnij", q, k)
 
             if self_attn_mask is not None:
