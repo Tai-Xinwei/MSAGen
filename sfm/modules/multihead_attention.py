@@ -13,7 +13,7 @@ from torch import Tensor, nn
 from .FairseqDropout import FairseqDropout
 from .layer_norm import Fp32LayerNorm, LayerNorm
 from .quant_noise import quant_noise
-from .rotary_embedding import SFMRotaryEmbedding
+from .rotary_embedding import SFM2DRotaryEmbedding, SFMRotaryEmbedding
 
 
 class MultiheadAttention(nn.Module):
@@ -611,6 +611,7 @@ class RowSelfAttention(nn.Module):
         q_bias=False,
         v_bias=False,
         o_bias=False,
+        add_rope=False,
         max_tokens_per_msa: int = 2**16,
     ):
         super().__init__()
@@ -620,7 +621,9 @@ class RowSelfAttention(nn.Module):
         self.scaling = self.head_dim**-0.5
         self.max_tokens_per_msa = max_tokens_per_msa
         self.attn_shape = "hnij"
-
+        self.rot_emb = None
+        if add_rope:
+            self.rot_emb = SFM2DRotaryEmbedding(dim=self.head_dim)
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=k_bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=v_bias)
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=q_bias)
@@ -688,6 +691,9 @@ class RowSelfAttention(nn.Module):
             q *= 1 - self_attn_padding_mask.permute(1, 2, 0).unsqueeze(3).unsqueeze(
                 4
             ).to(q)
+
+        if self.rot_emb:
+            q, k = self.rot_emb(q, k, self.num_heads)
 
         attn_weights = torch.einsum(f"rinhd,rjnhd->{self.attn_shape}", q, k)
 

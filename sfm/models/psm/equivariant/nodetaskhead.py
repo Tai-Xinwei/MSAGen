@@ -968,7 +968,7 @@ class MSADiffusionModule(nn.Module):
         # print(c.shape)
         # x = x_t
         for _, layer in enumerate(self.layers):
-            x0_pred = layer(
+            x = layer(
                 x,
                 c,
                 padding_mask,
@@ -977,7 +977,7 @@ class MSADiffusionModule(nn.Module):
                 mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=ifbackprop,
             )
-        x0_pred = self.out_proj(x0_pred)
+        x0_pred = self.out_proj(x)
         # if len(x0_pred.shape) == 3:
         #     x0_pred = x0_pred.unsqueeze(1)
         return x0_pred

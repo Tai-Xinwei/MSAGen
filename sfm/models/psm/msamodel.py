@@ -106,7 +106,7 @@ class MSAGenModel(Model):
         super().__init__()
         if not_init:
             return
-        self.cut_off = 8
+        self.cut_off = 64
         self.psm_config = PSMConfig(args)
         self.args = self.psm_config.args
         if args.rank == 0:
