@@ -340,7 +340,7 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
         k_embed = torch.cat((k_x_embed, k_y_embed), dim=-1)
         return q_embed, k_embed
 
-    def forward(self, q, k, v, position_ids=None, nhead=1):
+    def forward(self, q, k, position_ids=None, nhead=1):
         """
         Args:
             q: [bs*num_attention_heads, tgt_dep, tgt_len, head_size]
@@ -388,7 +388,7 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
             )
             x_ids_expanded = x_ids[:, None, :].float()
             y_ids_expanded = y_ids[:, None, :].float()
-            device_type = v.device.type
+            device_type = q.device.type
             device_type = (
                 device_type
                 if isinstance(device_type, str) and device_type != "mps"
@@ -413,10 +413,10 @@ class SFM2DRotaryEmbedding(torch.nn.Module):
                 y_sin = y_emb.sin()
 
             x_cos, x_sin, y_cos, y_sin = (
-                x_cos.to(dtype=v.dtype),
-                x_sin.to(dtype=v.dtype),
-                y_cos.to(dtype=v.dtype),
-                y_sin.to(dtype=v.dtype),
+                x_cos.to(dtype=q.dtype),
+                x_sin.to(dtype=q.dtype),
+                y_cos.to(dtype=q.dtype),
+                y_sin.to(dtype=q.dtype),
             )
 
         q, k = self.apply_rotary_pos_emb(q, k, x_cos, x_sin, y_cos, y_sin)

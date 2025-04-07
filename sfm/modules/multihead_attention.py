@@ -676,6 +676,7 @@ class RowSelfAttention(nn.Module):
         scaling: float,
         self_attn_mask=None,
         self_attn_padding_mask=None,
+        position_ids=None,
     ):
         num_rows, num_cols, batch_size, embed_dim = x.size()
         q = self.q_proj(x).view(
@@ -693,7 +694,7 @@ class RowSelfAttention(nn.Module):
             ).to(q)
 
         if self.rot_emb:
-            q, k = self.rot_emb(q, k, self.num_heads)
+            q, k = self.rot_emb(q, k, position_ids, self.num_heads)
 
         attn_weights = torch.einsum(f"rinhd,rjnhd->{self.attn_shape}", q, k)
 
@@ -728,6 +729,7 @@ class RowSelfAttention(nn.Module):
         x,
         self_attn_mask=None,
         self_attn_padding_mask=None,
+        position_ids=None,
     ):
         num_rows, num_cols, batch_size, embed_dim = x.size()
         if (
@@ -737,7 +739,7 @@ class RowSelfAttention(nn.Module):
         else:
             scaling = self.align_scaling(x)
             attn_weights = self.compute_attention_weights(
-                x, scaling, self_attn_mask, self_attn_padding_mask
+                x, scaling, self_attn_mask, self_attn_padding_mask, position_ids
             )
             attn_probs = attn_weights.softmax(-1)
             attn_probs = self.dropout_module(attn_probs)
@@ -756,6 +758,7 @@ class ColumnSelfAttention(nn.Module):
         q_bias=False,
         v_bias=False,
         o_bias=False,
+        add_rope=False,
         dropout=0.0,
         max_tokens_per_msa: int = 2**16,
     ):
@@ -766,7 +769,9 @@ class ColumnSelfAttention(nn.Module):
         self.head_dim = embed_dim // num_heads
         self.scaling = self.head_dim**-0.5
         self.max_tokens_per_msa = max_tokens_per_msa
-
+        self.rot_emb = None
+        if add_rope:
+            self.rot_emb = SFM2DRotaryEmbedding(dim=self.head_dim)
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=k_bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=v_bias)
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=q_bias)
@@ -805,6 +810,7 @@ class ColumnSelfAttention(nn.Module):
         x,
         self_attn_mask=None,
         self_attn_padding_mask=None,
+        position_ids=None,
     ):
         num_rows, num_cols, batch_size, embed_dim = x.size()
         if num_rows == 1:
@@ -830,7 +836,8 @@ class ColumnSelfAttention(nn.Module):
                 num_rows, num_cols, batch_size, self.num_heads, self.head_dim
             )
             q *= self.scaling
-
+            if self.rot_emb:
+                q, k = self.rot_emb(q, k, position_ids, self.num_heads)
             attn_weights = torch.einsum("icnhd,jcnhd->hcnij", q, k)
 
             if self_attn_mask is not None:
@@ -855,6 +862,7 @@ class ColumnSelfAttention(nn.Module):
         x,
         self_attn_mask=None,
         self_attn_padding_mask=None,
+        position_ids=None,
     ):
         num_rows, num_cols, batch_size, embed_dim = x.size()
         # if False and num_rows * num_cols > 2 ** 14 and not torch.is_grad_enabled():
@@ -868,7 +876,7 @@ class ColumnSelfAttention(nn.Module):
             )
         else:
             return self.compute_attention_update(
-                x, self_attn_mask, self_attn_padding_mask
+                x, self_attn_mask, self_attn_padding_mask, position_ids
             )
 
 
