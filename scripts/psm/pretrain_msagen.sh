@@ -62,7 +62,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 
-[ -z "${num_head}" ] && num_head=32
+[ -z "${num_head}" ] && num_head=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=384
