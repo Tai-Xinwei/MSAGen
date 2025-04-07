@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import inspect
 import os
+import uuid
 from argparse import ArgumentParser
 from functools import wraps
 
@@ -22,6 +23,7 @@ def wandb_init(args):
                 group=args.wandb_group,
                 name=args.wandb_run_name,
                 entity=args.wandb_team,
+                id=str(uuid.uuid4()),
                 config=args,
             )
 
