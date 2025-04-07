@@ -10,8 +10,8 @@ num_classes: 1
 encoder_attention_heads: 8
 encoder_ffn_embed_dim: 1024
 encoder_embed_dim: 256
-encoder_layers: 8
-num_pred_attn_layer: 8
+encoder_layers: 12
+num_pred_attn_layer: 12
 num_3d_bias_kernel: 32
 max_length: 384
 pbc_expanded_token_cutoff: 512
@@ -28,7 +28,7 @@ d_tilde: 1.0
 pbc_cutoff: 40.0
 data_path: ../msadata
 dataset_names: ''
-loadcheck_path: ''
+loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGenv4.1_12layer-20250407-lr1e-4-bsz1_1-warm1000_L2/global_step4000/mp_rank_00_model_states.pt'
 add_3d: false
 no_2d: false
 ft: false
@@ -86,7 +86,7 @@ valid_data_path: ''
 data_path_list: protein_msa_40_0.1_3k.lmdb
 dataset_name_list: msageneration
 dataset_split_raito: '1.0'
-dataset_micro_batch_size: '8'
+dataset_micro_batch_size: '1'
 lamb_pde: 0.01
 pbc_expanded_distance_cutoff: 20.0
 pbc_use_local_attention: true
@@ -189,8 +189,8 @@ if_total_energy: false
 group_optimizer: false
 group_lr_ratio: 1.0
 num_force_and_noise_head_layers: 2
-psm_validation_mode: false
-sample_in_validation: false
+psm_validation_mode: true
+sample_in_validation: true
 num_sampling_time: 1
 sampled_structure_output_path: null
 psm_finetune_mode: false
@@ -200,7 +200,7 @@ psm_finetune_noise_mode: diffusion
 psm_finetune_valid_noise_mode: diffusion
 psm_finetune_skip_ori_head: false
 only_use_rotary_embedding_for_protein: false
-psm_validate_for_train_set: false
+psm_validate_for_train_set: true
 algorithm_type: dpmsolver++
 solver_order: 2
 solver_type: midpoint

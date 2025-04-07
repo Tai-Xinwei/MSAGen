@@ -238,15 +238,27 @@ class MSAGenModel(Model):
             batched_data["init_128_msa_one_hot"] = torch.zeros(
                 B, self.cut_off, L, 27, device=device
             ).float()
+            if self.args.fp16:
+                batched_data["init_128_msa_one_hot"] = batched_data[
+                    "init_128_msa_one_hot"
+                ].to(torch.float16)
+            elif self.args.bf16:
+                batched_data["init_128_msa_one_hot"] = batched_data[
+                    "init_128_msa_one_hot"
+                ].to(torch.bfloat16)
+            else:
+                pass
             batched_data["128_msa_one_hot"] = self.diffnoise.get_sampling_start(
                 batched_data["init_128_msa_one_hot"]
             )
             padding_mask_2D = (
-                batched_data["token_type"].eq(0).repeat(1, self.cut_off, 1)
+                batched_data["token_type"].eq(0).unsqueeze(1).repeat(1, self.cut_off, 1)
             )
+            print(padding_mask.shape)
             clean_mask = torch.zeros(
                 B, self.cut_off, L, dtype=torch.bool, device=device
             )
+            print(clean_mask.shape)
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             batched_data["clean_mask"] = clean_mask
             # T = torch.full((B,), self.T - 1, device=device)
@@ -267,13 +279,13 @@ class MSAGenModel(Model):
                     t, B, device=device, dtype=batched_data["128_msa_one_hot"].dtype
                 )
                 x_t = batched_data["128_msa_one_hot"].clone()
-                batched_data[
-                    "sqrt_one_minus_alphas_cumprod_t"
-                ] = self.diffnoise._extract(
-                    self.diffnoise.sqrt_one_minus_alphas_cumprod,
-                    (time_step * self.psm_config.num_timesteps).long(),
-                    batched_data["128_msa_one_hot"].shape,
-                )
+                # batched_data[
+                #     "sqrt_one_minus_alphas_cumprod_t"
+                # ] = self.diffnoise._extract(
+                #     self.diffnoise.sqrt_one_minus_alphas_cumprod,
+                #     (time_step * self.psm_config.num_timesteps).long(),
+                #     batched_data["128_msa_one_hot"].shape,
+                # )
                 batched_data["time_step"] = time_step
                 net_result = self.net(batched_data)
                 predicted_noise = net_result["noise_pred"]

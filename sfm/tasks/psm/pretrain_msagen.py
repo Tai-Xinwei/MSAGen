@@ -60,7 +60,7 @@ cs.store(name="config_psm_schema", node=Config)
 @hydra.main(
     version_base=None,
     config_path="../../../config_file",
-    config_name="config_msagen_local_run",
+    config_name="config_msagen_200M",
 )
 def main(args: DictConfig) -> None:
     args = OmegaConf.to_object(args)
