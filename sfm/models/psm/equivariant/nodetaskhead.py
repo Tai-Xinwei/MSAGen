@@ -927,7 +927,7 @@ class MSADiffusionModule(nn.Module):
         x_t = self.x_proj(x_t)
 
         B, D, L, H = x_t.size()
-        # x_t = self.add_2d_positional_encoding(x_t)
+        x_t = self.add_2d_positional_encoding(x_t)
         # x_t = x_t.view(B, D * L, H)
         time_step = batched_data["time_step"]
 

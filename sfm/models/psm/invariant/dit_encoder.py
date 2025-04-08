@@ -204,7 +204,7 @@ class MSADiTBlock(nn.Module):
             q_bias=False,
             v_bias=False,
             o_bias=False,
-            add_rope=True,
+            add_rope=False,
         )
         self.norm2 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         # attn_cls = FlashAttn
@@ -230,7 +230,7 @@ class MSADiTBlock(nn.Module):
             q_bias=False,
             v_bias=False,
             o_bias=False,
-            add_rope=True,
+            add_rope=False,
         )
 
         self.norm3 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)

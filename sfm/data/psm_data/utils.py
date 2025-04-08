@@ -1745,13 +1745,9 @@ def convert_to_single_emb(x, offset: int = 512):
 def plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data):
     """
     绘制真实概率分布、模型预测概率分布和它们的差异热图，并保存到磁盘。
-
-    参数：
-    true_prob: numpy 数组或 torch.Tensor，形状 (B, L, 26)，真实概率分布，经过 softmax 后的概率。
-    pred_prob: numpy 数组或 torch.Tensor，形状 (B, L, 26)，模型预测概率分布（经过 softmax）。
-    padding_mask: numpy 数组或 torch.Tensor，形状 (B, L)，布尔类型，其中 True 表示该位置为 padding（无效）。
-    batched_data: 包含其他信息，如 "unique_ids"，用于标识每个样本。
+    坐标轴已调整为：横轴表示序列位置，纵轴表示类别。
     """
+
     save_dir = "./output/vis"
     os.makedirs(save_dir, exist_ok=True)
 
@@ -1764,10 +1760,8 @@ def plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data):
         padding_mask = padding_mask.detach().cpu().numpy()
 
     B, L, num_classes = true_prob.shape
-    # 计算差异热图：预测 - 真实
     diff = pred_prob - true_prob
 
-    # 类别标签：26个类别
     class_labels = [
         "A",
         "R",
@@ -1797,58 +1791,57 @@ def plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data):
         "-",
     ]
 
-    # 遍历每个样本
     for i in range(B):
         unique_id = batched_data["unique_ids"][i]
-        # 获取当前样本对应的概率分布和差异
         sample_true = true_prob[i]  # (L, 26)
         sample_pred = pred_prob[i]  # (L, 26)
         sample_diff = diff[i]  # (L, 26)
-        # 扩展 padding_mask: 原始 padding_mask[i] 形状为 (L,)
-        # 这里 pad_mask 中 True 表示无效，将其扩展到 (L,26)
         sample_mask = np.broadcast_to(padding_mask[i][:, None], sample_true.shape)
 
+        # 转置为 (26, L) 后，掩码也要跟着转置
+        sample_true_T = sample_true.T
+        sample_pred_T = sample_pred.T
+        sample_diff_T = sample_diff.T
+        sample_mask_T = sample_mask.T
+
         # 绘制真实概率分布热图
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(12, 6))
         ax = sns.heatmap(
-            sample_true, mask=sample_mask, cmap="viridis", xticklabels=class_labels
+            sample_true_T, mask=sample_mask_T, cmap="viridis", yticklabels=class_labels
         )
         ax.set_title(f"True Probability Distribution for Sample {unique_id}")
-        ax.set_xlabel("Classes")
-        ax.set_ylabel("Sequence Position")
+        ax.set_xlabel("Sequence Position")
+        ax.set_ylabel("Classes")
         plt.tight_layout()
-        save_path = os.path.join(save_dir, f"heatmap_true_{unique_id}.png")
-        plt.savefig(save_path)
+        plt.savefig(os.path.join(save_dir, f"heatmap_true_{unique_id}.png"))
         plt.close()
 
         # 绘制预测概率分布热图
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(12, 6))
         ax = sns.heatmap(
-            sample_pred, mask=sample_mask, cmap="viridis", xticklabels=class_labels
+            sample_pred_T, mask=sample_mask_T, cmap="viridis", yticklabels=class_labels
         )
         ax.set_title(f"Predicted Probability Distribution for Sample {unique_id}")
-        ax.set_xlabel("Classes")
-        ax.set_ylabel("Sequence Position")
+        ax.set_xlabel("Sequence Position")
+        ax.set_ylabel("Classes")
         plt.tight_layout()
-        save_path = os.path.join(save_dir, f"heatmap_pred_{unique_id}.png")
-        plt.savefig(save_path)
+        plt.savefig(os.path.join(save_dir, f"heatmap_pred_{unique_id}.png"))
         plt.close()
 
-        # 绘制差异热图（预测 - 真实）
-        plt.figure(figsize=(10, 8))
+        # 绘制差异热图
+        plt.figure(figsize=(12, 6))
         ax = sns.heatmap(
-            sample_diff,
-            mask=sample_mask,
+            sample_diff_T,
+            mask=sample_mask_T,
             cmap="coolwarm",
             center=0,
-            xticklabels=class_labels,
+            yticklabels=class_labels,
         )
         ax.set_title(f"Difference Heatmap for Sample {unique_id}")
-        ax.set_xlabel("Classes")
-        ax.set_ylabel("Sequence Position")
+        ax.set_xlabel("Sequence Position")
+        ax.set_ylabel("Classes")
         plt.tight_layout()
-        save_path = os.path.join(save_dir, f"heatmap_diff_{unique_id}.png")
-        plt.savefig(save_path)
+        plt.savefig(os.path.join(save_dir, f"heatmap_diff_{unique_id}.png"))
         plt.close()
 
         print(f"Saved heatmaps for sample {unique_id} to {save_dir}")
