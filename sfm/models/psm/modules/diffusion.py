@@ -1191,6 +1191,14 @@ class DiffNoise(nn.Module):
             # a is in shape of [num_timesteps], t is in shape of [batch_size, L],
             out = torch.gather(a.unsqueeze(0).expand(batch_size, -1), 1, t.cpu().long())
             return out.reshape(batch_size, L, *((1,) * (len(x_shape) - 2))).to(t.device)
+        elif len(t.shape) == 3:
+            batch_size, D, L = t.shape
+            # a is in shape of [num_timesteps], t is in shape of [batch_size, D, L],
+            a_expand = a.view(1, 1, -1).expand(batch_size, D, -1)
+            out = torch.gather(a_expand, 2, t.cpu().long())
+            return out.reshape(batch_size, D, L, *((1,) * (len(x_shape) - 3))).to(
+                t.device
+            )
         else:
             raise Exception(f"t shape: {t.shape} not supported")
 

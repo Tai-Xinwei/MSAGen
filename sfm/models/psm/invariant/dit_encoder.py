@@ -277,6 +277,8 @@ class MSADiTBlock(nn.Module):
     ):
         # input shape B,D,L,H
         x = x.permute(1, 2, 0, 3)  # D,L,B,H
+
+        # with condition
         c = c.permute(1, 2, 0, 3)  # D,L,B,H
         (
             shift_row,
@@ -309,43 +311,13 @@ class MSADiTBlock(nn.Module):
         )
 
         x = x + gate_mlp * self.mlp(modulate(self.norm3(x), shift_mlp, scale_mlp))
-        # x = (
-        #     x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
-        # )  # padding mask should be B,D,L
+
+        # no condition
+        # x = x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
 
         # x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
 
-        # x = self.norm3(x)
-        # x = x + self.crossattn(self.norm3(x), c, self_attn_padding_mask=padding_mask)[0]
-        # D = x.shape[0]
-        # new_x = []
-        # for i in range(D):
-        #     try:
-        #         tmpx = self.crossattn(
-        #             x[i].unsqueeze(0),
-        #             c.permute(1, 2, 0, 3)[i].unsqueeze(0),
-        #             self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
-        #         )[0]
-        #         new_x.extend(tmpx)
-        #     except Exception as e:
-        #         print(f"Error at index {i}: {e}")
-        # for i in range(D):
-        #     try:
-        #         tmpx = self.crossattn(
-        #             x[i],
-        #             c.permute(1, 2, 0, 3)[i],
-        #             # self_attn_padding_mask=padding_mask[:, i, :].unsqueeze(1),
-        #         )[0]
-        #         new_x.extend(tmpx.unsqueeze(0))
-        #     except Exception as e:
-        #         print(f"Error at index {i}: {e}")
-        # new_x = self.crossattn(x,c,)
-        # new_x = torch.stack(new_x, dim=0)
-        # new_x = c.permute(1, 2, 0, 3)
-        # x = x + new_x
-        # new_x = []
-        # x = self.mlp(self.norm4(x))
-        # return x
+        # x = x + self.mlp(self.norm3(x))
         return x.permute(2, 0, 1, 3)
         # (
         #     shift_msa,

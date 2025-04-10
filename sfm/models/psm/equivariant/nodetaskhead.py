@@ -932,7 +932,7 @@ class MSADiffusionModule(nn.Module):
         time_step = batched_data["time_step"]
 
         time_emb = self.time_step_encoder(
-            time_step.unsqueeze(-1).unsqueeze(-1).repeat(1, D, L),
+            time_step,
             batched_data["clean_mask"],
         )
         # if self.training:

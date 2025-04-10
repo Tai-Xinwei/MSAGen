@@ -233,6 +233,14 @@ class MSAGenModel(Model):
         batched_data["aa_mask"] = torch.zeros_like(
             token_id, dtype=torch.bool, device=device
         )
+        batched_data["128_msa_token_type"] = batched_data["msa_token_type"][
+            :, : self.cut_off, :
+        ]
+        ori_128_msa_one_hot = (
+            F.one_hot(batched_data["128_msa_token_type"].long(), num_classes=27).float()
+            * 2
+            - 1
+        )
         samples = []
         for sample_time_index in range(self.psm_config.num_sampling_time):
             batched_data["init_128_msa_one_hot"] = torch.zeros(
@@ -242,10 +250,12 @@ class MSAGenModel(Model):
                 batched_data["init_128_msa_one_hot"] = batched_data[
                     "init_128_msa_one_hot"
                 ].to(torch.float16)
+                ori_128_msa_one_hot = ori_128_msa_one_hot.to(torch.float16)
             elif self.args.bf16:
                 batched_data["init_128_msa_one_hot"] = batched_data[
                     "init_128_msa_one_hot"
                 ].to(torch.bfloat16)
+                ori_128_msa_one_hot = ori_128_msa_one_hot.to(torch.bfloat16)
             else:
                 pass
             batched_data["128_msa_one_hot"] = self.diffnoise.get_sampling_start(
@@ -260,6 +270,14 @@ class MSAGenModel(Model):
             )
             print(clean_mask.shape)
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
+            # set first to clean
+            clean_mask[:, 0, :] = True
+            if clean_mask is not None:
+                batched_data["128_msa_one_hot"] = torch.where(
+                    clean_mask.unsqueeze(-1),
+                    ori_128_msa_one_hot,
+                    batched_data["128_msa_one_hot"],
+                )
             batched_data["clean_mask"] = clean_mask
             # T = torch.full((B,), self.T - 1, device=device)
             # x_T = self.diffusion.q_sample(
@@ -278,6 +296,11 @@ class MSAGenModel(Model):
                 time_step = self.time_step_sampler.get_continuous_time_step(
                     t, B, device=device, dtype=batched_data["128_msa_one_hot"].dtype
                 )
+                time_step = (
+                    time_step.unsqueeze(-1).unsqueeze(-1).repeat(1, self.cut_off, L)
+                )
+                if clean_mask is not None:
+                    time_step = time_step.masked_fill(clean_mask, 0.0)
                 x_t = batched_data["128_msa_one_hot"].clone()
                 # batched_data[
                 #     "sqrt_one_minus_alphas_cumprod_t"
@@ -357,12 +380,16 @@ class MSAGenModel(Model):
             batched_data["128_msa_one_hot"].dtype,
             self.psm_config.clean_sample_ratio,
         )
-        # t = torch.randint(0, 1000, (B,), device=device)
-        # set aa_mask and padding to clean
+        clean_mask = clean_mask.unsqueeze(-1).unsqueeze(-1).repeat(1, min_D, L)
+        time_step = time_step.unsqueeze(-1).unsqueeze(-1).repeat(1, min_D, L)
 
-        clean_mask = (batched_data["aa_mask"]).unsqueeze(1).repeat(
-            1, min_D, 1
-        ) | batched_data["128_2D_padding_mask"]
+        # t = torch.randint(0, 1000, (B,), device=device)
+
+        # set padding to clean
+        clean_mask = clean_mask.masked_fill(batched_data["128_2D_padding_mask"], True)
+
+        time_step = time_step.masked_fill(clean_mask, 0.0)
+
         (
             noise_msa,
             noise,
