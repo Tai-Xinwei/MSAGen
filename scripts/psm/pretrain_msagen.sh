@@ -256,7 +256,7 @@ echo "Random number: ${random_number}"
 
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 [ -z "${diffusion_rescale_coeff}" ] && diffusion_rescale_coeff=1.0
-[ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm, protea
+[ -z "${diffusion_mode}" ] && diffusion_mode=diff-lm #epsilon, edm, protea
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L2"
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0

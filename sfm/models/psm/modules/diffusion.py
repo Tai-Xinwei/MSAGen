@@ -1272,6 +1272,30 @@ class DiffNoise(nn.Module):
 
         return x_t, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
 
+    def get_x_t_1(self, x_start, t):
+        t = (t.float() * (self.psm_config.num_timesteps - 1)).long()
+        t_1 = (t - 1).clamp(0, self.psm_config.num_timesteps - 1)
+        noise = self.get_noise(x_start)
+
+        sqrt_alphas_cumprod_t = self._extract(
+            self.sqrt_alphas_cumprod, t, x_start.shape
+        )
+        sqrt_alphas_cumprod_t_1 = self._extract(
+            self.sqrt_alphas_cumprod, t_1, x_start.shape
+        )
+        sqrt_one_minus_alphas_cumprod_t = self._extract(
+            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
+        )
+        x_t = sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
+        beta_t = self._extract(self.beta_list, t, x_start.shape)
+        x_t_1 = (
+            sqrt_alphas_cumprod_t_1 * beta_t * x_start
+        ) / sqrt_one_minus_alphas_cumprod_t**2 + (
+            sqrt_alphas_cumprod_t * (1 - sqrt_alphas_cumprod_t_1**2) * x_t
+        ) / sqrt_one_minus_alphas_cumprod_t**2
+
+        return x_t_1
+
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
         T = t
