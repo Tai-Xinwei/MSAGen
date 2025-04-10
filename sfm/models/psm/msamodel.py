@@ -271,7 +271,7 @@ class MSAGenModel(Model):
             print(clean_mask.shape)
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             # set first to clean
-            clean_mask[:, 0, :] = True
+            # clean_mask[:, 0, :] = True
             if clean_mask is not None:
                 batched_data["128_msa_one_hot"] = torch.where(
                     clean_mask.unsqueeze(-1),
@@ -321,6 +321,12 @@ class MSAGenModel(Model):
                     t,
                     stepsize=-self.psm_config.num_timesteps_stepsize,
                 )
+                if clean_mask is not None:
+                    batched_data["128_msa_one_hot"] = torch.where(
+                        clean_mask.unsqueeze(-1),
+                        ori_128_msa_one_hot,
+                        batched_data["128_msa_one_hot"],
+                    )
                 batched_data["128_msa_one_hot"] = batched_data[
                     "128_msa_one_hot"
                 ].detach()
