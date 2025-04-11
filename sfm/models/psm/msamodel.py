@@ -434,7 +434,7 @@ class MSAGenModel(Model):
         # count num of valid according indices
         counts.scatter_add_(2, indices.long(), valid_mask.int())
         true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
-        return true_prob
+        return F.softmax(true_prob, dim=-1)
 
     def convert(self, x):
         inv_vocab = {v: k for k, v in MSAVOCAB.items()}
@@ -569,7 +569,7 @@ class MSAGenModel(Model):
         # count num of valid according indices
         counts.scatter_add_(2, indices.long(), valid_mask.int())
         true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
-        batched_data["true_prob"] = true_prob
+        batched_data["true_prob"] = F.softmax(true_prob, dim=-1)
         self._set_noise(batched_data)
 
     def _KL_reconstruction_loss(self, batched_data, x0_pred, x0, filter_mask):
