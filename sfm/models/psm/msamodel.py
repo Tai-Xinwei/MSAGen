@@ -337,6 +337,81 @@ class MSAGenModel(Model):
                     batched_data["128_msa_one_hot"] = batched_data[
                         "128_msa_one_hot"
                     ].detach()
+            else:
+                # diff-lm
+                for t in range(
+                    self.psm_config.num_timesteps - 1,
+                    -1,
+                    self.psm_config.num_timesteps_stepsize,
+                ):
+                    # forward
+                    time_step = self.time_step_sampler.get_continuous_time_step(
+                        t, B, device=device, dtype=batched_data["128_msa_one_hot"].dtype
+                    )
+                    time_step = (
+                        time_step.unsqueeze(-1).unsqueeze(-1).repeat(1, self.cut_off, L)
+                    )
+                    if clean_mask is not None:
+                        time_step = time_step.masked_fill(clean_mask, 0.0)
+                    x_t = batched_data["128_msa_one_hot"].clone()
+                    # batched_data[
+                    #     "sqrt_one_minus_alphas_cumprod_t"
+                    # ] = self.diffnoise._extract(
+                    #     self.diffnoise.sqrt_one_minus_alphas_cumprod,
+                    #     (time_step * self.psm_config.num_timesteps).long(),
+                    #     batched_data["128_msa_one_hot"].shape,
+                    # )
+                    batched_data["time_step"] = time_step
+                    net_result = self.net(batched_data)
+                    x0_pred = net_result["noise_pred"]
+                    if t == 0:
+                        batched_data["128_msa_one_hot"] = x0_pred
+                        continue
+                    else:
+                        time_step_pre = self.time_step_sampler.get_continuous_time_step(
+                            t - 1,
+                            B,
+                            device=device,
+                            dtype=batched_data["128_msa_one_hot"].dtype,
+                        )
+
+                        time_step_pre = (
+                            time_step_pre.unsqueeze(-1)
+                            .unsqueeze(-1)
+                            .repeat(1, self.cut_off, L)
+                        )
+                        (
+                            noise_msa,
+                            noise,
+                            sqrt_one_minus_alphas_cumprod_t,
+                            sqrt_alphas_cumprod_t,
+                        ) = self.diffnoise.noise_sample(
+                            x_start=x0_pred,
+                            t=time_step_pre,
+                            clean_mask=clean_mask,
+                        )
+                        # epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
+                        # batched_data[
+                        #     "128_msa_one_hot"
+                        # ] = self.diffusion_process.sample_step(
+                        #     x_t,
+                        #     batched_data["init_128_msa_one_hot"],
+                        #     predicted_noise,
+                        #     epsilon,
+                        #     t,
+                        #     stepsize=-self.psm_config.num_timesteps_stepsize,
+                        # )
+                        batched_data["128_msa_one_hot"] = noise_msa
+                        if clean_mask is not None:
+                            batched_data["128_msa_one_hot"] = torch.where(
+                                clean_mask.unsqueeze(-1),
+                                ori_128_msa_one_hot,
+                                batched_data["128_msa_one_hot"],
+                            )
+                        batched_data["128_msa_one_hot"] = batched_data[
+                            "128_msa_one_hot"
+                        ].detach()
+
             pred_msa = batched_data["128_msa_one_hot"].clone()
 
             # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
