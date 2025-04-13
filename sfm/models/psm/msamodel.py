@@ -698,7 +698,7 @@ class MSAGenModel(Model):
             )
             pred_prob = self.calculate_prob(noise_pred.argmax(dim=-1))
             diffusion_kl_loss = F.kl_div(
-                pred_prob[filter_mask[:, 0, :]],
+                pred_prob[filter_mask[:, 0, :]].log(),
                 batched_data["true_prob"][filter_mask[:, 0, :]],
                 reduction="batchmean",
             )
