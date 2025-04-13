@@ -686,7 +686,7 @@ class MSAGenModel(Model):
             )
         elif self.psm_config.diffusion_mode == "diff-lm":
             noise_label = batched_data["128_msa_token_type"]
-            diffusion_loss = self.compute_diff_loss(
+            diffusion_loss, diff_celoss, recons_loss = self.compute_diff_loss(
                 noise_label,
                 noise_pred,
                 is_gap[filter_mask],
@@ -737,6 +737,8 @@ class MSAGenModel(Model):
         logging_output = {
             "total_loss": float(loss.detach()),
             "diffusion_loss": float(diffusion_loss.detach()),
+            "diffusion_ce_loss": float(diff_celoss.detach()),
+            "recons_loss": float(recons_loss.detach()),
             "KL_loss": float(kl_loss.detach()),
             "aa_mlm_loss": float(aa_mlm_loss.detach()),
             # "ori_ce_loss": float(ori_ce_loss.detach()),
@@ -776,12 +778,19 @@ class MSAGenModel(Model):
         else:
             # diff-lm
             ce_loss = self.noise_loss(pred[filter_mask], label[filter_mask].long())
-            # print("ce_loss",ce_loss)
+            differ_mask = ~(
+                batched_data["128_msa_token_type"]
+                == batched_data["token_type"].unsqueeze(1)
+            )[
+                filter_mask
+            ]  # true means differ
+            # if differ, enlarge the loss
+            ce_loss = ce_loss * (1 + 5.0 * differ_mask.float())
             kl_loss = self._KL_reconstruction_loss(
                 batched_data, pred, batched_data["ori_128_msa_one_hot"], filter_mask
             )
             loss = ce_loss.mean() + kl_loss
-            return loss
+            return loss, ce_loss.mean(), kl_loss.mean()
 
     def compute_cross_entropy_loss(self, logits, target, filter_mask):
         """
