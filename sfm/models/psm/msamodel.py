@@ -732,7 +732,6 @@ class MSAGenModel(Model):
         #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
         # )
         loss = aa_mlm_loss + diffusion_loss + kl_loss
-        # loss = ori_ce_loss
         # loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
