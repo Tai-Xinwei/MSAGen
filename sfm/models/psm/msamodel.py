@@ -434,7 +434,7 @@ class MSAGenModel(Model):
         # count num of valid according indices
         counts.scatter_add_(2, indices.long(), valid_mask.int())
         true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
-        return F.softmax(true_prob, dim=-1)
+        return F.normalize(true_prob + 1e-5, dim=-1)
 
     def convert(self, x):
         inv_vocab = {v: k for k, v in MSAVOCAB.items()}
@@ -569,7 +569,7 @@ class MSAGenModel(Model):
         # count num of valid according indices
         counts.scatter_add_(2, indices.long(), valid_mask.int())
         true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
-        batched_data["true_prob"] = F.softmax(true_prob, dim=-1)
+        batched_data["true_prob"] = F.normalize(true_prob + 1e-5, dim=-1)
         self._set_noise(batched_data)
 
     def _KL_reconstruction_loss(self, batched_data, x0_pred, x0, filter_mask):
@@ -689,7 +689,7 @@ class MSAGenModel(Model):
             diffusion_loss, diff_celoss, recons_loss = self.compute_diff_loss(
                 noise_label,
                 noise_pred,
-                is_gap[filter_mask],
+                is_gap,
                 1.0,
                 "L2",
                 batched_data,
@@ -784,8 +784,11 @@ class MSAGenModel(Model):
             )[
                 filter_mask
             ]  # true means differ
-            # if differ, enlarge the loss
-            ce_loss = ce_loss * (1 + 5.0 * differ_mask.float())
+            # if differ, enlarge the loss, except for gap
+            differ_mask = differ_mask & ~is_gap[filter_mask]
+            ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
+            # 0.2 for gap
+            ce_loss = ce_loss * (1 - 0.8 * is_gap[filter_mask].float())
             kl_loss = self._KL_reconstruction_loss(
                 batched_data, pred, batched_data["ori_128_msa_one_hot"], filter_mask
             )
@@ -904,7 +907,7 @@ class MSAGen(nn.Module):
         #     .unsqueeze(1)
         #     .repeat(1, msa_embedding.shape[1], 1, 1)
         # )
-
+        # noise_pred = F.softmax(noise_pred, dim=-1)
         model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
         model_log_prob = F.log_softmax(
             decoder_x.transpose(0, 1), dim=-1
