@@ -434,7 +434,8 @@ class MSAGenModel(Model):
         # count num of valid according indices
         counts.scatter_add_(2, indices.long(), valid_mask.int())
         true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
-        return F.normalize(true_prob + 1e-5, dim=-1)
+        true_prob = (true_prob + 1e-5) / true_prob.sum(dim=-1, keepdim=True)
+        return true_prob
 
     def convert(self, x):
         inv_vocab = {v: k for k, v in MSAVOCAB.items()}
@@ -569,7 +570,9 @@ class MSAGenModel(Model):
         # count num of valid according indices
         counts.scatter_add_(2, indices.long(), valid_mask.int())
         true_prob = counts / valid_mask.int().sum(dim=-1, keepdim=True).clamp(min=1)
-        batched_data["true_prob"] = F.normalize(true_prob + 1e-5, dim=-1)
+        batched_data["true_prob"] = (true_prob + 1e-5) / true_prob.sum(
+            dim=-1, keepdim=True
+        )
         self._set_noise(batched_data)
 
     def _KL_reconstruction_loss(self, batched_data, x0_pred, x0, filter_mask):
@@ -653,13 +656,13 @@ class MSAGenModel(Model):
         Returns:
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
-
+        padding_mask = batched_data["padding_mask"]
         kl_loss = F.kl_div(
-            model_output["model_log_prob"], batched_data["true_prob"], reduction="none"
+            model_output["model_log_prob"][~padding_mask],
+            batched_data["true_prob"][~padding_mask],
+            reduction="none",
         )
-        kl_loss = kl_loss.sum(dim=-1)
-        mask = ~model_output["padding_mask"]
-        kl_loss = (kl_loss * mask).sum() / mask.sum()
+        kl_loss = kl_loss.sum(dim=-1).mean()
         # if batched_data["aa_mask"].any():
         aa_mask = batched_data["aa_mask"]
         logits = model_output["aa_logits"][aa_mask]
