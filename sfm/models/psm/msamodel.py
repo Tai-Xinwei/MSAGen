@@ -275,8 +275,9 @@ class MSAGenModel(Model):
             # set first to clean
             # clean_mask[:, 0, :] = True
             if clean_mask is not None:
+                min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
                 batched_data["128_msa_one_hot"] = torch.where(
-                    clean_mask.unsqueeze(-1),
+                    clean_mask[:, :min_D, :].unsqueeze(-1),
                     ori_128_msa_one_hot,
                     batched_data["128_msa_one_hot"],
                 )
@@ -401,8 +402,9 @@ class MSAGenModel(Model):
                         # )
                         batched_data["128_msa_one_hot"] = noise_msa
                         if clean_mask is not None:
+                            min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
                             batched_data["128_msa_one_hot"] = torch.where(
-                                clean_mask.unsqueeze(-1),
+                                clean_mask[:, :min_D, :].unsqueeze(-1),
                                 ori_128_msa_one_hot,
                                 batched_data["128_msa_one_hot"],
                             )
