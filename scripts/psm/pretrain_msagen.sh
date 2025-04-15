@@ -229,7 +229,7 @@ export MKL_THREADING_LAYER='GNU'
 
 
 [ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_ft_10000_enlargece_loss5x_16layer
-[ -z "${wandb_run_name}" ] && wandb_run_name=debug
+# [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa

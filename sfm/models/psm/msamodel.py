@@ -448,12 +448,14 @@ class MSAGenModel(Model):
                 continue  # skip samples with no mutation
 
             # mutation point accuracy
-            pred_correct_mutation = (mutation_mask_gt & mutation_mask_pred).sum()
-            mutation_point_acc = pred_correct_mutation.float() / total_mutations.float()
+            pred_correct_mutation = mutation_mask_gt & mutation_mask_pred
+            mutation_point_acc = (
+                pred_correct_mutation.sum().float() / total_mutations.float()
+            )
 
             # mutation accuracy: match mutated tokens
-            true_mutated_aa = msa_gt[b][mutation_mask_gt]
-            predicted_mutated_aa = msa_pred[b][mutation_mask_gt]
+            true_mutated_aa = msa_gt[b][pred_correct_mutation]
+            predicted_mutated_aa = msa_pred[b][pred_correct_mutation]
             correct_mutation = (true_mutated_aa == predicted_mutated_aa).sum()
             mutation_acc = correct_mutation.float() / total_mutations.float()
 
