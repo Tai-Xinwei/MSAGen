@@ -28,7 +28,7 @@ d_tilde: 1.0
 pbc_cutoff: 40.0
 data_path: ../msadata
 dataset_names: ''
-loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGen_10fordiff_0.5forgap_klmovetodiff/global_step14000/mp_rank_00_model_states.pt'
+loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGen_10fordiff_kl_movetodiff_noceloss_fixnorm_ft9486/global_step18000/mp_rank_00_model_states.pt'
 add_3d: false
 no_2d: false
 ft: false
@@ -299,3 +299,4 @@ backbone_config:
 backbone: exp3
 ode_mode: false
 finetune_module: null
+cutoff: 2

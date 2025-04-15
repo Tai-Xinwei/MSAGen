@@ -332,6 +332,9 @@ class PSMConfig(GraphormerConfig):
     relax_deformation_step: int = 5
     relax_fmax: float = 0.01
 
+    # for msagen
+    cutoff: int = 2
+
     def __init__(
         self,
         args,

@@ -106,8 +106,8 @@ class MSAGenModel(Model):
         super().__init__()
         if not_init:
             return
-        self.cut_off = 64
         self.psm_config = PSMConfig(args)
+        self.cut_off = self.psm_config.cutoff
         self.args = self.psm_config.args
         if args.rank == 0:
             logger.info(self.args)
@@ -268,11 +268,9 @@ class MSAGenModel(Model):
             padding_mask_2D = (
                 batched_data["token_type"].eq(0).unsqueeze(1).repeat(1, self.cut_off, 1)
             )
-            print(padding_mask.shape)
             clean_mask = torch.zeros(
                 B, self.cut_off, L, dtype=torch.bool, device=device
             )
-            print(clean_mask.shape)
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             # set first to clean
             # clean_mask[:, 0, :] = True
@@ -290,7 +288,7 @@ class MSAGenModel(Model):
             batched_data["128_2D_padding_mask"] = padding_mask_2D
             # batched_data["128_msa_one_hot"] = x_T
             # batched_data["time_step"] = T
-            true_prob = self.calculate_prob(batched_data["msa_token_type"])
+            # true_prob = self.calculate_prob(batched_data["msa_token_type"])
             if self.psm_config.diffusion_mode == "epsilon":
                 for t in range(
                     self.psm_config.num_timesteps - 1,
@@ -415,11 +413,60 @@ class MSAGenModel(Model):
             pred_msa = batched_data["128_msa_one_hot"].clone()
 
             # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
-            pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
+            # pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
             samples.append(self.convert(pred_msa.argmax(dim=-1)))
+            mutation_point_accuracy, mutation_accuracy = self.calculate_acc(
+                pred_msa.argmax(dim=-1), batched_data["128_msa_token_type"]
+            )
+            return mutation_point_accuracy, mutation_accuracy
         # self.net.train()
-        plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
+        # plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
         # return torch.stack(samples, dim=0)
+
+    def calculate_acc(self, generated, ground_truth):
+        """
+        Calculate the accuracy of the samples.
+        """
+        assert generated.shape == ground_truth.shape
+        B, D, L = generated.shape
+
+        ref_gt = ground_truth[:, 0, :]  # (B, L)
+        msa_gt = ground_truth[:, 1:, :]  # (B, D-1, L)
+
+        ref_pred = generated[:, 0, :]  # (B, L)
+        msa_pred = generated[:, 1:, :]  # (B, D-1, L)
+
+        mutation_point_accuracies = []
+        mutation_accuracies = []
+
+        for b in range(B):
+            mutation_mask_gt = msa_gt[b] != ref_gt[b].unsqueeze(0)  # (D-1, L)
+            mutation_mask_pred = msa_pred[b] != ref_pred[b].unsqueeze(0)  # (D-1, L)
+
+            total_mutations = mutation_mask_gt.sum()
+            if total_mutations == 0:
+                continue  # skip samples with no mutation
+
+            # mutation point accuracy
+            pred_correct_mutation = (mutation_mask_gt & mutation_mask_pred).sum()
+            mutation_point_acc = pred_correct_mutation.float() / total_mutations.float()
+
+            # mutation accuracy: match mutated tokens
+            true_mutated_aa = msa_gt[b][mutation_mask_gt]
+            predicted_mutated_aa = msa_pred[b][mutation_mask_gt]
+            correct_mutation = (true_mutated_aa == predicted_mutated_aa).sum()
+            mutation_acc = correct_mutation.float() / total_mutations.float()
+
+            mutation_point_accuracies.append(mutation_point_acc)
+            mutation_accuracies.append(mutation_acc)
+
+        if len(mutation_point_accuracies) == 0:
+            return 0.0, 0.0
+
+        mutation_point_accuracy = torch.stack(mutation_point_accuracies)
+        mutation_accuracy = torch.stack(mutation_accuracies)
+
+        return mutation_point_accuracy, mutation_accuracy
 
     def calculate_prob(self, x):
         # calculate true prob
@@ -552,7 +599,7 @@ class MSAGenModel(Model):
             :, :cut_off, :
         ]
         # set aa_mask
-        mask_ratio = 0.15
+        mask_ratio = self.psm_config.mask_ratio
         aa_mask = torch.rand_like(token_id, dtype=torch.float) < mask_ratio
         aa_mask = aa_mask & ~padding_mask
         batched_data["aa_mask"] = aa_mask
@@ -631,7 +678,16 @@ class MSAGenModel(Model):
             # and not self.training
             # and not skip_sample
         ):
-            self.sample(batched_data)
+            mutation_point_accuracy, mutation_accuracy = self.sample(batched_data)
+            B = batched_data["msa_token_type"].shape[0]
+            for i in range(B):
+                pdbid = batched_data["unique_ids"][i]
+                mutation_point_accuracy = mutation_point_accuracy[i]
+                mutation_accuracy = mutation_accuracy[i]
+                logger.info(
+                    f"pdbid: {pdbid}, mutation_point_accuracy: {mutation_point_accuracy}, mutation_accuracy: {mutation_accuracy}"
+                )
+            # print(1)
 
         self._pre_forward_operation(batched_data)
         result_dict = self._forward_net(batched_data, skip_sample, **kwargs)
