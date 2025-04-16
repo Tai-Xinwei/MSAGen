@@ -3425,10 +3425,13 @@ class MSAGenDataset(FoundationModelDataset):
         msa_len = len(data["unpaired_msaseq"])
         random_select_msa_num = self.args.random_msa_num
         if random_select_msa_num > 0:
+            random_select_msa_num = random_select_msa_num - 1
             random_select_msa_idx = np.random.choice(
-                msa_len, random_select_msa_num, replace=False
+                np.arange(1, msa_len), size=random_select_msa_num, replace=False
             )
-            msa_x = msa_x[random_select_msa_idx, :]
+            msa_x = torch.cat(
+                [msa_x[0].unsqueeze(0), msa_x[random_select_msa_idx]], dim=0
+            )
         data["msa_token_type"] = msa_x
         data["token_type"] = x
         data["msa_len"] = msa_len
