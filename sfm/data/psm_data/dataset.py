@@ -3423,6 +3423,12 @@ class MSAGenDataset(FoundationModelDataset):
         if ori_seq_len > self.args.max_length:
             msa_x = msa_x[:, random_start : random_start + self.args.max_length]
         msa_len = len(data["unpaired_msaseq"])
+        random_select_msa_num = self.args.random_msa_num
+        if random_select_msa_num > 0:
+            random_select_msa_idx = np.random.choice(
+                msa_len, random_select_msa_num, replace=False
+            )
+            msa_x = msa_x[random_select_msa_idx, :]
         data["msa_token_type"] = msa_x
         data["token_type"] = x
         data["msa_len"] = msa_len

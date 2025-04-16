@@ -5,10 +5,10 @@
 MODEL_CONFIG=config_msagen_200M
 NUM_SAMPLING_TIME=1
 
-WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_cleandata_64_klloss_in_encoder_enlargeceloss_5x_butnogap
+WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_enlarge5xceloss_butnogap_cleandata_noklloss_64
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step8000
+STEP_FLAG=global_step30000
 
 DATA_PATH=../msadata
 DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
@@ -47,7 +47,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   num_sampling_time=$NUM_SAMPLING_TIME \
   loadcheck_path=$WORK_PATH/$STEP_FLAG/mp_rank_00_model_states.pt \
   diffusion_mode=diff-lm \
-  psm_validate_for_train_set=false \
+  psm_validate_for_train_set=true \
   cutoff=64 \
   # sample_ligand_only=true \
 

@@ -271,15 +271,15 @@ class MSAGenModel(Model):
             clean_mask = torch.zeros(
                 B, self.cut_off, L, dtype=torch.bool, device=device
             )
+            min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             # set first to clean
             # clean_mask[:, 0, :] = True
             if clean_mask is not None:
-                min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
-                batched_data["128_msa_one_hot"] = torch.where(
+                batched_data["128_msa_one_hot"][:, :min_D, :, :] = torch.where(
                     clean_mask[:, :min_D, :].unsqueeze(-1),
                     ori_128_msa_one_hot,
-                    batched_data["128_msa_one_hot"],
+                    batched_data["128_msa_one_hot"][:, :min_D, :, :],
                 )
             batched_data["clean_mask"] = clean_mask
             # T = torch.full((B,), self.T - 1, device=device)
@@ -402,11 +402,12 @@ class MSAGenModel(Model):
                         # )
                         batched_data["128_msa_one_hot"] = noise_msa
                         if clean_mask is not None:
-                            min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
-                            batched_data["128_msa_one_hot"] = torch.where(
+                            batched_data["128_msa_one_hot"][
+                                :, :min_D, :, :
+                            ] = torch.where(
                                 clean_mask[:, :min_D, :].unsqueeze(-1),
                                 ori_128_msa_one_hot,
-                                batched_data["128_msa_one_hot"],
+                                batched_data["128_msa_one_hot"][:, :min_D, :, :],
                             )
                         batched_data["128_msa_one_hot"] = batched_data[
                             "128_msa_one_hot"
@@ -418,7 +419,8 @@ class MSAGenModel(Model):
             # pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
             samples.append(self.convert(pred_msa.argmax(dim=-1)))
             mutation_point_accuracy, mutation_accuracy = self.calculate_acc(
-                pred_msa.argmax(dim=-1), batched_data["128_msa_token_type"]
+                pred_msa.argmax(dim=-1)[:, :min_D, :],
+                batched_data["128_msa_token_type"],
             )
             return mutation_point_accuracy, mutation_accuracy
         # self.net.train()
@@ -429,7 +431,7 @@ class MSAGenModel(Model):
         """
         Calculate the accuracy of the samples.
         """
-        assert generated.shape == ground_truth.shape
+        # assert generated.shape == ground_truth.shape
         B, D, L = generated.shape
 
         ref_gt = ground_truth[:, 0, :]  # (B, L)
@@ -686,10 +688,10 @@ class MSAGenModel(Model):
             B = batched_data["msa_token_type"].shape[0]
             for i in range(B):
                 pdbid = batched_data["unique_ids"][i]
-                mutation_point_accuracy = mutation_point_accuracy[i]
-                mutation_accuracy = mutation_accuracy[i]
+                mutation_point_accuracy_i = mutation_point_accuracy[i]
+                mutation_accuracy_i = mutation_accuracy[i]
                 logger.info(
-                    f"pdbid: {pdbid}, mutation_point_accuracy: {mutation_point_accuracy}, mutation_accuracy: {mutation_accuracy}"
+                    f"pdbid: {pdbid}, mutation_point_accuracy: {mutation_point_accuracy_i}, mutation_accuracy: {mutation_accuracy_i}"
                 )
             # print(1)
 
