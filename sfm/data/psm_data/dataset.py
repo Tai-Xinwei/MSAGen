@@ -3427,7 +3427,9 @@ class MSAGenDataset(FoundationModelDataset):
         if random_select_msa_num > 0:
             random_select_msa_num = random_select_msa_num - 1
             random_select_msa_idx = np.random.choice(
-                np.arange(1, msa_len), size=random_select_msa_num, replace=False
+                np.arange(1, msa_len),
+                size=min(random_select_msa_num, msa_len - 1),
+                replace=False,
             )
             msa_x = torch.cat(
                 [msa_x[0].unsqueeze(0), msa_x[random_select_msa_idx]], dim=0

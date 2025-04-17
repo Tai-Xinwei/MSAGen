@@ -8,7 +8,7 @@ NUM_SAMPLING_TIME=1
 WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_enlarge5xceloss_butnogap_cleandata_noklloss_64
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step40000
+STEP_FLAG=global_step50000
 
 DATA_PATH=../msadata
 DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
