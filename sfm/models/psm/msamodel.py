@@ -761,13 +761,13 @@ class MSAGenModel(Model):
                 filter_mask,
                 # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             )
-            pred_prob = self.calculate_prob(noise_pred.argmax(dim=-1))
-            diffusion_kl_loss = F.kl_div(
-                pred_prob[filter_mask[:, 0, :]].log(),
-                batched_data["true_prob"][filter_mask[:, 0, :]],
-                reduction="batchmean",
-            )
-            diffusion_loss += diffusion_kl_loss
+            # pred_prob = self.calculate_prob(noise_pred.argmax(dim=-1))
+            # diffusion_kl_loss = F.kl_div(
+            #     pred_prob[filter_mask[:, 0, :]].log(),
+            #     batched_data["true_prob"][filter_mask[:, 0, :]],
+            #     reduction="batchmean",
+            # )
+            # diffusion_loss += diffusion_kl_loss
             # print("diff_loss",diffusion_loss)
             # noise_pred means x0_pred
 
@@ -808,7 +808,7 @@ class MSAGenModel(Model):
         logging_output = {
             "total_loss": float(loss.detach()),
             "diffusion_loss": float(diffusion_loss.detach()),
-            "diffusion_kl_loss": float(diffusion_kl_loss.detach()),
+            # "diffusion_kl_loss": float(diffusion_kl_loss.detach()),
             "diffusion_ce_loss": float(diff_celoss.detach()),
             "recons_loss": float(recons_loss.detach()),
             "KL_loss": float(kl_loss.detach()),
@@ -860,7 +860,7 @@ class MSAGenModel(Model):
             differ_mask = differ_mask & ~is_gap[filter_mask]
             ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
             # 0.2 for gap
-            ce_loss = ce_loss * (1 - 0.8 * is_gap[filter_mask].float())
+            # ce_loss = ce_loss * (1 - 0.8 * is_gap[filter_mask].float())
             kl_loss = self._KL_reconstruction_loss(
                 batched_data, pred, batched_data["ori_128_msa_one_hot"], filter_mask
             )
