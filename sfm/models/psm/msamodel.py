@@ -4,6 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import json
 import os
 import random
 from contextlib import nullcontext
@@ -274,7 +275,8 @@ class MSAGenModel(Model):
             min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
             clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
             # set first to clean
-            # clean_mask[:, 0, :] = True
+            if self.psm_config.keep_clean_num > 0:
+                clean_mask[:, : self.psm_config.keep_clean_num, :] = True
             if clean_mask is not None:
                 batched_data["128_msa_one_hot"][:, :min_D, :, :] = torch.where(
                     clean_mask[:, :min_D, :].unsqueeze(-1),
@@ -365,6 +367,14 @@ class MSAGenModel(Model):
                     x0_pred = net_result["noise_pred"]
                     if t == 0:
                         batched_data["128_msa_one_hot"] = x0_pred
+                        if clean_mask is not None:
+                            batched_data["128_msa_one_hot"][
+                                :, :min_D, :, :
+                            ] = torch.where(
+                                clean_mask[:, :min_D, :].unsqueeze(-1),
+                                ori_128_msa_one_hot,
+                                batched_data["128_msa_one_hot"][:, :min_D, :, :],
+                            )
                         continue
                     else:
                         time_step_pre = self.time_step_sampler.get_continuous_time_step(
@@ -417,62 +427,83 @@ class MSAGenModel(Model):
 
             # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
             # pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
+            pred_seq = self.convert(pred_msa.argmax(dim=-1))
+            gt_seq = self.convert(batched_data["128_msa_token_type"])
             samples.append(self.convert(pred_msa.argmax(dim=-1)))
-            mutation_point_accuracy, mutation_accuracy = self.calculate_acc(
+            precision, recall, f1s, mutation_accuracy = self.calculate_acc(
                 pred_msa.argmax(dim=-1)[:, :min_D, :],
                 batched_data["128_msa_token_type"],
             )
-            return mutation_point_accuracy, mutation_accuracy
+            return precision, recall, f1s, mutation_accuracy, pred_seq, gt_seq
         # self.net.train()
         # plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
         # return torch.stack(samples, dim=0)
 
     def calculate_acc(self, generated, ground_truth):
         """
-        Calculate the accuracy of the samples.
+        Calculate mutation prediction performance per sample.
+
+        Returns:
+            - avg_precision
+            - avg_recall
+            - avg_f1
+            - avg_mutation_accuracy
         """
-        # assert generated.shape == ground_truth.shape
         B, D, L = generated.shape
 
         ref_gt = ground_truth[:, 0, :]  # (B, L)
         msa_gt = ground_truth[:, 1:, :]  # (B, D-1, L)
-
-        ref_pred = generated[:, 0, :]  # (B, L)
+        ref_pred = ground_truth[:, 0, :]  # (B, L)
         msa_pred = generated[:, 1:, :]  # (B, D-1, L)
 
-        mutation_point_accuracies = []
-        mutation_accuracies = []
+        precisions, recalls, f1s, mutation_accuracies = [], [], [], []
 
         for b in range(B):
-            mutation_mask_gt = msa_gt[b] != ref_gt[b].unsqueeze(0)  # (D-1, L)
-            mutation_mask_pred = msa_pred[b] != ref_pred[b].unsqueeze(0)  # (D-1, L)
+            gt = msa_gt[b]  # (D-1, L)
+            pred = msa_pred[b]
+            ref_gt_b = ref_gt[b]
+            ref_pred_b = ref_pred[b]
 
-            total_mutations = mutation_mask_gt.sum()
-            if total_mutations == 0:
-                continue  # skip samples with no mutation
+            mutation_gt = gt != ref_gt_b.unsqueeze(0)  # (D-1, L)
+            mutation_pred = pred != ref_pred_b.unsqueeze(0)
 
-            # mutation point accuracy
-            pred_correct_mutation = mutation_mask_gt & mutation_mask_pred
-            mutation_point_acc = (
-                pred_correct_mutation.sum().float() / total_mutations.float()
-            )
+            tp = (
+                (mutation_gt & mutation_pred).sum().float()
+            )  # pred mutation and gt mutation
+            fp = (
+                (~mutation_gt & mutation_pred).sum().float()
+            )  # pred mutation but gt not mutation
+            fn = (
+                (mutation_gt & ~mutation_pred).sum().float()
+            )  # gt mutation but pred not mutation
 
-            # mutation accuracy: match mutated tokens
-            true_mutated_aa = msa_gt[b][pred_correct_mutation]
-            predicted_mutated_aa = msa_pred[b][pred_correct_mutation]
-            correct_mutation = (true_mutated_aa == predicted_mutated_aa).sum()
-            mutation_acc = correct_mutation.float() / total_mutations.float()
+            if tp + fp + fn == 0:  # 如果完全没有突变，不计入平均
+                continue
 
-            mutation_point_accuracies.append(mutation_point_acc)
+            precision = tp / (tp + fp + 1e-8)
+            recall = tp / (tp + fn + 1e-8)
+            f1 = 2 * precision * recall / (precision + recall + 1e-8)
+
+            precisions.append(precision)
+            recalls.append(recall)
+            f1s.append(f1)
+
+            # Calculate mutation accuracy
+            correct_mutated_aa = (
+                gt[mutation_gt & mutation_pred] == pred[mutation_gt & mutation_pred]
+            ).sum()
+            mutation_acc = correct_mutated_aa.float() / (tp + 1e-8)
             mutation_accuracies.append(mutation_acc)
 
-        if len(mutation_point_accuracies) == 0:
-            return 0.0, 0.0
+        if len(f1s) == 0:
+            return [0.0], [0.0], [0.0], [0.0]
 
-        mutation_point_accuracy = torch.stack(mutation_point_accuracies)
-        mutation_accuracy = torch.stack(mutation_accuracies)
-
-        return mutation_point_accuracy, mutation_accuracy
+        return (
+            torch.stack(precisions),
+            torch.stack(recalls),
+            torch.stack(f1s),
+            torch.stack(mutation_accuracies),
+        )
 
     def calculate_prob(self, x):
         # calculate true prob
@@ -529,6 +560,10 @@ class MSAGenModel(Model):
 
         # set padding to clean
         clean_mask = clean_mask.masked_fill(batched_data["128_2D_padding_mask"], True)
+
+        # set keepclean to clean
+        if self.psm_config.keep_clean_num > 0:
+            clean_mask[:, : self.psm_config.keep_clean_num, :] = True
 
         time_step = time_step.masked_fill(clean_mask, 0.0)
 
@@ -684,15 +719,37 @@ class MSAGenModel(Model):
             # and not self.training
             # and not skip_sample
         ):
-            mutation_point_accuracy, mutation_accuracy = self.sample(batched_data)
+            (
+                precisions,
+                recalls,
+                f1s,
+                mutation_accuracys,
+                pred_seqs,
+                gt_seqs,
+            ) = self.sample(batched_data)
             B = batched_data["msa_token_type"].shape[0]
             for i in range(B):
                 pdbid = batched_data["unique_ids"][i]
-                mutation_point_accuracy_i = mutation_point_accuracy[i]
-                mutation_accuracy_i = mutation_accuracy[i]
-                logger.info(
-                    f"pdbid: {pdbid}, mutation_point_accuracy: {mutation_point_accuracy_i}, mutation_accuracy: {mutation_accuracy_i}"
-                )
+                precision = precisions[i]
+                recall = recalls[i]
+                f1 = f1s[i]
+                mutation_accuracy_i = mutation_accuracys[i]
+                pred_seq = pred_seqs[i]
+                gt_seq = gt_seqs[i]
+                save_path = os.path.join(self.args.save_dir, f"{pdbid}.json")
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                record = f"pdbid: {pdbid},precision: {precision:.3f}, recall: {recall:.3f}, f1: {f1:.3f}, mutation_accuracy: {mutation_accuracy_i:.3f}"
+                with open(save_path, "w") as f:
+                    json.dump(
+                        {
+                            "record": record,
+                            "pred_seq": pred_seq,
+                            "ground_truth": gt_seq,
+                        },
+                        f,
+                        indent=4,
+                    )
+                logger.info(record)
             # print(1)
 
         self._pre_forward_operation(batched_data)
@@ -718,21 +775,6 @@ class MSAGenModel(Model):
         Returns:
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
-        padding_mask = batched_data["padding_mask"]
-        kl_loss = F.kl_div(
-            model_output["model_log_prob"][~padding_mask],
-            batched_data["true_prob"][~padding_mask],
-            reduction="none",
-        )
-        kl_loss = kl_loss.sum(dim=-1).mean()
-        # if batched_data["aa_mask"].any():
-        aa_mask = batched_data["aa_mask"]
-        logits = model_output["aa_logits"][aa_mask]
-        aa_mlm_loss = self.aa_mlm_loss(
-            logits,
-            batched_data["token_type"][aa_mask].long(),
-        )
-        # print("aa_mlm_loss",aa_mlm_loss)
         noise_pred = model_output["noise_pred"]
         filter_mask = ~batched_data["clean_mask"]  # B D L
         B, D, L = batched_data["128_2D_padding_mask"].size()
@@ -774,36 +816,8 @@ class MSAGenModel(Model):
         batched_data["init_128_msa_one_hot"] = torch.zeros(
             B, D, L, 27, device=batched_data["msa_token_type"].device
         ).float()
-        # batched_data["msa_token_type"].device
-        # epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
-        # t = (
-        #     (batched_data["time_step"][0].float() * (self.psm_config.num_timesteps - 1))
-        #     .long()
-        #     .cpu()
-        # )
-        # pred_msa = self.diffusion_process.get_x0(
-        #     batched_data["128_msa_one_hot"],
-        #     batched_data["init_128_msa_one_hot"],
-        #     noise_pred,
-        #     epsilon,
-        #     t,
-        #     stepsize=-self.psm_config.num_timesteps_stepsize,
-        # )
-        # pred_msa = model_output["noise_pred"]
-        # pred_ori = pred_msa[:, 0, :, :]
-        # ori_ce_loss = self.ce_loss(
-        #     pred_msa.contiguous().view(B*D,L,27).permute(0, 2, 1),
-        #     batched_data["128_msa_token_type"].contiguous().view(B*D,L).long(),
-        # )
-        # ori_ce_loss = self.ce_loss(
-        #     pred_msa[batched_data["128_2D_padding_mask"]],
-        #     batched_data["128_msa_token_type"][batched_data["128_2D_padding_mask"]].long(),
-        # )
-        # print(pred_ori.shape,batched_data["token_type"].shape)
-        # l1_loss = self.compute_l1_loss(
-        #     model_output["x0_pred"], batched_data["ori_128_msa_one_hot"]
-        # )
-        loss = aa_mlm_loss + diffusion_loss  # + kl_loss
+
+        loss = diffusion_loss  # + kl_loss
         # loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
@@ -811,9 +825,6 @@ class MSAGenModel(Model):
             # "diffusion_kl_loss": float(diffusion_kl_loss.detach()),
             "diffusion_ce_loss": float(diff_celoss.detach()),
             "recons_loss": float(recons_loss.detach()),
-            "KL_loss": float(kl_loss.detach()),
-            "aa_mlm_loss": float(aa_mlm_loss.detach()),
-            # "ori_ce_loss": float(ori_ce_loss.detach()),
         }
 
         return ModelOutput(
@@ -914,24 +925,24 @@ class MSAGen(nn.Module):
 
         self.psm_config = psm_config
 
-        self.embedding = MSAGenSeqEmbedding(psm_config)
+        # self.embedding = MSAGenSeqEmbedding(psm_config)
 
-        self.encoder = MSAGenEncoder(args, psm_config)
+        # self.encoder = MSAGenEncoder(args, psm_config)
 
-        self.x_proj = nn.Sequential(
-            nn.Linear(
-                psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
-            ),
-            nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim // 2, 26, bias=False),
-        )
-        self.aa_mask_head = nn.Sequential(
-            nn.Linear(
-                psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
-            ),
-            nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim // 2, 30, bias=False),
-        )
+        # self.x_proj = nn.Sequential(
+        #     nn.Linear(
+        #         psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
+        #     ),
+        #     nn.SiLU(),
+        #     nn.Linear(psm_config.embedding_dim // 2, 26, bias=False),
+        # )
+        # self.aa_mask_head = nn.Sequential(
+        #     nn.Linear(
+        #         psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
+        #     ),
+        #     nn.SiLU(),
+        #     nn.Linear(psm_config.embedding_dim // 2, 30, bias=False),
+        # )
 
         self.decoder = MSADiffusionModule(args, psm_config)
 
@@ -948,28 +959,28 @@ class MSAGen(nn.Module):
         Returns:
             - need to be defined
         """
-        token_embedding = self.embedding(
-            batched_data["token_type"],
-            batched_data["aa_mask"],
-            batched_data["padding_mask"],
-        )
+        # token_embedding = self.embedding(
+        #     batched_data["token_type"],
+        #     batched_data["aa_mask"],
+        #     batched_data["padding_mask"],
+        # )
 
-        encoder_x = self.encoder(
-            token_embedding.transpose(0, 1),
-            batched_data["padding_mask"],
-            batched_data,
-        )
+        # encoder_x = self.encoder(
+        #     token_embedding.transpose(0, 1),
+        #     batched_data["padding_mask"],
+        #     batched_data,
+        # )
 
         # msa_embedding = self.embedding(batched_data["128_msa_token_type"])
-        decoder_x = self.x_proj(encoder_x)
+        # decoder_x = self.x_proj(encoder_x)
         msa_embedding = batched_data["128_msa_one_hot"].clone()
 
         noise_pred = self.decoder(
             batched_data,
             msa_embedding,
-            encoder_x.transpose(0, 1)
-            .unsqueeze(1)
-            .repeat(1, msa_embedding.shape[1], 1, 1),
+            # encoder_x.transpose(0, 1)
+            # .unsqueeze(1)
+            # .repeat(1, msa_embedding.shape[1], 1, 1),
             batched_data["128_2D_padding_mask"],
             # batched_data["padding_mask"],
         )
@@ -980,18 +991,18 @@ class MSAGen(nn.Module):
         #     .repeat(1, msa_embedding.shape[1], 1, 1)
         # )
         # noise_pred = F.softmax(noise_pred, dim=-1)
-        model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
-        model_log_prob = F.log_softmax(
-            decoder_x.transpose(0, 1), dim=-1
-        )  # calculate kl loss which needs log softmax first
-        aa_logits = self.aa_mask_head(encoder_x)
+        # model_prob = F.softmax(decoder_x.transpose(0, 1), dim=-1)
+        # model_log_prob = F.log_softmax(
+        #     decoder_x.transpose(0, 1), dim=-1
+        # )  # calculate kl loss which needs log softmax first
+        # aa_logits = self.aa_mask_head(encoder_x)
         result_dict = {
             "noise_pred": noise_pred,
-            "aa_logits": aa_logits.transpose(0, 1),
-            # "true_prob": batched_data["true_prob"],
-            "model_prob": model_prob,
-            "model_log_prob": model_log_prob,
-            "decoder_x": decoder_x.transpose(0, 1),
+            # "aa_logits": aa_logits.transpose(0, 1),
+            # # "true_prob": batched_data["true_prob"],
+            # "model_prob": model_prob,
+            # "model_log_prob": model_log_prob,
+            # "decoder_x": decoder_x.transpose(0, 1),
             "padding_mask": batched_data["padding_mask"],
         }
         return result_dict

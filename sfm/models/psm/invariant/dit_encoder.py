@@ -207,21 +207,7 @@ class MSADiTBlock(nn.Module):
             add_rope=False,
         )
         self.norm2 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
-        # attn_cls = FlashAttn
-        # self.attn = attn_cls(
-        #     embedding_dim,
-        #     num_attention_heads,
-        #     dropout=psm_config.dropout,
-        #     # k_bias=False,
-        #     # q_bias=False,
-        #     # v_bias=False,
-        #     # o_bias=False,
-        #     add_rope=True,
-        #     self_attention=True,
-        #     layer_norm=False,
-        #     # use_smooth_softmax=psm_config.use_smooth_softmax,
-        #     # smooth_factor=psm_config.smooth_factor,
-        # )
+
         self.colattn = ColumnSelfAttention(
             embed_dim=embedding_dim,
             num_heads=num_attention_heads,
@@ -235,26 +221,6 @@ class MSADiTBlock(nn.Module):
 
         self.norm3 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
 
-        # self.crossattn = CrossAttention2D(
-        #     embed_dim=embedding_dim,
-        #     num_heads=num_attention_heads,
-        #     dropout=psm_config.dropout,
-        #     k_bias=False,
-        #     q_bias=False,
-        #     v_bias=False,
-        #     o_bias=False,
-        # )
-        # self.crossattn = CrossAttention(
-        #     embed_dim=embedding_dim,
-        #     num_heads=num_attention_heads,
-        #     dropout=psm_config.dropout,
-        #     k_bias=False,
-        #     q_bias=False,
-        #     v_bias=False,
-        #     o_bias=False,
-        #     add_rope=False,
-        # )
-        # self.norm4 = nn.LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, ffn_embedding_dim, bias=False),
             nn.SiLU(),
@@ -268,7 +234,7 @@ class MSADiTBlock(nn.Module):
     def forward(
         self,
         x,
-        c,
+        # c,
         padding_mask,
         batched_data,
         pbc_expand_batched=None,
@@ -278,46 +244,12 @@ class MSADiTBlock(nn.Module):
         # input shape B,D,L,H
         x = x.permute(1, 2, 0, 3)  # D,L,B,H
 
-        # with condition
-        c = c.permute(1, 2, 0, 3)  # D,L,B,H
-        (
-            shift_row,
-            scale_row,
-            gate_row,
-            shift_col,
-            scale_col,
-            gate_col,
-            shift_mlp,
-            scale_mlp,
-            gate_mlp,
-        ) = self.adaLN_modulation(c).chunk(9, dim=-1)
+        # using clean for condition
+        x = x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
 
-        x = (
-            x
-            + gate_row
-            * self.row_attn(
-                modulate(self.norm1(x), shift_row, scale_row),
-                self_attn_padding_mask=padding_mask,
-            )[0]
-        )
+        x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
 
-        x = (
-            x
-            + gate_col
-            * self.colattn(
-                modulate(self.norm2(x), shift_col, scale_col),
-                self_attn_padding_mask=padding_mask,
-            )[0]
-        )
-
-        x = x + gate_mlp * self.mlp(modulate(self.norm3(x), shift_mlp, scale_mlp))
-
-        # no condition
-        # x = x + self.row_attn(self.norm1(x), self_attn_padding_mask=padding_mask)[0]
-
-        # x = x + self.colattn(self.norm2(x), self_attn_padding_mask=padding_mask)[0]
-
-        # x = x + self.mlp(self.norm3(x))
+        x = x + self.mlp(self.norm3(x))
         return x.permute(2, 0, 1, 3)
         # (
         #     shift_msa,

@@ -913,7 +913,7 @@ class MSADiffusionModule(nn.Module):
         x_t,
         # x_t_next,
         # time,
-        c,
+        # c,
         padding_mask,
         mixed_attn_bias: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
@@ -970,7 +970,7 @@ class MSADiffusionModule(nn.Module):
         for i, layer in enumerate(self.layers):
             x = layer(
                 x,
-                c,
+                # c,
                 padding_mask,
                 batched_data,
                 pbc_expand_batched=pbc_expand_batched,

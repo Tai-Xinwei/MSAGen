@@ -335,6 +335,7 @@ class PSMConfig(GraphormerConfig):
     # for msagen
     cutoff: int = 2
     random_msa_num: int = 0
+    keep_clean_num: int = 0
 
     def __init__(
         self,

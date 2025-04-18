@@ -28,7 +28,7 @@ d_tilde: 1.0
 pbc_cutoff: 40.0
 data_path: ../msadata
 dataset_names: ''
-loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGen_cleandata_64_klloss_in_encoder_enlargeceloss_5x_butnogap/global_step50000/mp_rank_00_model_states.pt'
+loadcheck_path: '/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000seqs_2_to_2_enlargediff5xbutnogap_cleandata_difflm/global_step30000/mp_rank_00_model_states.pt'
 add_3d: false
 no_2d: false
 ft: false
@@ -83,7 +83,7 @@ task: mae
 sample_mode: false
 train_data_path: ''
 valid_data_path: ''
-data_path_list: protein_msa_40_0.1_3k.lmdb
+data_path_list: protein_msa_40_0.1_1k_clean.lmdb
 dataset_name_list: msageneration
 dataset_split_raito: '1.0'
 dataset_micro_batch_size: '1'
@@ -200,7 +200,7 @@ psm_finetune_noise_mode: diffusion
 psm_finetune_valid_noise_mode: diffusion
 psm_finetune_skip_ori_head: false
 only_use_rotary_embedding_for_protein: false
-psm_validate_for_train_set: true
+psm_validate_for_train_set: false
 algorithm_type: dpmsolver++
 solver_order: 2
 solver_type: midpoint
@@ -299,5 +299,5 @@ backbone_config:
 backbone: exp3
 ode_mode: false
 finetune_module: null
-cutoff: 64
+cutoff: 2
 random_msa_num: 0
