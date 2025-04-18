@@ -869,7 +869,7 @@ class MSAGenModel(Model):
             ]  # true means differ
             # if differ, enlarge the loss, except for gap
             differ_mask = differ_mask & ~is_gap[filter_mask]
-            ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
+            ce_loss = ce_loss * (1 + 9.0 * differ_mask.float())
             # 0.2 for gap
             # ce_loss = ce_loss * (1 - 0.8 * is_gap[filter_mask].float())
             kl_loss = self._KL_reconstruction_loss(
