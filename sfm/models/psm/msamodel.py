@@ -430,11 +430,25 @@ class MSAGenModel(Model):
             pred_seq = self.convert(pred_msa.argmax(dim=-1))
             gt_seq = self.convert(batched_data["128_msa_token_type"])
             samples.append(self.convert(pred_msa.argmax(dim=-1)))
-            precision, recall, f1s, mutation_accuracy = self.calculate_acc(
+            (
+                precision,
+                recall,
+                f1s,
+                mutation_accuracy,
+                mutation_nums,
+            ) = self.calculate_acc(
                 pred_msa.argmax(dim=-1)[:, :min_D, :],
                 batched_data["128_msa_token_type"],
             )
-            return precision, recall, f1s, mutation_accuracy, pred_seq, gt_seq
+            return (
+                precision,
+                recall,
+                f1s,
+                mutation_accuracy,
+                pred_seq,
+                gt_seq,
+                mutation_nums,
+            )
         # self.net.train()
         # plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
         # return torch.stack(samples, dim=0)
@@ -450,13 +464,22 @@ class MSAGenModel(Model):
             - avg_mutation_accuracy
         """
         B, D, L = generated.shape
-
+        if self.psm_config.keep_clean_num > 0:
+            clean_msa_num = self.psm_config.keep_clean_num
+        else:
+            clean_msa_num = 1
         ref_gt = ground_truth[:, 0, :]  # (B, L)
-        msa_gt = ground_truth[:, 1:, :]  # (B, D-1, L)
+        msa_gt = ground_truth[:, clean_msa_num:, :]  # (B, D-1, L)
         ref_pred = ground_truth[:, 0, :]  # (B, L)
-        msa_pred = generated[:, 1:, :]  # (B, D-1, L)
+        msa_pred = generated[:, clean_msa_num:, :]  # (B, D-1, L)
 
-        precisions, recalls, f1s, mutation_accuracies = [], [], [], []
+        precisions, recalls, f1s, mutation_accuracies, mutation_nums = (
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
 
         for b in range(B):
             gt = msa_gt[b]  # (D-1, L)
@@ -483,11 +506,14 @@ class MSAGenModel(Model):
             precision = tp / (tp + fp + 1e-8)
             recall = tp / (tp + fn + 1e-8)
             f1 = 2 * precision * recall / (precision + recall + 1e-8)
+            mutation_num = (ground_truth[:, 1:, :][b] != ref_gt_b.unsqueeze(0)).sum(
+                dim=-1
+            )
 
             precisions.append(precision)
             recalls.append(recall)
             f1s.append(f1)
-
+            mutation_nums.append(mutation_num)
             # Calculate mutation accuracy
             correct_mutated_aa = (
                 gt[mutation_gt & mutation_pred] == pred[mutation_gt & mutation_pred]
@@ -496,13 +522,14 @@ class MSAGenModel(Model):
             mutation_accuracies.append(mutation_acc)
 
         if len(f1s) == 0:
-            return [0.0], [0.0], [0.0], [0.0]
+            return [0.0], [0.0], [0.0], [0.0], torch.stack(mutation_nums)
 
         return (
             torch.stack(precisions),
             torch.stack(recalls),
             torch.stack(f1s),
             torch.stack(mutation_accuracies),
+            torch.stack(mutation_nums),
         )
 
     def calculate_prob(self, x):
@@ -726,6 +753,7 @@ class MSAGenModel(Model):
                 mutation_accuracys,
                 pred_seqs,
                 gt_seqs,
+                mutation_nums,
             ) = self.sample(batched_data)
             B = batched_data["msa_token_type"].shape[0]
             for i in range(B):
@@ -736,6 +764,7 @@ class MSAGenModel(Model):
                 mutation_accuracy_i = mutation_accuracys[i]
                 pred_seq = pred_seqs[i]
                 gt_seq = gt_seqs[i]
+                mutation_num = mutation_nums[i].tolist()
                 save_path = os.path.join(self.args.save_dir, f"{pdbid}.json")
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 record = f"pdbid: {pdbid},precision: {precision:.3f}, recall: {recall:.3f}, f1: {f1:.3f}, mutation_accuracy: {mutation_accuracy_i:.3f}"
@@ -743,6 +772,7 @@ class MSAGenModel(Model):
                     json.dump(
                         {
                             "record": record,
+                            "mutation_nums": mutation_num,
                             "pred_seq": pred_seq,
                             "ground_truth": gt_seq,
                         },
@@ -829,7 +859,7 @@ class MSAGenModel(Model):
 
         return ModelOutput(
             loss=loss,
-            num_examples=model_output["model_prob"].shape[0],
+            num_examples=model_output["padding_mask"].shape[0],
             log_output=logging_output,
         )
 
