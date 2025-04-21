@@ -5,12 +5,12 @@
 MODEL_CONFIG=config_msagen_200M
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=MSAGen_cleandata_noencoder_4000_clean_2_to_4
+WORK_NAME=MSAGen_cleandata_4000_2_to_4_diff_5_10_same0.1
 
 WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step190000
+STEP_FLAG=global_step40000
 
 DATA_PATH=../msadata
 DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
@@ -34,7 +34,7 @@ else
     save_dir=./output/$WORK_NAME/$STEP_FLAG/valid
 fi
 
-master_port=6663
+master_port=6666
 
 DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_msagen.py \
   --config-name=$MODEL_CONFIG \

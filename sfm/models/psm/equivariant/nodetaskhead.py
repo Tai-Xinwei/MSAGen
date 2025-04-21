@@ -10,12 +10,12 @@ import torch.nn as nn
 from torch import Tensor
 
 from sfm.models.psm.invariant.dit_encoder import DiTBlock, MSADiTBlock
-from sfm.models.psm.modules.diffusion import TimeStepEncoder
+from sfm.models.psm.modules.diffusion import MSATimeStepEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
 )
-from sfm.models.psm.psm_config import PSMConfig
+from sfm.models.psm.psm_config import DiffusionTimeStepEncoderType, PSMConfig
 from sfm.modules.layer_norm import AdaNorm
 from sfm.modules.mem_eff_attn import MemEffAttn
 
@@ -837,12 +837,20 @@ class MSADiffusionModule(nn.Module):
 
         self.layers = nn.ModuleList([])
         self.x_proj = nn.Linear(27, psm_config.embedding_dim, bias=False)
+        self.psm_config = psm_config
         # self.time_emb = nn.Embedding(T + 1, psm_config.embedding_dim)
-        self.time_step_encoder = TimeStepEncoder(
-            psm_config.num_timesteps,
-            psm_config.embedding_dim,
-            psm_config.diffusion_time_step_encoder_type,
-        )
+        if psm_config.diffusion_mode == "OADM":
+            self.time_step_encoder = MSATimeStepEncoder(
+                psm_config.num_timesteps,
+                psm_config.embedding_dim,
+                psm_config.diffusion_time_step_encoder_type,
+            )
+        else:
+            self.time_step_encoder = MSATimeStepEncoder(
+                psm_config.max_length,
+                psm_config.embedding_dim,
+                DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE,
+            )
         for nl in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
                 [
@@ -923,9 +931,8 @@ class MSADiffusionModule(nn.Module):
         clean_mask: Optional[Tensor] = None,
     ) -> Tensor:
         # x_t = x_t.transpose(0, 1)
-
-        x_t = self.x_proj(x_t)
-
+        if self.psm_config.diffusion_mode != "OADM":
+            x_t = self.x_proj(x_t)
         B, D, L, H = x_t.size()
         x_t = self.add_2d_positional_encoding(x_t)
         # x_t = x_t.view(B, D * L, H)

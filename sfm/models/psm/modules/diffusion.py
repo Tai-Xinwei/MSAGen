@@ -1421,3 +1421,55 @@ class TimeStepEncoder(nn.Module):
             t_emb = self.time_embedding(t_emb)
 
         return t_emb
+
+
+class MSATimeStepEncoder(nn.Module):
+    def __init__(
+        self,
+        n_timesteps,
+        timestep_emb_dim,
+        timestep_emb_type: DiffusionTimeStepEncoderType,
+        mlp=True,
+    ):
+        super(MSATimeStepEncoder, self).__init__()
+
+        if timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
+            self.time_proj = SinusoidalPositionEmbeddings(timestep_emb_dim)
+        elif timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
+            self.time_proj = nn.Embedding(n_timesteps + 1, timestep_emb_dim)
+        else:
+            raise NotImplementedError
+
+        if mlp:
+            self.time_embedding = nn.Sequential(
+                nn.Linear(timestep_emb_dim, timestep_emb_dim),
+                nn.GELU(),
+                nn.Linear(timestep_emb_dim, timestep_emb_dim),
+            )
+        else:
+            self.time_embedding = None
+
+        self.n_timesteps = n_timesteps
+        self.timestep_emb_type = timestep_emb_type
+
+    def forward(self, timesteps, clean_mask: Optional[Tensor]):
+        ngraph, nD, nL = timesteps.shape[:3]
+        if self.timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
+            discretized_time_steps = timesteps.long()
+            if clean_mask is not None:
+                discretized_time_steps[
+                    clean_mask
+                ] = self.n_timesteps  # use last time step embedding for clean samples
+            t_emb = self.time_proj(discretized_time_steps).view(ngraph, nD, nL, -1)
+        elif self.timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
+            if clean_mask is not None:
+                timesteps = timesteps.masked_fill(
+                    clean_mask, 0.0
+                )  # use t = 0 for clean samples with positional time embedding (which is continuous time embedding)
+            t_emb = self.time_proj(timesteps.unsqueeze(-1)).view(ngraph, nD, nL, -1)
+        else:
+            raise ValueError(f"Unkown timestep_emb_type {self.timestep_emb_type}")
+        if self.time_embedding is not None:
+            t_emb = self.time_embedding(t_emb)
+
+        return t_emb

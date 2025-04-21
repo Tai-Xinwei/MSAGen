@@ -10,6 +10,7 @@ import random
 from contextlib import nullcontext
 from typing import Optional
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -121,7 +122,7 @@ class MSAGenModel(Model):
         if self.psm_config.diffusion_mode == "epsilon":
             self.noise_loss = nn.L1Loss(reduction="mean")
 
-        elif self.psm_config.diffusion_mode == "diff-lm":
+        elif self.psm_config.diffusion_mode in ["diff-lm", "OADM"]:
             self.noise_loss = nn.CrossEntropyLoss(reduction="none")
 
         self.diffnoise = DiffNoise(self.psm_config)
@@ -569,55 +570,111 @@ class MSAGenModel(Model):
         return sequences
 
     def _set_noise(self, batched_data):
-        B, D, L = batched_data["msa_token_type"].shape
+        B, D, max_L = batched_data["msa_token_type"].shape
         min_D = min(D, batched_data["cut_off"])
         device = batched_data["msa_token_type"].device
         batched_data["ori_128_msa_one_hot"] = batched_data["128_msa_one_hot"].clone()
-        # time sample
-        time_step, clean_mask = self.time_step_sampler.sample(
-            B,
-            device,
-            batched_data["128_msa_one_hot"].dtype,
-            self.psm_config.clean_sample_ratio,
-        )
-        clean_mask = clean_mask.unsqueeze(-1).unsqueeze(-1).repeat(1, min_D, L)
-        time_step = time_step.unsqueeze(-1).unsqueeze(-1).repeat(1, min_D, L)
+        if self.psm_config.diffusion_mode in ["epsilon", "diff-lm"]:
+            # time sample
+            time_step, clean_mask = self.time_step_sampler.sample(
+                B,
+                device,
+                batched_data["128_msa_one_hot"].dtype,
+                self.psm_config.clean_sample_ratio,
+            )
+            clean_mask = clean_mask.unsqueeze(-1).unsqueeze(-1).repeat(1, min_D, max_L)
+            time_step = time_step.unsqueeze(-1).unsqueeze(-1).repeat(1, min_D, max_L)
 
-        # t = torch.randint(0, 1000, (B,), device=device)
+            # t = torch.randint(0, 1000, (B,), device=device)
 
-        # set padding to clean
-        clean_mask = clean_mask.masked_fill(batched_data["128_2D_padding_mask"], True)
+            # set padding to clean
+            clean_mask = clean_mask.masked_fill(
+                batched_data["128_2D_padding_mask"], True
+            )
 
-        # set keepclean to clean
-        if self.psm_config.keep_clean_num > 0:
-            clean_mask[:, : self.psm_config.keep_clean_num, :] = True
+            # set keepclean to clean
+            if self.psm_config.keep_clean_num > 0:
+                clean_mask[:, : self.psm_config.keep_clean_num, :] = True
 
-        time_step = time_step.masked_fill(clean_mask, 0.0)
+            time_step = time_step.masked_fill(clean_mask, 0.0)
 
-        (
-            noise_msa,
-            noise,
-            sqrt_one_minus_alphas_cumprod_t,
-            sqrt_alphas_cumprod_t,
-        ) = self.diffnoise.noise_sample(
-            x_start=batched_data["128_msa_one_hot"],
-            t=time_step,
-            clean_mask=clean_mask,
-        )
-        # x_t = self.diffusion.q_sample(
-        #     batched_data["128_msa_one_hot"],s
-        #     t,
-        #     clean_mask,
-        #     device,
-        # )
-        batched_data["noise"] = noise
-        batched_data[
-            "sqrt_one_minus_alphas_cumprod_t"
-        ] = sqrt_one_minus_alphas_cumprod_t
-        batched_data["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
-        batched_data["128_msa_one_hot"] = noise_msa.to(dtype=time_step.dtype)
-        batched_data["time_step"] = time_step
-        batched_data["clean_mask"] = clean_mask
+            (
+                noise_msa,
+                noise,
+                sqrt_one_minus_alphas_cumprod_t,
+                sqrt_alphas_cumprod_t,
+            ) = self.diffnoise.noise_sample(
+                x_start=batched_data["128_msa_one_hot"],
+                t=time_step,
+                clean_mask=clean_mask,
+            )
+            # x_t = self.diffusion.q_sample(
+            #     batched_data["128_msa_one_hot"],s
+            #     t,
+            #     clean_mask,
+            #     device,
+            # )
+            batched_data["noise"] = noise
+            batched_data[
+                "sqrt_one_minus_alphas_cumprod_t"
+            ] = sqrt_one_minus_alphas_cumprod_t
+            batched_data["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
+            batched_data["128_msa_one_hot"] = noise_msa.to(dtype=time_step.dtype)
+            batched_data["time_step"] = time_step
+            batched_data["clean_mask"] = clean_mask
+        else:
+            # OADM
+            time_step_list = []
+            clean_mask_list = []
+            noise_msa_list = []
+
+            for b in range(B):
+                L = (~batched_data["padding_mask"][b]).sum().item()
+                print(L)
+                if L <= 1:
+                    t = 1
+                else:
+                    t = np.random.randint(1, L)
+                num_mask = L - t + 1
+                # Append time_step
+                time_step_list.append(torch.tensor(num_mask, device=device))
+                # Generate mask
+                mask_aa = np.random.choice(L, num_mask, replace=False)
+                index_aa = np.arange(0, max_L)
+                mask = np.isin(index_aa, mask_aa, invert=False)
+                # Mask inputs
+                mask = (
+                    torch.tensor(mask, dtype=torch.bool, device=device)
+                    .unsqueeze(0)
+                    .repeat(min_D, 1)
+                )
+                clean_mask_list.append(~mask)
+                x_t = batched_data["128_msa_token_type"][b].masked_fill(
+                    mask, 27
+                )  # 27 means <mask>
+                noise_msa_list.append(x_t)
+            time_step = (
+                torch.stack(time_step_list, dim=0)
+                .unsqueeze(-1)
+                .unsqueeze(-1)
+                .repeat(1, min_D, max_L)
+            )
+            clean_mask = torch.stack(clean_mask_list, dim=0)
+            noise_msa = torch.stack(noise_msa_list, dim=0)
+            # set padding to clean
+            clean_mask = clean_mask.masked_fill(
+                batched_data["128_2D_padding_mask"], True
+            )
+            # set keepclean to clean
+            if self.psm_config.keep_clean_num > 0:
+                clean_mask[:, : self.psm_config.keep_clean_num, :] = True
+            time_step = time_step.masked_fill(clean_mask, 0)
+            noise_msa = torch.where(
+                clean_mask, batched_data["ori_128_msa_token_type"], noise_msa
+            )
+            batched_data["time_step"] = time_step
+            batched_data["clean_mask"] = clean_mask
+            batched_data["128_msa_token_type"] = noise_msa
         # return x_t,t
 
     def _pre_forward_operation(
@@ -646,6 +703,9 @@ class MSAGenModel(Model):
             * 2
             - 1
         )  # 26 plus <pad>
+        batched_data["ori_128_msa_token_type"] = batched_data[
+            "128_msa_token_type"
+        ].clone()
         if self.args.fp16:
             batched_data["128_msa_one_hot"] = batched_data["128_msa_one_hot"].to(
                 torch.float16
@@ -808,7 +868,7 @@ class MSAGenModel(Model):
         noise_pred = model_output["noise_pred"]
         filter_mask = ~batched_data["clean_mask"]  # B D L
         B, D, L = batched_data["128_2D_padding_mask"].size()
-        is_gap = batched_data["128_msa_token_type"] == 26
+        is_gap = batched_data["ori_128_msa_token_type"] == 26
         if self.psm_config.diffusion_mode == "epsilon":
             noise_label = batched_data["noise"]
             diffusion_loss = self.compute_diff_loss(
@@ -821,8 +881,8 @@ class MSAGenModel(Model):
                 filter_mask
                 # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             )
-        elif self.psm_config.diffusion_mode == "diff-lm":
-            noise_label = batched_data["128_msa_token_type"]
+        elif self.psm_config.diffusion_mode in ["diff-lm", "OADM"]:
+            noise_label = batched_data["ori_128_msa_token_type"]
             diffusion_loss, diff_celoss, recons_loss = self.compute_diff_loss(
                 noise_label,
                 noise_pred,
@@ -831,6 +891,8 @@ class MSAGenModel(Model):
                 "L2",
                 batched_data,
                 filter_mask,
+                batched_data["time_step"],
+                batched_data["128_2D_padding_mask"]
                 # batched_data["ori_128_msa_one_hot"].argmax(dim=-1).unsqueeze(-1).view(B,D*L,-1),
             )
             # pred_prob = self.calculate_prob(noise_pred.argmax(dim=-1))
@@ -872,6 +934,8 @@ class MSAGenModel(Model):
         loss_type="L1",
         batched_data=None,
         filter_mask=None,
+        time_step=None,
+        padding_mask=None,
     ):
         if self.psm_config.diffusion_mode == "epsilon":
             if loss_type == "L1":
@@ -888,11 +952,11 @@ class MSAGenModel(Model):
 
             total_loss = loss_weighted.sum() / loss_weighted.numel()
             return total_loss
-        else:
+        elif self.psm_config.diffusion_mode == "diff-lm":
             # diff-lm
             ce_loss = self.noise_loss(pred[filter_mask], label[filter_mask].long())
             differ_mask = ~(
-                batched_data["128_msa_token_type"]
+                batched_data["ori_128_msa_token_type"]
                 == batched_data["token_type"].unsqueeze(1)
             )[
                 filter_mask
@@ -907,6 +971,27 @@ class MSAGenModel(Model):
             )
             loss = ce_loss.mean() + kl_loss
             return loss, ce_loss.mean(), kl_loss.mean()
+        else:
+            # OADM
+            ce_loss = self.noise_loss(pred[filter_mask], label[filter_mask].long())
+            differ_mask = ~(
+                batched_data["ori_128_msa_token_type"]
+                == batched_data["token_type"].unsqueeze(1)
+            )[
+                filter_mask
+            ]  # true means differ
+            # if differ, enlarge the loss, except for gap
+            differ_mask = differ_mask & ~is_gap[filter_mask]
+            ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
+            # reweight
+            non_pad_counts = (~padding_mask).sum(dim=-1, keepdim=True)
+            non_pad_counts = non_pad_counts.expand_as(padding_mask).float()[filter_mask]
+            weights = non_pad_counts * (1.0 / time_step[filter_mask] + 1e-5)
+            final_ce_loss = ce_loss * weights
+            kl_loss = torch.tensor(0.0, requires_grad=True)
+            loss = final_ce_loss.mean()
+            return loss, ce_loss.mean(), kl_loss
+            # differ_mask = differ_mask & ~is_gap[filter_mask]
 
     def compute_cross_entropy_loss(self, logits, target, filter_mask):
         """
@@ -955,7 +1040,7 @@ class MSAGen(nn.Module):
 
         self.psm_config = psm_config
 
-        # self.embedding = MSAGenSeqEmbedding(psm_config)
+        self.embedding = MSAGenSeqEmbedding(psm_config)
 
         # self.encoder = MSAGenEncoder(args, psm_config)
 
@@ -1000,10 +1085,11 @@ class MSAGen(nn.Module):
         #     batched_data["padding_mask"],
         #     batched_data,
         # )
-
-        # msa_embedding = self.embedding(batched_data["128_msa_token_type"])
+        if self.psm_config.diffusion_mode == "OADM":
+            msa_embedding = self.embedding(batched_data["128_msa_token_type"])
         # decoder_x = self.x_proj(encoder_x)
-        msa_embedding = batched_data["128_msa_one_hot"].clone()
+        else:
+            msa_embedding = batched_data["128_msa_one_hot"].clone()
 
         noise_pred = self.decoder(
             batched_data,

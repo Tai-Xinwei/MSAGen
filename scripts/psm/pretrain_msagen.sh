@@ -230,7 +230,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_cleandata_random2_enlargeceloss_5x_butnogap_noklloss
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_debug
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
@@ -258,7 +258,7 @@ echo "Random number: ${random_number}"
 
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 [ -z "${diffusion_rescale_coeff}" ] && diffusion_rescale_coeff=1.0
-[ -z "${diffusion_mode}" ] && diffusion_mode=diff-lm #epsilon, edm, protea
+[ -z "${diffusion_mode}" ] && diffusion_mode=OADM #epsilon, edm, protea
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L2"
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
