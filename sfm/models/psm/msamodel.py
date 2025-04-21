@@ -250,7 +250,6 @@ class MSAGenModel(Model):
             * 2
             - 1
         )
-        samples = []
         for sample_time_index in range(self.psm_config.num_sampling_time):
             batched_data["init_128_msa_one_hot"] = torch.zeros(
                 B, self.cut_off, L, 27, device=device
@@ -426,15 +425,15 @@ class MSAGenModel(Model):
                         batched_data["128_msa_one_hot"] = batched_data[
                             "128_msa_one_hot"
                         ].detach()
-                        pred_msa = batched_data["128_msa_one_hot"].clone()
+                pred_msa = batched_data["128_msa_one_hot"].clone().argmax(dim=-1)
 
-                        # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
-                        # pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
-                        pred_seq = self.convert(pred_msa.argmax(dim=-1))
+                # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
+                # pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
+                pred_seq = self.convert(pred_msa)
             else:
                 # OADM
                 sigma = (
-                    torch.randperm(L, deivce=device)
+                    torch.randperm(L, device=device)
                     .unsqueeze(0)
                     .unsqueeze(0)
                     .repeat(B, self.cut_off, 1)
@@ -443,34 +442,37 @@ class MSAGenModel(Model):
                     batched_data["128_msa_token_type"], 27
                 )  # B,D,L 27means mask
                 if clean_mask is not None:
-                    batched_data["128_msa_token_type"][:, :min_D, :, :] = torch.where(
+                    batched_data["128_msa_token_type"][:, :min_D, :] = torch.where(
                         clean_mask[:, :min_D, :],
-                        ori_128_msa_one_hot,
-                        batched_data["128_msa_token_type"][:, :min_D, :, :],
+                        batched_data["ori_128_msa_token_type"],
+                        batched_data["128_msa_token_type"][:, :min_D, :],
                     )
                 for t in range(L):
                     # m = (sigma < t).unsqueeze(0).unsqueeze(0).repeat(B,self.cut_off,1)
-                    n = (
-                        (sigma == t)
-                        .unsqueeze(0)
-                        .unsqueeze(0)
-                        .repeat(B, self.cut_off, 1)
-                    )
+                    n = sigma == t
                     time_step = torch.full(
                         (B, self.cut_off, L), L - t + 1, device=device
                     )
                     if clean_mask is not None:
                         time_step = time_step.masked_fill(clean_mask, 0)
                     batched_data["time_step"] = time_step
-                    logits = self.net(batched_data)  # B D L 27
+                    net_result = self.net(batched_data)
+                    logits = net_result["noise_pred"]  # B D L 27
                     sample = logits.argmax(dim=-1)  # B D L
                     batched_data["128_msa_token_type"] = torch.where(
-                        n, sample, batched_data["128_msa-token_type"]
+                        n, sample, batched_data["128_msa_token_type"]
                     )
-                    pred_seq = self.convert(batched_data["128_msa_token_type"])
+                    if clean_mask is not None:
+                        batched_data["128_msa_token_type"][:, :min_D, :] = torch.where(
+                            clean_mask[:, :min_D, :],
+                            batched_data["ori_128_msa_token_type"],
+                            batched_data["128_msa_token_type"][:, :min_D, :],
+                        )
+                pred_msa = batched_data["128_msa_token_type"]
+                pred_seq = self.convert(batched_data["128_msa_token_type"])
 
             gt_seq = self.convert(batched_data["ori_128_msa_token_type"])
-            samples.append(self.convert(pred_msa.argmax(dim=-1)))
+            # samples.append(self.convert(pred_msa.argmax(dim=-1)))
             (
                 precision,
                 recall,
@@ -478,7 +480,7 @@ class MSAGenModel(Model):
                 mutation_accuracy,
                 mutation_nums,
             ) = self.calculate_acc(
-                pred_msa.argmax(dim=-1)[:, :min_D, :],
+                pred_msa[:, :min_D, :],
                 batched_data["ori_128_msa_token_type"],
             )
             return (
@@ -505,6 +507,7 @@ class MSAGenModel(Model):
             - avg_mutation_accuracy
         """
         B, D, L = generated.shape
+
         if self.psm_config.keep_clean_num > 0:
             clean_msa_num = self.psm_config.keep_clean_num
         else:
@@ -540,9 +543,6 @@ class MSAGenModel(Model):
             fn = (
                 (mutation_gt & ~mutation_pred).sum().float()
             )  # gt mutation but pred not mutation
-
-            if tp + fp + fn == 0:  # 如果完全没有突变，不计入平均
-                continue
 
             precision = tp / (tp + fp + 1e-8)
             recall = tp / (tp + fn + 1e-8)
@@ -670,7 +670,6 @@ class MSAGenModel(Model):
 
             for b in range(B):
                 L = (~batched_data["padding_mask"][b]).sum().item()
-                print(L)
                 if L <= 1:
                     t = 1
                 else:
