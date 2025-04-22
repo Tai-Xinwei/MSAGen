@@ -239,6 +239,22 @@ class MSAGenModel(Model):
         batched_data["aa_mask"] = torch.zeros_like(
             token_id, dtype=torch.bool, device=device
         )
+        mode = torch.randint(1, 5, (1,)).item()
+        batched_data["mode"] = mode
+        # MSAGen has 4 mode
+        if mode == 1:
+            self.psm_config.keep_clean_num = 1  # mode1: 1->1
+            self.cut_off = 2
+        elif mode == 2:
+            self.psm_config.keep_clean_num = 2  # mode2: 2->2
+            self.cut_off = 4
+        elif mode == 3:
+            self.psm_config.keep_clean_num = 4  # mode3: 4->4
+            self.cut_off = 8
+        elif mode == 4:
+            self.psm_config.keep_clean_num = 8  # mode4: 8->8
+            self.cut_off = 16
+
         batched_data["128_msa_token_type"] = batched_data["msa_token_type"][
             :, : self.cut_off, :
         ]
@@ -759,7 +775,22 @@ class MSAGenModel(Model):
         """
         pre forward operation
         """
-        # set padding_mask
+        mode = torch.randint(1, 5, (1,)).item()
+        batched_data["mode"] = mode
+        # MSAGen has 4 mode
+        if mode == 1:
+            self.psm_config.keep_clean_num = 1  # mode1: 1->1
+            self.cut_off = 2
+        elif mode == 2:
+            self.psm_config.keep_clean_num = 2  # mode2: 2->2
+            self.cut_off = 4
+        elif mode == 3:
+            self.psm_config.keep_clean_num = 4  # mode3: 4->4
+            self.cut_off = 8
+        elif mode == 4:
+            self.psm_config.keep_clean_num = 8  # mode4: 8->8
+            self.cut_off = 16
+
         cut_off = self.cut_off
         batched_data["cut_off"] = cut_off
         token_id = batched_data["token_type"]

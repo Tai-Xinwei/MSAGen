@@ -88,7 +88,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -191,11 +191,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_1k_clean.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 [ -z "${cutoff}" ] && cutoff=2
-[ -z "${random_msa_num}"] && random_msa_num=2
-[ -z "${keep_clean_num}" ] && keep_clean_num=0
-[ -z "${OADM_row_random}" ] && OADM_row_random=1
+[ -z "${random_msa_num}"] && random_msa_num=0
+[ -z "${keep_clean_num}" ] && keep_clean_num=1
+[ -z "${OADM_row_random}" ] && OADM_row_random=False
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
@@ -228,7 +228,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path=''
+[ -z "${loadcheck_path}" ] && loadcheck_path='/psm/sfmexpresults/xinwei/MSAGen/MSAGen_OADM_4000_first_claen_1_to_2_enlarge5xbutnogap_emb256/global_step100000/mp_rank_00_model_states.pt'
 
 
 [ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_debug

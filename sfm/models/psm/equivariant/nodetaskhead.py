@@ -936,12 +936,12 @@ class MSADiffusionModule(nn.Module):
         B, D, L, H = x_t.size()
         x_t = self.add_2d_positional_encoding(x_t)
         # x_t = x_t.view(B, D * L, H)
-        time_step = batched_data["time_step"]
+        # time_step = batched_data["time_step"]
 
-        time_emb = self.time_step_encoder(
-            time_step,
-            batched_data["clean_mask"],
-        )
+        # time_emb = self.time_step_encoder(
+        #     time_step,
+        #     batched_data["clean_mask"],
+        # )
         # if self.training:
         #     with torch.no_grad():
         #         x0_selfcond = self._predict_x0(
@@ -967,13 +967,13 @@ class MSADiffusionModule(nn.Module):
         #     )
         # else:
 
-        x = x_t + time_emb
+        # x = x_t + time_emb
         # if x.shape[1] == 1:
         #     x = x.squeeze(1)
         #     c = c.squeeze(1)
         # print(x.shape)
         # print(c.shape)
-        # x = x_t
+        x = x_t
         for i, layer in enumerate(self.layers):
             x = layer(
                 x,
