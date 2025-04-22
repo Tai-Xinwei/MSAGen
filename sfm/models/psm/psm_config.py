@@ -336,6 +336,7 @@ class PSMConfig(GraphormerConfig):
     cutoff: int = 2
     random_msa_num: int = 0
     keep_clean_num: int = 0
+    OADM_row_random: bool = False
 
     def __init__(
         self,

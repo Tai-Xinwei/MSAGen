@@ -432,12 +432,25 @@ class MSAGenModel(Model):
                 pred_seq = self.convert(pred_msa)
             else:
                 # OADM
-                sigma = (
-                    torch.randperm(L, device=device)
-                    .unsqueeze(0)
-                    .unsqueeze(0)
-                    .repeat(B, self.cut_off, 1)
-                )
+                if self.psm_config.OADM_row_random:
+                    sigma = torch.stack(
+                        [
+                            torch.stack(
+                                [
+                                    torch.randperm(L, device=device)
+                                    for _ in range(self.cut_off)
+                                ]
+                            )
+                            for _ in range(B)
+                        ]
+                    )
+                else:
+                    sigma = (
+                        torch.randperm(L, device=device)
+                        .unsqueeze(0)
+                        .unsqueeze(0)
+                        .repeat(B, self.cut_off, 1)
+                    )
                 batched_data["128_msa_token_type"] = torch.full_like(
                     batched_data["128_msa_token_type"], 27
                 )  # B,D,L 27means mask
@@ -678,15 +691,21 @@ class MSAGenModel(Model):
                 # Append time_step
                 time_step_list.append(torch.tensor(num_mask, device=device))
                 # Generate mask
-                mask_aa = np.random.choice(L, num_mask, replace=False)
-                index_aa = np.arange(0, max_L)
-                mask = np.isin(index_aa, mask_aa, invert=False)
-                # Mask inputs
-                mask = (
-                    torch.tensor(mask, dtype=torch.bool, device=device)
-                    .unsqueeze(0)
-                    .repeat(min_D, 1)
-                )
+                if self.psm_config.OADM_row_random:
+                    mask = torch.zeros((min_D, L), dtype=torch.bool, device=device)
+                    for i in range(min_D):
+                        rand_indices = torch.randperm(L, device=device)[:num_mask]
+                        mask[i, rand_indices] = True
+                else:
+                    mask_aa = np.random.choice(L, num_mask, replace=False)
+                    index_aa = np.arange(0, max_L)
+                    mask = np.isin(index_aa, mask_aa, invert=False)
+                    # Mask inputs
+                    mask = (
+                        torch.tensor(mask, dtype=torch.bool, device=device)
+                        .unsqueeze(0)
+                        .repeat(min_D, 1)
+                    )
                 clean_mask_list.append(~mask)
                 x_t = batched_data["128_msa_token_type"][b].masked_fill(
                     mask, 27

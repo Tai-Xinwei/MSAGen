@@ -195,6 +195,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_msa_num}"] && random_msa_num=2
 [ -z "${keep_clean_num}" ] && keep_clean_num=0
+[ -z "${OADM_row_random}" ] && OADM_row_random=1
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
@@ -434,7 +435,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_msage
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size plddt_threshold=$plddt_threshold \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
-          cutoff=$cutoff random_msa_num=$random_msa_num keep_clean_num=$keep_clean_num \
+          cutoff=$cutoff random_msa_num=$random_msa_num keep_clean_num=$keep_clean_num OADM_row_random=$OADM_row_random \
           # ifresume=True \
 
 sleep infinity
