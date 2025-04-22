@@ -460,9 +460,9 @@ class MSAGenModel(Model):
                         batched_data["ori_128_msa_token_type"],
                         batched_data["128_msa_token_type"][:, :min_D, :],
                     )
-                for t in range(L):
+                for t in range(1, L + 1):
                     # m = (sigma < t).unsqueeze(0).unsqueeze(0).repeat(B,self.cut_off,1)
-                    n = sigma == t
+                    n = sigma + 1 == t
                     time_step = torch.full(
                         (B, self.cut_off, L), L - t + 1, device=device
                     )
@@ -486,30 +486,20 @@ class MSAGenModel(Model):
 
             gt_seq = self.convert(batched_data["ori_128_msa_token_type"])
             # samples.append(self.convert(pred_msa.argmax(dim=-1)))
-            (
-                precision,
-                recall,
-                f1s,
-                mutation_accuracy,
-                mutation_nums,
-            ) = self.calculate_acc(
+            results = self.calculate_acc(
                 pred_msa[:, :min_D, :],
-                batched_data["ori_128_msa_token_type"],
+                batched_data,
             )
             return (
-                precision,
-                recall,
-                f1s,
-                mutation_accuracy,
+                results,
                 pred_seq,
                 gt_seq,
-                mutation_nums,
             )
         # self.net.train()
         # plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
         # return torch.stack(samples, dim=0)
 
-    def calculate_acc(self, generated, ground_truth):
+    def calculate_acc(self, generated, batched_data):
         """
         Calculate mutation prediction performance per sample.
 
@@ -525,28 +515,36 @@ class MSAGenModel(Model):
             clean_msa_num = self.psm_config.keep_clean_num
         else:
             clean_msa_num = 1
+        ground_truth = batched_data["ori_128_msa_token_type"]
         ref_gt = ground_truth[:, 0, :]  # (B, L)
         msa_gt = ground_truth[:, clean_msa_num:, :]  # (B, D-1, L)
         ref_pred = ground_truth[:, 0, :]  # (B, L)
         msa_pred = generated[:, clean_msa_num:, :]  # (B, D-1, L)
-
-        precisions, recalls, f1s, mutation_accuracies, mutation_nums = (
-            [],
-            [],
-            [],
-            [],
-            [],
-        )
+        msa_exclude_ori = batched_data["msa_token_type"][:, 1:65, :]  # B 64 L
+        results = {
+            "precision": [],
+            "recall": [],
+            "f1": [],
+            "mutation_accuracy": [],
+            "mutation_num": [],
+            "union_mutation_num": [],
+            "precision_u": [],
+            "recall_u": [],
+            "f1_u": [],
+        }
 
         for b in range(B):
             gt = msa_gt[b]  # (D-1, L)
             pred = msa_pred[b]
             ref_gt_b = ref_gt[b]
             ref_pred_b = ref_pred[b]
+            msa_exclude_ori_b = msa_exclude_ori[b]
 
             mutation_gt = gt != ref_gt_b.unsqueeze(0)  # (D-1, L)
-            mutation_pred = pred != ref_pred_b.unsqueeze(0)
+            union_mutation_gt = msa_exclude_ori_b != ref_gt_b.unsqueeze(0)
 
+            mutation_pred = pred != ref_pred_b.unsqueeze(0)
+            union_mutation = union_mutation_gt.any(dim=0, keepdim=True)  # 1 L
             tp = (
                 (mutation_gt & mutation_pred).sum().float()
             )  # pred mutation and gt mutation
@@ -560,31 +558,50 @@ class MSAGenModel(Model):
             precision = tp / (tp + fp + 1e-8)
             recall = tp / (tp + fn + 1e-8)
             f1 = 2 * precision * recall / (precision + recall + 1e-8)
+
+            tp_u = (
+                (union_mutation & mutation_pred).sum().float()
+            )  # pred mutation and gt mutation
+            fp_u = (
+                (~union_mutation & mutation_pred).sum().float()
+            )  # pred mutation but gt not mutation
+            fn_u = (
+                (union_mutation & ~mutation_pred).sum().float()
+            )  # gt mutation but pred not mutation
+
+            precision_u = tp_u / (tp_u + fp_u + 1e-8)
+            recall_u = tp_u / (tp_u + fn_u + 1e-8)
+            f1_u = 2 * precision_u * recall_u / (precision_u + recall_u + 1e-8)
+
+            # here, using ground_truth[:, 1:, :][b] rather than mutation_gt for all mutaion num except for original
             mutation_num = (ground_truth[:, 1:, :][b] != ref_gt_b.unsqueeze(0)).sum(
                 dim=-1
             )
-
-            precisions.append(precision)
-            recalls.append(recall)
-            f1s.append(f1)
-            mutation_nums.append(mutation_num)
+            union_mutation_num = union_mutation.sum(dim=-1)
             # Calculate mutation accuracy
             correct_mutated_aa = (
                 gt[mutation_gt & mutation_pred] == pred[mutation_gt & mutation_pred]
             ).sum()
             mutation_acc = correct_mutated_aa.float() / (tp + 1e-8)
-            mutation_accuracies.append(mutation_acc)
 
-        if len(f1s) == 0:
-            return [0.0], [0.0], [0.0], [0.0], torch.stack(mutation_nums)
+            # Append to result
+            results["precision"].append(precision)
+            results["recall"].append(recall)
+            results["f1"].append(f1)
+            results["mutation_accuracy"].append(mutation_acc)
+            results["mutation_num"].append(mutation_num)
+            results["union_mutation_num"].append(union_mutation_num)
+            results["precision_u"].append(precision_u)
+            results["recall_u"].append(recall_u)
+            results["f1_u"].append(f1_u)
 
-        return (
-            torch.stack(precisions),
-            torch.stack(recalls),
-            torch.stack(f1s),
-            torch.stack(mutation_accuracies),
-            torch.stack(mutation_nums),
-        )
+        for key in results:
+            if len(results[key]) == 0:
+                results[key] = torch.tensor([0.0], device=generated.device)
+            else:
+                results[key] = torch.stack(results[key])
+
+        return results
 
     def calculate_prob(self, x):
         # calculate true prob
@@ -865,32 +882,36 @@ class MSAGenModel(Model):
             # and not skip_sample
         ):
             (
-                precisions,
-                recalls,
-                f1s,
-                mutation_accuracys,
+                results,
                 pred_seqs,
                 gt_seqs,
-                mutation_nums,
             ) = self.sample(batched_data)
             B = batched_data["msa_token_type"].shape[0]
             for i in range(B):
                 pdbid = batched_data["unique_ids"][i]
-                precision = precisions[i]
-                recall = recalls[i]
-                f1 = f1s[i]
-                mutation_accuracy_i = mutation_accuracys[i]
+                precision = results["precision"][i]
+                recall = results["recall"][i]
+                f1 = results["f1"][i]
+                mutation_accuracy_i = results["mutation_accuracy"][i]
                 pred_seq = pred_seqs[i]
                 gt_seq = gt_seqs[i]
-                mutation_num = mutation_nums[i].tolist()
+                mutation_num = results["mutation_num"][i].tolist()
+                union_mutaion_num = results["union_mutation_num"][i].tolist()
+                union_precision = results["precision_u"][i]
+                union_recall = results["recall_u"][i]
+                union_f1 = results["f1_u"][i]
+
                 save_path = os.path.join(self.args.save_dir, f"{pdbid}.json")
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 record = f"pdbid: {pdbid},precision: {precision:.3f}, recall: {recall:.3f}, f1: {f1:.3f}, mutation_accuracy: {mutation_accuracy_i:.3f}"
+                record_u = f"precision_u: {union_precision:.3f}, recall: {union_recall:.3f}, f1: {union_f1:.3f}"
                 with open(save_path, "w") as f:
                     json.dump(
                         {
                             "record": record,
+                            "record_u": record_u,
                             "mutation_nums": mutation_num,
+                            "union_mutaion_num": union_mutaion_num,
                             "pred_seq": pred_seq,
                             "ground_truth": gt_seq,
                         },

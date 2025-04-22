@@ -1457,9 +1457,7 @@ class MSATimeStepEncoder(nn.Module):
         if self.timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
             discretized_time_steps = timesteps.long()
             if clean_mask is not None:
-                discretized_time_steps[
-                    clean_mask
-                ] = self.n_timesteps  # use last time step embedding for clean samples
+                discretized_time_steps[clean_mask] = 0  # use 0 for clean samples
             t_emb = self.time_proj(discretized_time_steps).view(ngraph, nD, nL, -1)
         elif self.timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
             if clean_mask is not None:
