@@ -839,7 +839,7 @@ class MSADiffusionModule(nn.Module):
         self.x_proj = nn.Linear(27, psm_config.embedding_dim, bias=False)
         self.psm_config = psm_config
         # self.time_emb = nn.Embedding(T + 1, psm_config.embedding_dim)
-        if psm_config.diffusion_mode == "OADM":
+        if psm_config.diffusion_mode != "OADM":
             self.time_step_encoder = MSATimeStepEncoder(
                 psm_config.num_timesteps,
                 psm_config.embedding_dim,

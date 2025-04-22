@@ -5,12 +5,12 @@
 MODEL_CONFIG=config_msagen_200M
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=MSAGen_OADM_4000_first_claen_1_to_2_enlarge5xbutnogap_emb256
+WORK_NAME=MSAGen_cleandata_4000_2_to_4_diff_5_10_same0.1
 
 WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step20000
+STEP_FLAG=global_step60000
 
 DATA_PATH=../msadata
 DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
@@ -55,12 +55,12 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   num_timesteps_stepsize=-1 \
   num_sampling_time=$NUM_SAMPLING_TIME \
   loadcheck_path=$WORK_PATH/$STEP_FLAG/mp_rank_00_model_states.pt \
-  diffusion_mode=OADM \
+  diffusion_mode=diff-lm \
   psm_validate_for_train_set=$psm_validate_for_train_set \
-  cutoff=2 \
+  cutoff=4 \
   random_msa_num=0 \
   save_dir=$save_dir \
-  keep_clean_num=1 \
+  keep_clean_num=2 \
   # sample_ligand_only=true \
 
 echo $CKPT_PATH
