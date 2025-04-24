@@ -10,7 +10,7 @@ WORK_NAME=MSAGen_ft10wfrom_OADM1to1_4mode_enlarge5xbutnogap_emb256_bsz_16
 WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step140000
+STEP_FLAG=global_step200000
 
 DATA_PATH=../msadata
 DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
@@ -26,15 +26,15 @@ DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
 #   echo "Dataset must be proteintest or posebusters"
 #   exit 1
 # fi
-psm_validate_for_train_set=true
+psm_validate_for_train_set=false
 
 if [ "$psm_validate_for_train_set" = true ]; then
     save_dir=./output/$WORK_NAME/$STEP_FLAG/train
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_sort_4
 fi
 
-master_port=6666
+master_port=6678
 
 DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_msagen.py \
   --config-name=$MODEL_CONFIG \
@@ -57,10 +57,10 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   loadcheck_path=$WORK_PATH/$STEP_FLAG/mp_rank_00_model_states.pt \
   diffusion_mode=OADM \
   psm_validate_for_train_set=$psm_validate_for_train_set \
-  cutoff=2 \
+  cutoff=4 \
   random_msa_num=0 \
   save_dir=$save_dir \
-  keep_clean_num=1 \
+  keep_clean_num=2 \
   # sample_ligand_only=true \
 
 echo $CKPT_PATH
