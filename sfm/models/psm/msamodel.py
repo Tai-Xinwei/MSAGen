@@ -741,7 +741,7 @@ class MSAGenModel(Model):
                 time_step_list.append(torch.tensor(num_mask, device=device))
                 # Generate mask
                 if self.psm_config.OADM_row_random:
-                    mask = torch.zeros((min_D, L), dtype=torch.bool, device=device)
+                    mask = torch.zeros((min_D, max_L), dtype=torch.bool, device=device)
                     for i in range(min_D):
                         rand_indices = torch.randperm(L, device=device)[:num_mask]
                         mask[i, rand_indices] = True
