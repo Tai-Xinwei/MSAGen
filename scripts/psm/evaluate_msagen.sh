@@ -5,7 +5,7 @@
 MODEL_CONFIG=config_msagen_200M
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=MSAGen_ft10wfrom_OADM1to1_4mode_enlarge5xbutnogap_emb256_bsz_16
+WORK_NAME=MSAGen_OADM_4000_clean_1_2_rope_enlarge5x_emb256
 
 WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
@@ -26,15 +26,15 @@ DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
 #   echo "Dataset must be proteintest or posebusters"
 #   exit 1
 # fi
-psm_validate_for_train_set=false
+psm_validate_for_train_set=true
 
 if [ "$psm_validate_for_train_set" = true ]; then
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/train
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_sort_1
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_sort_4
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_sort_1
 fi
 
-master_port=6678
+master_port=6708
 
 DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_msagen.py \
   --config-name=$MODEL_CONFIG \

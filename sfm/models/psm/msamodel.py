@@ -240,7 +240,7 @@ class MSAGenModel(Model):
             token_id, dtype=torch.bool, device=device
         )
         mode = torch.randint(1, 5, (1,)).item()
-        # mode = 4
+        # mode = 1
         batched_data["mode"] = mode
         # MSAGen has 4 mode
         if mode == 1:
@@ -492,10 +492,12 @@ class MSAGenModel(Model):
                     # according the biggest prob to denoise
                     if True:
                         is_mask = batched_data["128_msa_token_type"] == 27
-                        logits_max_perL = logits.max(dim=-1).values
+                        logits_max_perL = F.softmax(logits, dim=-1).max(dim=-1).values
                         logits_max_perL = logits_max_perL.masked_fill(
                             ~is_mask, -float("inf")
                         )
+                        # col consistency
+                        # logits_max_perL = logits_max_perL.sum(dim=1).unsqueeze(1).repeat(1,logits.size(1),1) #B D L
                         n = (
                             F.one_hot(
                                 logits_max_perL.argmax(dim=-1),
@@ -503,6 +505,7 @@ class MSAGenModel(Model):
                             ).bool()
                             & is_mask
                         )
+
                     sample = logits.argmax(dim=-1)  # B D L
                     batched_data["128_msa_token_type"] = torch.where(
                         n, sample, batched_data["128_msa_token_type"]
@@ -792,7 +795,7 @@ class MSAGenModel(Model):
         pre forward operation
         """
         mode = torch.randint(1, 5, (1,)).item()
-        # mode = 4
+        # mode = 1
         batched_data["mode"] = mode
         # MSAGen has 4 mode
         if mode == 1:
