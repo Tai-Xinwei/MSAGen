@@ -240,7 +240,7 @@ class MSAGenModel(Model):
             token_id, dtype=torch.bool, device=device
         )
         mode = torch.randint(1, 5, (1,)).item()
-        mode = 4
+        # mode = 4
         batched_data["mode"] = mode
         # MSAGen has 4 mode
         if mode == 1:
@@ -792,7 +792,7 @@ class MSAGenModel(Model):
         pre forward operation
         """
         mode = torch.randint(1, 5, (1,)).item()
-        mode = 4
+        # mode = 4
         batched_data["mode"] = mode
         # MSAGen has 4 mode
         if mode == 1:
