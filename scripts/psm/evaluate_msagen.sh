@@ -2,15 +2,15 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-MODEL_CONFIG=config_msagen_200M
+MODEL_CONFIG=config_msagen_1B
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=MSAGen_OADM_4000_clean_1_2_rope_enlarge5x_emb256
+WORK_NAME=MSAGen_OADM_alldata_emb512_enlarge5x_4mode_randomrow
 
 WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step200000
+STEP_FLAG=global_step100000
 
 DATA_PATH=../msadata
 DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
@@ -29,12 +29,12 @@ DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
 psm_validate_for_train_set=true
 
 if [ "$psm_validate_for_train_set" = true ]; then
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_sort_1
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_4
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_sort_1
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_4
 fi
 
-master_port=6708
+master_port=6680
 
 DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_msagen.py \
   --config-name=$MODEL_CONFIG \
@@ -61,6 +61,8 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   random_msa_num=0 \
   save_dir=$save_dir \
   keep_clean_num=2 \
+  mode=4 \
+  OADM_row_random=true \
   # sample_ligand_only=true \
 
 echo $CKPT_PATH
