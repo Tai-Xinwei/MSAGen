@@ -47,6 +47,14 @@ storage:
     storage_account_name: sfmdatawestus
     container_name: psm
     mount_dir: /psm
+  eastus:
+    storage_account_name: sfmdataeastus
+    container_name: uniref
+    mount_dir: /UniProt
+  canadacentral:
+    storage_account_name: sfmdatacanadacentral
+    container_name: psm
+    mount_dir: /blob
 
   # mlla:
   #   storage_account_name: msralaphilly2
