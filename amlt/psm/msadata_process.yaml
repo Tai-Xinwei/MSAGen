@@ -1,0 +1,38 @@
+description: mgnify_mmcif2lmdb
+
+target:
+  service: sing
+  name: msrresrchvc
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+code:
+  local_dir: $CONFIG_DIR/../../../../
+
+search:
+  job_template:
+    name: mgnify-gt1-{id}
+    identity: managed
+    tags:
+    - 'ProjectID: PRJ-0209-A40'
+    sku: 8C15
+    sla_tier: premium
+    command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - export AZURE_CLIENT_ID="22542c5d-e635-4702-bded-53a9db908d41"
+    - export DEFAULT_IDENTITY_CLIENT_ID="22542c5d-e635-4702-bded-53a9db908d41"
+    - bash tools/protein_data_process/run_process_mgnify.sh {id}
+    submit_args:
+      env:
+        _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+  type: hyperdrive
+  sampling: grid
+  params:
+  - name: id
+    values: "list(range(0, 1734))"
+  max_trials: 1734
+  parallel_trials: 256
