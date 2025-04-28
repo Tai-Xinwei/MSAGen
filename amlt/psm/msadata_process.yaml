@@ -47,7 +47,7 @@ search:
     - pip install nvidia-dali-cuda120
     - export TASK_ID={lmdb_id}
     - export N_TASKS=16
-    - bash /blob/xinwei/msadata/UniProt/process.sh
+    - bash /blob/sfmexpresults/xinwei/msadata/UniProt/process.sh
     submit_args:
       env:
         _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
