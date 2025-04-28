@@ -334,7 +334,7 @@ class PSMConfig(GraphormerConfig):
 
     # for msagen
     cutoff: int = 2
-    random_msa_num: int = 0
+    random_select_msa: bool = False
     keep_clean_num: int = 0
     OADM_row_random: bool = False
     mode: int = 0

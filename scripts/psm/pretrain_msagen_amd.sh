@@ -22,12 +22,13 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=2048
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=8192
 
-[ -z "${layers}" ] && layers=26
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+# [ -z "${layers}" ] && layers=26
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1536
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1536
+
 #150M
 # [ -z "${layers}" ] && layers=12
 # [ -z "${hidden_size}" ] && hidden_size=1024
@@ -35,7 +36,6 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
-
 #85M
 # [ -z "${layers}" ] && layers=12
 # [ -z "${hidden_size}" ] && hidden_size=768
@@ -43,17 +43,26 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
-
-
-#38M
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=512
+# 38M
+[ -z "${layers}" ] && layers=16
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
 # [ -z "${ffn_size}" ] && ffn_size=2048
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+# 57M
+# [ -z "${layers}" ] && layers=8
+# [ -z "${hidden_size}" ] && hidden_size=768
+# [ -z "${ffn_size}" ] && ffn_size=3072
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 
-[ -z "${num_head}" ] && num_head=32
+[ -z "${num_head}" ] && num_head=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=384
@@ -70,16 +79,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-5
+[ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=100
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -179,11 +188,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_3k.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_1k_clean.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
-
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+[ -z "${cutoff}" ] && cutoff=2
+[ -z "${random_select_msa}"] && random_select_msa=True
+[ -z "${keep_clean_num}" ] && keep_clean_num=1
+[ -z "${OADM_row_random}" ] && OADM_row_random=False
+[ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 , 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
@@ -212,18 +225,18 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${bf16}" ] && bf16=False
+[ -z "${bf16}" ] && bf16=True
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path=''
+[ -z "${loadcheck_path}" ] && loadcheck_path='/psm/sfmexpresults/xinwei/MSAGen/MSAGen_OADM_alldata_emb512_enlarge5x_4mode_randomrow/global_step350000/mp_rank_00_model_states.pt'
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGenv2.0_bigger-$(date +"%Y%m%d")-lr${max_lr}-bsz4_${gradient_accumulation_steps}-steps${total_num_steps}-warm${warmup_num_steps}
-# [ -z "${wandb_run_name}"] && wandb_run_name=infer
-[ -z "${wandb_group}" ] && wandb_group=msagenv2.0
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_ftOADMalldata_35w_1b_random_5mode_random_select
+# [ -z "${wandb_run_name}" ] && wandb_run_name=debug
+[ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=MSAGen
+[ -z "${wandb_project}" ] && wandb_project=psm_msa
 [ -z "${wandb_key}" ] && wandb_key=local-4475b85516f93bca7c53acde577024463126c48c
 
 [ -z "${save_dir}" ] && save_dir=/psm/sfmexpresults/xinwei/MSAGen/${wandb_run_name}
@@ -247,12 +260,12 @@ echo "Random number: ${random_number}"
 
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 [ -z "${diffusion_rescale_coeff}" ] && diffusion_rescale_coeff=1.0
-[ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm, protea
+[ -z "${diffusion_mode}" ] && diffusion_mode=OADM #epsilon, edm, protea
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L2"
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 
-[ -z "${num_timesteps}" ] && num_timesteps=5000
+[ -z "${num_timesteps}" ] && num_timesteps=1000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=6e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid #sigmoid, cosine, linaer, quadratic, sqrt
@@ -269,8 +282,8 @@ echo "Random number: ${random_number}"
 [ -z "${sample_in_validation}" ] && sample_in_validation=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
-[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
+[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
@@ -285,7 +298,7 @@ echo "Random number: ${random_number}"
 echo -e "\n\n"
 echo "==================================MP==========================================="
 [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
-#[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
+# [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
 
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
@@ -423,6 +436,6 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_msage
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size plddt_threshold=$plddt_threshold \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
+          cutoff=$cutoff random_select_msa=$random_select_msa keep_clean_num=$keep_clean_num OADM_row_random=$OADM_row_random mode=$mode \
           # ifresume=True \
-
 sleep infinity

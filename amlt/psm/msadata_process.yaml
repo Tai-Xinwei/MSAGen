@@ -1,4 +1,10 @@
-description: mgnify_mmcif2lmdb
+description: MSAdata_process
+
+env_defaults:
+  NODES: 1
+  CPUS: 60
+  WANDB_API_KEY:
+  HF_TOKEN:
 
 target:
   service: sing
@@ -6,33 +12,54 @@ target:
   workspace_name: sfm-ws
 
 environment:
-  image: ai4s-sfm:20240429.081857
+  image: ai4s-sfm:20240531.170731
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
 
+storage:
+  westus:
+    storage_account_name: sfmdatawestus
+    container_name: psm
+    mount_dir: /psm
+  eastus:
+    storage_account_name: sfmdataeastus
+    container_name: uniref
+    mount_dir: /UniProt
+  canadacentral:
+    storage_account_name: sfmdatacanadacentral
+    container_name: psm
+    mount_dir: /blob
+
 code:
-  local_dir: $CONFIG_DIR/../../../../
+  local_dir: ../PSM
 
 search:
   job_template:
-    name: mgnify-gt1-{id}
-    identity: managed
-    tags:
-    - 'ProjectID: PRJ-0209-A40'
-    sku: 8C15
-    sla_tier: premium
+    name: MSAData_process_subset_{lmdb_id}
+    tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+    sku: ${NODES}xC${CPUS}
+    mpi: true
+    # identity: managed
+    process_count_per_node: 1
     command:
     - eval "$$(conda shell.bash hook)" && conda activate sfm
-    - export AZURE_CLIENT_ID="22542c5d-e635-4702-bded-53a9db908d41"
-    - export DEFAULT_IDENTITY_CLIENT_ID="22542c5d-e635-4702-bded-53a9db908d41"
-    - bash tools/protein_data_process/run_process_mgnify.sh {id}
+    - python setup_cython.py build_ext --inplace
+    - pip install nvidia-dali-cuda120
+    - export TASK_ID={lmdb_id}
+    - export N_TASKS=16
+    - bash /blob/xinwei/msadata/UniProt/process.sh
     submit_args:
       env:
         _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+      container_args:
+        shm_size: 1024G
+    preemptible: false
+
   type: hyperdrive
   sampling: grid
+  max_trials: 999
+  parallel_trials: 100
   params:
-  - name: id
-    values: "list(range(0, 1734))"
-  max_trials: 1734
-  parallel_trials: 256
+    - name: lmdb_id
+      spec: discrete
+      values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]

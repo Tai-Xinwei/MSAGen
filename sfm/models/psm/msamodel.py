@@ -178,7 +178,9 @@ class MSAGenModel(Model):
             args: Command line arguments.
             checkpoint_path: Path to the pretrained weights.
         """
-        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+        checkpoints_state = torch.load(
+            checkpoint_path, map_location="cpu", weights_only=False
+        )
         if "model" in checkpoints_state:
             checkpoints_state = checkpoints_state["model"]
         elif "module" in checkpoints_state:
@@ -240,7 +242,7 @@ class MSAGenModel(Model):
             token_id, dtype=torch.bool, device=device
         )
         if self.psm_config.mode == 0:
-            mode = torch.randint(1, 5, (1,)).item()
+            mode = torch.randint(1, 6, (1,)).item()
         else:
             mode = self.psm_config.mode
         # mode = 1
@@ -258,6 +260,9 @@ class MSAGenModel(Model):
         elif mode == 4:
             self.psm_config.keep_clean_num = 8  # mode4: 8->8
             self.cut_off = 16
+        elif mode == 5:
+            self.psm_config.keep_clean_num = 16  # mode4: 16->16
+            self.cut_off = 32
 
         batched_data["128_msa_token_type"] = batched_data["msa_token_type"][
             :, : self.cut_off, :
@@ -798,7 +803,7 @@ class MSAGenModel(Model):
         pre forward operation
         """
         if self.psm_config.mode == 0:
-            mode = torch.randint(1, 5, (1,)).item()
+            mode = torch.randint(1, 6, (1,)).item()
         else:
             mode = self.psm_config.mode
         # mode = 1
@@ -816,6 +821,9 @@ class MSAGenModel(Model):
         elif mode == 4:
             self.psm_config.keep_clean_num = 8  # mode4: 8->8
             self.cut_off = 16
+        elif mode == 5:
+            self.psm_config.keep_clean_num = 16  # mode4: 16->16
+            self.cut_off = 32
 
         cut_off = self.cut_off
         batched_data["cut_off"] = cut_off

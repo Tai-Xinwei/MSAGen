@@ -3423,12 +3423,11 @@ class MSAGenDataset(FoundationModelDataset):
         if ori_seq_len > self.args.max_length:
             msa_x = msa_x[:, random_start : random_start + self.args.max_length]
         msa_len = len(data["unpaired_msaseq"])
-        random_select_msa_num = self.args.random_msa_num
-        if random_select_msa_num > 0:
-            random_select_msa_num = random_select_msa_num - 1
+        random_select_msa = self.args.random_select_msa
+        if random_select_msa:
             random_select_msa_idx = np.random.choice(
                 np.arange(1, msa_len),
-                size=min(random_select_msa_num, msa_len - 1),
+                size=msa_len - 1,
                 replace=False,
             )
             msa_x = torch.cat(
