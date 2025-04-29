@@ -300,4 +300,4 @@ backbone: exp3
 ode_mode: false
 finetune_module: null
 cutoff: 2
-random_msa_num: 0
+random_select_msa: false
