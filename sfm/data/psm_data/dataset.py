@@ -3319,7 +3319,202 @@ class MSAGenDataset(FoundationModelDataset):
     ):
         self.lmdb_path = lmdb_path
         self.args = args
+        self.is_AF3 = True
+        if self.lmdb_path.find("AF3") == -1:
+            self.is_AF3 = False
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._keys = None
+        self._train_keys = None
+        self._valid_keys = None
+        if keys is not None:
+            if env is not None:
+                self._env = env
+                self._txn = txn
+            else:
+                self._env = lmdb.open(
+                    str(self.lmdb_path),
+                    subdir=True,
+                    readonly=True,
+                    lock=False,
+                    readahead=False,
+                    meminit=False,
+                )
+                self._txn = self._env.begin(write=False)
 
+            self._keys = keys
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self.env.begin(write=False)
+        metadata = self._txn.get("_metadata_keys_1k".encode("utf-8"))
+        train_keys = self._txn.get("_train_keys_1k".encode("utf-8"))
+        valid_keys = self._txn.get("_valid_keys_1k".encode("utf-8"))
+        self._keys = json.loads(metadata.decode("utf-8"))
+        self._train_keys = json.loads(train_keys.decode("utf-8"))
+        self._valid_keys = json.loads(valid_keys.decode("utf-8"))
+
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
+
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
+
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
+
+    @property
+    def train_keys(self):
+        if self._train_keys is None:
+            self._init_db()
+        return self._train_keys
+
+    @property
+    def valid_keys(self):
+        if self._valid_keys is None:
+            self._init_db()
+        return self._valid_keys
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode("utf-8"))
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = json.loads(value.decode("utf-8"))
+        ori_seq_len = len(data["query_sequence"])
+        if ori_seq_len > self.args.max_length:
+            random_start = random.randint(
+                0, len(data["query_sequence"]) - self.args.max_length
+            )
+            data["query_sequence"] = data["query_sequence"][
+                random_start : random_start + self.args.max_length
+            ]
+            # data["unpaired_msaseq"] = data["unpaired_msaseq"][:,random_start : random_start + self.args.max_length]
+        token_type = data["query_sequence"]
+        x = torch.tensor([MSAVOCAB[tok] for tok in token_type], dtype=torch.int32)
+        deletion_table = str.maketrans("", "", string.ascii_lowercase)
+        msa_x = torch.tensor(
+            [
+                [MSAVOCAB[tok] for tok in sequence.translate(deletion_table)]
+                for sequence in data["unpaired_msaseq"]
+            ],
+            dtype=torch.int32,
+        )
+        if ori_seq_len > self.args.max_length:
+            msa_x = msa_x[:, random_start : random_start + self.args.max_length]
+        msa_len = len(data["unpaired_msaseq"])
+        random_select_msa = self.args.random_select_msa
+        if random_select_msa:
+            random_select_msa_idx = np.random.choice(
+                np.arange(1, msa_len),
+                size=msa_len - 1,
+                replace=False,
+            )
+            msa_x = torch.cat(
+                [msa_x[0].unsqueeze(0), msa_x[random_select_msa_idx]], dim=0
+            )
+        data["msa_token_type"] = msa_x
+        data["token_type"] = x
+        data["msa_len"] = msa_len
+        data["unique_id"] = key
+        random_start_pos_id = np.random.randint(0, 2000)
+        position_ids = range(
+            random_start_pos_id, random_start_pos_id + len(data["query_sequence"])
+        )
+        data["position_ids"] = torch.tensor(position_ids, dtype=torch.int32)
+        return data
+
+    def split_dataset(self, validation_ratio=0.001, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(12345).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_samples - num_validation_samples
+
+        self._init_db()
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=self.train_keys,
+            env=self._env,
+            txn=self._txn,
+        )
+
+        dataset_val = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=self.valid_keys,
+            env=self._env,
+            txn=self._txn,
+        )
+
+        return dataset_train, dataset_val
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if state["_env"] is not None:
+            state["_env"].close()
+            del state["_env"]
+            state["_env"] = None
+        if state["_txn"] is not None:
+            del state["_txn"]
+            state["_txn"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self._env.begin(write=False)
+
+
+class AF3_MSAGenDataset(FoundationModelDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        env: Optional[lmdb.Environment] = None,
+        txn: Optional[lmdb.Transaction] = None,
+    ):
+        self.lmdb_path = lmdb_path
+        self.args = args
+        self.is_AF3 = True
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
         self._keys = None

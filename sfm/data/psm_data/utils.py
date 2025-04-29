@@ -82,6 +82,37 @@ MSAVOCAB = {
     "<eos>": 29,
 }
 
+AF3_MSAVOCAB = {
+    "A": 0,
+    "B": 25,  # Same as D.
+    "C": 4,
+    "D": 3,
+    "E": 6,
+    "F": 13,
+    "G": 7,
+    "H": 8,
+    "I": 9,
+    # 'J': 25,  # Same as unknown (X).
+    "K": 11,
+    "L": 10,
+    "M": 12,
+    "N": 2,
+    "O": 24,  # Same as unknown (X).
+    "P": 14,
+    "Q": 5,
+    "R": 1,
+    "S": 15,
+    "T": 16,
+    "U": 23,  # Same as C.
+    "V": 19,
+    "W": 17,
+    "X": 20,
+    "Y": 18,
+    "Z": 22,  # Same as E.
+    "-": 21,
+}
+
+
 DATA_SPLIT_RATIO = {
     "buckyball_catcher": [600.0 / 6102, 50.0 / 6102, 1 - 650.0 / 6102],
     "double_walled_nanotube": [800.0 / 5032, 100.0 / 5032, 1 - 900.0 / 5032],
