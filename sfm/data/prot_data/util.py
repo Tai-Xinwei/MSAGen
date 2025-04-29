@@ -1,10 +1,17 @@
 # -*- coding: utf-8 -*-
+import importlib
 import logging
 import os
 import pickle
+import sys
 import zlib
 
 from sfm.logging import logger
+
+for submod in ("numeric", "multiarray"):
+    sys.modules[f"numpy._core.{submod}"] = importlib.import_module(
+        f"numpy.core.{submod}"
+    )
 
 
 def add_to_env(toadd: dict):

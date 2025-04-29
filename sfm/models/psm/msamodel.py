@@ -242,7 +242,11 @@ class MSAGenModel(Model):
             token_id, dtype=torch.bool, device=device
         )
         if self.psm_config.mode == 0:
-            mode = torch.randint(1, 6, (1,)).item()
+            probs = torch.tensor(
+                [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
+            )
+            idx = torch.multinomial(probs, num_samples=1).item()
+            mode = idx + 1
         else:
             mode = self.psm_config.mode
         # mode = 1
@@ -803,7 +807,11 @@ class MSAGenModel(Model):
         pre forward operation
         """
         if self.psm_config.mode == 0:
-            mode = torch.randint(1, 6, (1,)).item()
+            probs = torch.tensor(
+                [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
+            )
+            idx = torch.multinomial(probs, num_samples=1).item()
+            mode = idx + 1
         else:
             mode = self.psm_config.mode
         # mode = 1
@@ -822,8 +830,11 @@ class MSAGenModel(Model):
             self.psm_config.keep_clean_num = 8  # mode4: 8->8
             self.cut_off = 16
         elif mode == 5:
-            self.psm_config.keep_clean_num = 16  # mode4: 16->16
+            self.psm_config.keep_clean_num = 16  # mode5: 16->16
             self.cut_off = 32
+        elif mode == 6:
+            self.psm_config.keep_clean_num = 32  # mode6: 32->32
+            self.cut_off = 64
 
         cut_off = self.cut_off
         batched_data["cut_off"] = cut_off
