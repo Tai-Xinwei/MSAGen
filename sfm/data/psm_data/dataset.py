@@ -3593,18 +3593,17 @@ class AF3_MSAGenDataset(FoundationModelDataset):
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
-        value = self.txn.get(key.encode("utf-8"))
+        value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
-        data = bstr2obj(value)
-        arr = np.array(data, dtype=int)
+        raw_data = bstr2obj(value)
+        data = {}
+        arr = np.array(raw_data, dtype=int)
         msa_arr = af3_to_msa_array(arr)
         query_seq_id = arr[0]
         ori_seq_len = len(query_seq_id)
         if ori_seq_len > self.args.max_length:
-            random_start = random.randint(
-                0, len(data["query_sequence"]) - self.args.max_length
-            )
+            random_start = random.randint(0, ori_seq_len - self.args.max_length)
             query_seq_id = query_seq_id[
                 random_start : random_start + self.args.max_length
             ]
@@ -3624,9 +3623,7 @@ class AF3_MSAGenDataset(FoundationModelDataset):
         data["msa_len"] = msa_len
         data["unique_id"] = key
         random_start_pos_id = np.random.randint(0, 2000)
-        position_ids = range(
-            random_start_pos_id, random_start_pos_id + len(data["query_sequence"])
-        )
+        position_ids = range(random_start_pos_id, random_start_pos_id + ori_seq_len)
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int32)
         return data
 
