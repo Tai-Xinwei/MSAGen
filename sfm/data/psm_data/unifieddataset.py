@@ -18,6 +18,7 @@ except ImportError:
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
+    AF3_MSAGenDataset,
     AFDBLMDBDataset,
     ESMDataset,
     GEOMDataset,
@@ -272,6 +273,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 len_total = len(train_dataset) + len(valid_dataset)
             elif dataset_name == "msageneration":
                 dataset = MSAGenDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset(
+                    validation_ratio=0.01
+                )
+                len_total = len(dataset)
+            elif dataset_name == "af3msageneration":
+                dataset = AF3_MSAGenDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset(
                     validation_ratio=0.01
                 )

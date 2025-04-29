@@ -1876,3 +1876,30 @@ def plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data):
         plt.close()
 
         print(f"Saved heatmaps for sample {unique_id} to {save_dir}")
+
+
+def af3_to_msa_array(af3_array: np.ndarray) -> np.ndarray:
+    """
+    将 AF3 ID 矩阵（shape=(D,L)）映射为 MSAVOCAB ID 矩阵（shape=(D,L)）。
+    """
+    # 1. 反转 AF3_MSAVOCAB 得到 id -> token
+    af3_id2token = {v: k for k, v in AF3_MSAVOCAB.items()}
+
+    # 2. 构造一个映射数组，长度至少覆盖 AF3 ID 的最大值
+    max_id = max(af3_id2token.keys())
+    mapping = np.zeros(max_id + 1, dtype=np.int32)
+
+    # 3. 填入映射：mapping[af3_id] = 对应的 MSAVOCAB ID
+    for af3_id, token in af3_id2token.items():
+        if token not in MSAVOCAB:
+            raise KeyError(f"Token '{token}' 不在 MSAVOCAB 中")
+        mapping[af3_id] = MSAVOCAB[token]
+
+    # 4. 确保输入中没有越界 ID
+    if af3_array.min() < 0 or af3_array.max() > max_id:
+        raise ValueError(f"AF3 ID 超出映射范围 (0–{max_id})")
+
+    # 5. 用 NumPy 索引一次性完成映射
+    msa_array = mapping[af3_array]
+
+    return msa_array

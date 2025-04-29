@@ -39,6 +39,7 @@ from sfm.data.psm_data.utils import (
     PM6_ATOM_REFERENCE_LIST,
     VOCAB,
     WB97XD3_ATOM_ENERGY_OUTLIER_LIST,
+    af3_to_msa_array,
     convert_to_single_emb,
     get_conv_variable_lin,
     get_data_defult_config,
@@ -3547,12 +3548,12 @@ class AF3_MSAGenDataset(FoundationModelDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
-        metadata = self._txn.get("_metadata_keys_1k".encode("utf-8"))
-        train_keys = self._txn.get("_train_keys_1k".encode("utf-8"))
-        valid_keys = self._txn.get("_valid_keys_1k".encode("utf-8"))
-        self._keys = json.loads(metadata.decode("utf-8"))
-        self._train_keys = json.loads(train_keys.decode("utf-8"))
-        self._valid_keys = json.loads(valid_keys.decode("utf-8"))
+        metadata = self._txn.get("_metadata_".encode("utf-8"))
+        train_keys = bstr2obj(metadata)["train_keys"]
+        valid_keys = bstr2obj(metadata)["valid_keys"]
+        self._keys = bstr2obj(metadata)["keys"]
+        self._train_keys = train_keys
+        self._valid_keys = valid_keys
 
     def _close_db(self):
         if self._env is not None:
@@ -3595,39 +3596,29 @@ class AF3_MSAGenDataset(FoundationModelDataset):
         value = self.txn.get(key.encode("utf-8"))
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
-        data = json.loads(value.decode("utf-8"))
-        ori_seq_len = len(data["query_sequence"])
+        data = bstr2obj(value)
+        arr = np.array(data, dtype=int)
+        msa_arr = af3_to_msa_array(arr)
+        query_seq_id = arr[0]
+        ori_seq_len = len(query_seq_id)
         if ori_seq_len > self.args.max_length:
             random_start = random.randint(
                 0, len(data["query_sequence"]) - self.args.max_length
             )
-            data["query_sequence"] = data["query_sequence"][
+            query_seq_id = query_seq_id[
                 random_start : random_start + self.args.max_length
             ]
             # data["unpaired_msaseq"] = data["unpaired_msaseq"][:,random_start : random_start + self.args.max_length]
-        token_type = data["query_sequence"]
-        x = torch.tensor([MSAVOCAB[tok] for tok in token_type], dtype=torch.int32)
-        deletion_table = str.maketrans("", "", string.ascii_lowercase)
+        # token_type = query_seq_id
+        x = torch.tensor(query_seq_id, dtype=torch.int32)
+        # deletion_table = str.maketrans("", "", string.ascii_lowercase)
         msa_x = torch.tensor(
-            [
-                [MSAVOCAB[tok] for tok in sequence.translate(deletion_table)]
-                for sequence in data["unpaired_msaseq"]
-            ],
+            msa_arr,
             dtype=torch.int32,
         )
         if ori_seq_len > self.args.max_length:
             msa_x = msa_x[:, random_start : random_start + self.args.max_length]
-        msa_len = len(data["unpaired_msaseq"])
-        random_select_msa = self.args.random_select_msa
-        if random_select_msa:
-            random_select_msa_idx = np.random.choice(
-                np.arange(1, msa_len),
-                size=msa_len - 1,
-                replace=False,
-            )
-            msa_x = torch.cat(
-                [msa_x[0].unsqueeze(0), msa_x[random_select_msa_idx]], dim=0
-            )
+        msa_len = len(msa_arr)
         data["msa_token_type"] = msa_x
         data["token_type"] = x
         data["msa_len"] = msa_len
