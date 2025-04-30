@@ -3548,7 +3548,7 @@ class AF3_MSAGenDataset(FoundationModelDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
-        metadata = self._txn.get("_metadata_".encode())
+        metadata = self._txn.get("__metadata__".encode())
         train_keys = bstr2obj(metadata)["train_keys"]
         valid_keys = bstr2obj(metadata)["valid_keys"]
         self._keys = bstr2obj(metadata)["keys"]
