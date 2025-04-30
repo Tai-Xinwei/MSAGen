@@ -10,7 +10,7 @@ WORK_NAME=MSAGen_OADM_alldata_emb512_enlarge5x_4mode_gptrope
 WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step200000
+STEP_FLAG=global_step350000
 
 DATA_PATH=../msadata
 DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
@@ -26,7 +26,7 @@ DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
 #   echo "Dataset must be proteintest or posebusters"
 #   exit 1
 # fi
-psm_validate_for_train_set=true
+psm_validate_for_train_set=false
 
 if [ "$psm_validate_for_train_set" = true ]; then
     save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_1

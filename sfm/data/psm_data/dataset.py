@@ -3623,7 +3623,9 @@ class AF3_MSAGenDataset(FoundationModelDataset):
         data["msa_len"] = msa_len
         data["unique_id"] = key
         random_start_pos_id = np.random.randint(0, 2000)
-        position_ids = range(random_start_pos_id, random_start_pos_id + ori_seq_len)
+        position_ids = range(
+            random_start_pos_id, random_start_pos_id + len(query_seq_id)
+        )
         data["position_ids"] = torch.tensor(position_ids, dtype=torch.int32)
         return data
 
