@@ -3361,6 +3361,7 @@ class MSAGenDataset(FoundationModelDataset):
         if train_keys is None:
             train_keys = self._txn.get("train_keys".encode("utf-8"))
             valid_keys = self._txn.get("valid_keys".encode("utf-8"))
+            metadata = self._txn.get("kept_ids".encode("utf-8"))
         self._keys = json.loads(metadata.decode("utf-8"))
         self._train_keys = json.loads(train_keys.decode("utf-8"))
         self._valid_keys = json.loads(valid_keys.decode("utf-8"))
