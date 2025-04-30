@@ -191,7 +191,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='AF3msa4uniprot40-20250429.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='af3msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
@@ -232,7 +232,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_af3data_6mode_OADM_1B_normal_2node
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_af3data_6mode_OADM_1B_normal_2node_bsz4_16
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
