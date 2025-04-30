@@ -21,6 +21,10 @@ storage:
     storage_account_name: sfmstoragewestus
     container_name: psm
     mount_dir: /psm
+  eastus:
+    storage_account_name: sfmdataeastus
+    container_name: uniref
+    mount_dir: /uniref
 
 code:
   local_dir: ../PSM
@@ -40,7 +44,6 @@ search:
     - export SHARD_ID={lmdb_id}
     - export N_TASKS=16
     - export WORK_NAME="msas-uniprot"
-    - export SAS="sv=2023-01-03&st=2025-04-28T13%3A11%3A08Z&se=2025-04-29T13%3A11%3A08Z&skoid=269c63c0-8e8a-4109-8178-cf2b14a90e82&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2025-04-28T13%3A11%3A08Z&ske=2025-04-29T13%3A11%3A08Z&sks=b&skv=2023-01-03&sr=c&sp=racwl&sig=0o%2B1L4e%2FnWKu6sQbW9qHBKvb0YnHGdkwXCop3x9mzfY%3D"
     - bash /psm/xinwei/msadata/UniProt/process.sh
     submit_args:
       env:

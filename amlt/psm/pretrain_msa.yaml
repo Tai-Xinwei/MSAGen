@@ -7,15 +7,15 @@
 description: msagen
 
 env_defaults:
-  NODES: 4
+  NODES: 2
   GPUS: 8
   WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
 
 target:
   # service: sing
-  # name: palisades11
+  name: palisades11
   # name: msrresrchvc
-  name: msrresrchlab
+  # name: msrresrchlab
   # name: msroctovc
   # name: quickdevvc
   # name: whitney02
@@ -69,16 +69,16 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: V100-32-af3msa-1B
+- name: A100-16-af3msa-1B
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
-  preemptible: false
+  # preemptible: false
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}
   mpi: true
-  # sla_tier: Standard
+  sla_tier: Standard
   identity: managed
   priority: High
   process_count_per_node: 1

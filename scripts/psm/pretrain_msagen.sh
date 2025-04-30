@@ -45,11 +45,11 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
 # 38M
 [ -z "${layers}" ] && layers=16
-[ -z "${hidden_size}" ] && hidden_size=256
-[ -z "${ffn_size}" ] && ffn_size=1024
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=256
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
 # [ -z "${ffn_size}" ] && ffn_size=2048
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
@@ -99,7 +99,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='../msadata'
+[ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/msa4seqid40'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
@@ -188,15 +188,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_1k_clean.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
+[ -z "${data_path_list}" ] && data_path_list='AF3msa4uniprot40-20250429.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='af3msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
 [ -z "${OADM_row_random}" ] && OADM_row_random=False
-[ -z "${mode}" ] && mode=0 # 0 1 2 3 4, 0 means random mode
+[ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 6, 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
@@ -229,17 +229,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/psm/sfmexpresults/xinwei/MSAGen/MSAGen_OADM_4000_first_claen_1_to_2_enlarge5xbutnogap_emb256/global_step100000/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_debug
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_af3data_6mode_OADM_1B_normal_2node
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa
 [ -z "${wandb_key}" ] && wandb_key=local-4475b85516f93bca7c53acde577024463126c48c
 
-[ -z "${save_dir}" ] && save_dir=/psm/sfmexpresults/xinwei/MSAGen/${wandb_run_name}
+[ -z "${save_dir}" ] && save_dir=/psm/xinwei/sfmexpresults/MSAGen/${wandb_run_name}
 
 random_number=$((RANDOM))
 echo "Random number: ${random_number}"
