@@ -31,7 +31,7 @@ code:
 
 search:
   job_template:
-    name: MSAData_process_msas-uniprot_subset_{lmdb_id}
+    name: MSAData_process_msas-2024-05_subset_{lmdb_id}
     tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
     sku: ${NODES}xC${CPUS}
     mpi: true
@@ -43,7 +43,7 @@ search:
     - pip install nvidia-dali-cuda120
     - export SHARD_ID={lmdb_id}
     - export N_TASKS=16
-    - export WORK_NAME="msas-uniprot"
+    - export WORK_NAME="msas-2024-05"
     - bash /psm/xinwei/msadata/UniProt/process.sh
     submit_args:
       env:
