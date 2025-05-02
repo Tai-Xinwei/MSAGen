@@ -484,7 +484,7 @@ class MSAGenModel(Model):
                         .repeat(B, self.cut_off, 1)
                     )
                 batched_data["128_msa_token_type"] = torch.full(
-                    (B, self.cut_off, L), 27
+                    (B, self.cut_off, L), 27, device=device
                 )  # B,D,L 27means mask
                 if clean_mask is not None:
                     batched_data["128_msa_token_type"][:, :min_D, :] = torch.where(

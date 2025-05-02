@@ -36,20 +36,28 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
-#85M
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=768
-# [ -z "${ffn_size}" ] && ffn_size=3072
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
-# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
-# 38M
-[ -z "${layers}" ] && layers=16
-[ -z "${hidden_size}" ] && hidden_size=512
-[ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+#100M
+# [ -z "${layers}" ] && layers=16
+# [ -z "${hidden_size}" ] && hidden_size=512
+# [ -z "${ffn_size}" ] && ffn_size=2048
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+# 600M
+# [ -z "${layers}" ] && layers=24
+# [ -z "${hidden_size}" ] && hidden_size=1024
+# [ -z "${ffn_size}" ] && ffn_size=4096
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=24
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=4096
+
+#1B
+[ -z "${layers}" ] && layers=24
+[ -z "${hidden_size}" ] && hidden_size=1280
+[ -z "${ffn_size}" ] && ffn_size=5120
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=24
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1280
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=5120
 # [ -z "${ffn_size}" ] && ffn_size=2048
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
@@ -99,7 +107,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/UniProt'
+[ -z "${data_path}" ] && data_path='../msadata'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
@@ -191,7 +199,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
@@ -232,8 +240,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_4mode_OADM_1B_normal_1node_bsz8_8_norandom
-# [ -z "${wandb_run_name}" ] && wandb_run_name=debug
+#[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_4mode_OADM_1B_normal_1node_bsz8_8_norandom
+[ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa

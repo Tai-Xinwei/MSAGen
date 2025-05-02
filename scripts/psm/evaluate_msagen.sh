@@ -12,7 +12,7 @@ WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen/$WORK_NAME
 
 STEP_FLAG=global_step200000
 
-DATA_PATH=/psm/xinwei/msadata/UniProt
+DATA_PATH=../msadata
 DATA_LMDB=msas-uniprot.lmdb
 # DATA_LMDB=posebusters-428structures-20250221-670e6562.removeLIGs.removeHs.lmdb
 
@@ -29,9 +29,9 @@ DATA_LMDB=msas-uniprot.lmdb
 psm_validate_for_train_set=false
 
 if [ "$psm_validate_for_train_set" = true ]; then
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_6
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_1
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_6
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_1
 fi
 
 master_port=7777
@@ -61,7 +61,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   random_select_msa=false \
   save_dir=$save_dir \
   keep_clean_num=2 \
-  mode=6 \
+  mode=1 \
   OADM_row_random=true \
   # sample_ligand_only=true \
 
