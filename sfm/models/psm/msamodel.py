@@ -267,6 +267,9 @@ class MSAGenModel(Model):
         elif mode == 5:
             self.psm_config.keep_clean_num = 16  # mode4: 16->16
             self.cut_off = 32
+        elif mode == 6:
+            self.psm_config.keep_clean_num = 32  # mode4: 32->32
+            self.cut_off = 64
 
         batched_data["128_msa_token_type"] = batched_data["msa_token_type"][
             :, : self.cut_off, :
@@ -480,8 +483,8 @@ class MSAGenModel(Model):
                         .unsqueeze(0)
                         .repeat(B, self.cut_off, 1)
                     )
-                batched_data["128_msa_token_type"] = torch.full_like(
-                    batched_data["128_msa_token_type"], 27
+                batched_data["128_msa_token_type"] = torch.full(
+                    (B, self.cut_off, L), 27
                 )  # B,D,L 27means mask
                 if clean_mask is not None:
                     batched_data["128_msa_token_type"][:, :min_D, :] = torch.where(

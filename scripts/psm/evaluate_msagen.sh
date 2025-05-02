@@ -5,15 +5,15 @@
 MODEL_CONFIG=config_msagen_1B
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=MSAGen_OADM_alldata_emb512_enlarge5x_4mode_gptrope
+WORK_NAME=MSAGen_uniprotdata_6mode_OADM_1B_normal_1node_bsz2_4_8_norandom
 
-WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/$WORK_NAME
+WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step350000
+STEP_FLAG=global_step200000
 
-DATA_PATH=../msadata
-DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
+DATA_PATH=/psm/xinwei/msadata/UniProt
+DATA_LMDB=msas-uniprot.lmdb
 # DATA_LMDB=posebusters-428structures-20250221-670e6562.removeLIGs.removeHs.lmdb
 
 # if [[ $DATA_LMDB == *"proteintest"* ]]; then
@@ -29,9 +29,9 @@ DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
 psm_validate_for_train_set=false
 
 if [ "$psm_validate_for_train_set" = true ]; then
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_1
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_6
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_1
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_6
 fi
 
 master_port=7777
@@ -61,7 +61,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   random_select_msa=false \
   save_dir=$save_dir \
   keep_clean_num=2 \
-  mode=1 \
+  mode=6 \
   OADM_row_random=true \
   # sample_ligand_only=true \
 
