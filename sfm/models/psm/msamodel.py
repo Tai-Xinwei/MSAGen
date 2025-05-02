@@ -810,12 +810,12 @@ class MSAGenModel(Model):
         pre forward operation
         """
         if self.psm_config.mode == 0:
-            # probs = torch.tensor(
-            #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
-            # )
             probs = torch.tensor(
-                [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+                [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
             )
+            # probs = torch.tensor(
+            #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+            # )
             idx = torch.multinomial(probs, num_samples=1).item()
             mode = idx + 1
         else:

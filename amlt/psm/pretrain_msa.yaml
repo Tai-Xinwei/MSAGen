@@ -7,7 +7,7 @@
 description: msagen
 
 env_defaults:
-  NODES: 2
+  NODES: 1
   GPUS: 8
   WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
 
@@ -69,7 +69,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: A100-8-uniprotmsa-4B_norandom_4mode
+- name: A100-8-uniprotmsa-1B_6mode_norank
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
