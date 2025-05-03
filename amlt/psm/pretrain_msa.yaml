@@ -69,7 +69,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: A100-8-uniprotmsa-1B_6mode_norank
+- name: A100-8-uniprotmsa-1B_6mode_rank
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
