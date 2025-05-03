@@ -96,7 +96,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -199,7 +199,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
@@ -240,7 +240,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_norank_6mode_OADM_1B_normal_bsz128
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_norank_6mode_OADM_1B_normal_bsz64
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
