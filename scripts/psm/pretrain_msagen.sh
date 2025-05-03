@@ -73,8 +73,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_head}" ] && num_head=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=384
-[ -z "${max_residue_num}" ] && max_residue_num=384
+[ -z "${max_length}" ] && max_length=256
+[ -z "${max_residue_num}" ] && max_residue_num=256
 [ -z "${ligand_crop_size}" ] && ligand_crop_size=20.0
 [ -z "${max_tokens}" ] && max_tokens=2000
 [ -z "${plddt_threshold}" ] && plddt_threshold=60.0
@@ -196,7 +196,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='msas-uniprot-ranked.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
@@ -233,14 +233,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${bf16}" ] && bf16=True
+[ -z "${bf16}" ] && bf16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_rank_6mode_OADM_1B_normal_bsz64
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_rank_6mode_OADM_1B_normal_bsz64_fp32_256
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm

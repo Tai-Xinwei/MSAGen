@@ -5,12 +5,12 @@
 MODEL_CONFIG=config_msagen_1B
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=MSAGen_uniprotdata_6mode_OADM_1B_normal_1node_bsz2_4_8_norandom
+WORK_NAME=MSAGen_uniprotdata_norank_6mode_OADM_1B_normal_bsz64
 
-WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen/$WORK_NAME
+WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen_v2/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step200000
+STEP_FLAG=global_step30000
 
 DATA_PATH=../msadata
 DATA_LMDB=msas-uniprot.lmdb
@@ -26,7 +26,7 @@ DATA_LMDB=msas-uniprot.lmdb
 #   echo "Dataset must be proteintest or posebusters"
 #   exit 1
 # fi
-psm_validate_for_train_set=false
+psm_validate_for_train_set=true
 
 if [ "$psm_validate_for_train_set" = true ]; then
     save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_1
