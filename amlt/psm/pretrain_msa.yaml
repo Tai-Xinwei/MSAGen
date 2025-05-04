@@ -69,7 +69,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: A100-8-uniprotmsa-1B_6mode_norank_fp32_256
+- name: Mi300-8-uniprotmsa-1B_6mode_norank_fp32_384_noenlarge
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:

@@ -36,20 +36,28 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
 # [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=1024
-#85M
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=768
-# [ -z "${ffn_size}" ] && ffn_size=3072
-# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=12
-# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=768
-# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=768
-# 38M
-[ -z "${layers}" ] && layers=16
-[ -z "${hidden_size}" ] && hidden_size=512
-[ -z "${ffn_size}" ] && ffn_size=2048
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
-[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
-[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+#100M
+# [ -z "${layers}" ] && layers=16
+# [ -z "${hidden_size}" ] && hidden_size=512
+# [ -z "${ffn_size}" ] && ffn_size=2048
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=2048
+# 600M
+# [ -z "${layers}" ] && layers=24
+# [ -z "${hidden_size}" ] && hidden_size=1024
+# [ -z "${ffn_size}" ] && ffn_size=4096
+# [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=24
+# [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1024
+# [ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=4096
+
+#1B
+[ -z "${layers}" ] && layers=24
+[ -z "${hidden_size}" ] && hidden_size=1280
+[ -z "${ffn_size}" ] && ffn_size=5120
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=24
+[ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=1280
+[ -z "${decoder_ffn_dim}" ] && decoder_ffn_dim=5120
 # [ -z "${ffn_size}" ] && ffn_size=2048
 # [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=8
 # [ -z "${decoder_hidden_dim}" ] && decoder_hidden_dim=512
@@ -88,7 +96,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -99,8 +107,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='../msadata'
-
+# [ -z "${data_path}" ] && data_path='../msadata'
+[ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/UniProt'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -188,15 +196,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='protein_msa_40_0.1_1k_clean.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 [ -z "${cutoff}" ] && cutoff=2
-[ -z "${random_select_msa}"] && random_select_msa=True
+[ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
 [ -z "${OADM_row_random}" ] && OADM_row_random=False
-[ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 , 0 means random mode
+[ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 6, 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
@@ -225,21 +233,21 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${bf16}" ] && bf16=True
+[ -z "${bf16}" ] && bf16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/psm/sfmexpresults/xinwei/MSAGen/MSAGen_OADM_alldata_emb512_enlarge5x_4mode_randomrow/global_step350000/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_ftOADMalldata_35w_1b_random_5mode_random_select
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_norank_6mode_OADM_1B_normal_bsz64_fp32_384
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa
 [ -z "${wandb_key}" ] && wandb_key=local-4475b85516f93bca7c53acde577024463126c48c
 
-[ -z "${save_dir}" ] && save_dir=/psm/sfmexpresults/xinwei/MSAGen/${wandb_run_name}
+[ -z "${save_dir}" ] && save_dir=/psm/xinwei/sfmexpresults/MSAGen_v2/${wandb_run_name}
 
 random_number=$((RANDOM))
 echo "Random number: ${random_number}"
@@ -293,6 +301,7 @@ echo "Random number: ${random_number}"
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
 [ -z "${unified_data_num_workers}" ] && unified_data_num_workers=1
+
 
 
 echo -e "\n\n"
@@ -438,4 +447,5 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_msage
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
           cutoff=$cutoff random_select_msa=$random_select_msa keep_clean_num=$keep_clean_num OADM_row_random=$OADM_row_random mode=$mode \
           # ifresume=True \
+
 sleep infinity
