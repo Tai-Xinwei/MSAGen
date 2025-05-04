@@ -73,8 +73,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_head}" ] && num_head=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=256
-[ -z "${max_residue_num}" ] && max_residue_num=256
+[ -z "${max_length}" ] && max_length=384
+[ -z "${max_residue_num}" ] && max_residue_num=384
 [ -z "${ligand_crop_size}" ] && ligand_crop_size=20.0
 [ -z "${max_tokens}" ] && max_tokens=2000
 [ -z "${plddt_threshold}" ] && plddt_threshold=60.0
@@ -196,7 +196,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='msas-uniprot-ranked.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
@@ -204,7 +204,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
 [ -z "${OADM_row_random}" ] && OADM_row_random=False
-[ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 6, 0 means random mode
+[ -z "${mode}" ] && mode=1 # 0 1 2 3 4 5 6, 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
@@ -240,7 +240,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_rank_6mode_OADM_1B_normal_bsz64_fp32_256
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_ranked_mode1_OADM_1B_normal
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
