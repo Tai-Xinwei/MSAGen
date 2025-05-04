@@ -1134,24 +1134,31 @@ class MSAGenModel(Model):
             return loss, ce_loss.mean(), kl_loss.mean()
         else:
             # OADM
-            ce_loss = self.noise_loss(pred[filter_mask], label[filter_mask].long())
+            ce_loss = self.noise_loss(pred.permute(0, 3, 1, 2), label.long())
             differ_mask = ~(
                 batched_data["ori_128_msa_token_type"]
                 == batched_data["token_type"].unsqueeze(1)
-            )[
-                filter_mask
-            ]  # true means differ
+            )  # true means differ
             # if differ, enlarge the loss, except for gap
-            differ_mask = differ_mask & ~is_gap[filter_mask]
+            differ_mask = differ_mask & ~is_gap
             ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
             # reweight
             non_pad_counts = (~padding_mask).sum(dim=-1, keepdim=True)
-            non_pad_counts = non_pad_counts.expand_as(padding_mask).float()[filter_mask]
-            weights = non_pad_counts * (1.0 / time_step[filter_mask] + 1e-5)
-            final_ce_loss = ce_loss * weights
+            non_pad_counts = non_pad_counts.expand_as(padding_mask).float()
+            # print("counts",non_pad_counts)
+            # print("time",time_step)
+            weights = non_pad_counts * (1.0 / (time_step + 1e-5))
+            # print(ce_loss)
+            # print(weights)
+            final_ce_loss = ce_loss * weights  # B D L
+            final_ce_loss = final_ce_loss * filter_mask.float()
+            # first sample-internal mean and then cross-sample mean
+            valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
+            per_sample_loss = final_ce_loss.sum(dim=(1, 2)) / valid_counts  # B
+            loss = per_sample_loss.mean()
+            mean_ce = ce_loss[filter_mask].mean()
             kl_loss = torch.tensor(0.0, requires_grad=True)
-            loss = final_ce_loss.mean()
-            return loss, ce_loss.mean(), kl_loss
+            return loss, mean_ce, kl_loss
             # differ_mask = differ_mask & ~is_gap[filter_mask]
 
     def compute_cross_entropy_loss(self, logits, target, filter_mask):
