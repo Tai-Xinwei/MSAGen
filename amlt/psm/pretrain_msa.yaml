@@ -69,16 +69,16 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: A100-8-uniprotmsa-1B-mode1-ranked-normal-bsz8_2-fixloss
+- name: A100-8node-suniprot-1B-mode1-normal-fixloss-sqrtD
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
-  # preemptible: false
+  preemptible: false
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}
   mpi: true
-  sla_tier: Standard
+  # sla_tier: Standard
   identity: managed
   priority: High
   process_count_per_node: 1

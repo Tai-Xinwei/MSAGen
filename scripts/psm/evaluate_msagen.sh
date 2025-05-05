@@ -13,7 +13,7 @@ WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen_v2/$WORK_NAME
 STEP_FLAG=global_step30000
 
 DATA_PATH=../msadata
-DATA_LMDB=msas-uniprot.lmdb
+DATA_LMDB=msas-uniprot-ranked.lmdb
 # DATA_LMDB=posebusters-428structures-20250221-670e6562.removeLIGs.removeHs.lmdb
 
 # if [[ $DATA_LMDB == *"proteintest"* ]]; then
@@ -61,7 +61,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   random_select_msa=false \
   save_dir=$save_dir \
   keep_clean_num=2 \
-  mode=1 \
+  mode=4 \
   OADM_row_random=true \
   # sample_ligand_only=true \
 

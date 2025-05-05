@@ -242,8 +242,11 @@ class MSAGenModel(Model):
             token_id, dtype=torch.bool, device=device
         )
         if self.psm_config.mode == 0:
+            # probs = torch.tensor(
+            #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
+            # )
             probs = torch.tensor(
-                [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
+                [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
             )
             idx = torch.multinomial(probs, num_samples=1).item()
             mode = idx + 1
@@ -810,12 +813,12 @@ class MSAGenModel(Model):
         pre forward operation
         """
         if self.psm_config.mode == 0:
-            probs = torch.tensor(
-                [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
-            )
             # probs = torch.tensor(
-            #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+            #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
             # )
+            probs = torch.tensor(
+                [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+            )
             idx = torch.multinomial(probs, num_samples=1).item()
             mode = idx + 1
         else:
@@ -1147,7 +1150,7 @@ class MSAGenModel(Model):
             non_pad_counts = non_pad_counts.expand_as(padding_mask).float()
             # print("counts",non_pad_counts)
             # print("time",time_step)
-            weights = non_pad_counts * (1.0 / (time_step + 1e-5))
+            weights = torch.sqrt(non_pad_counts) * (1.0 / (time_step + 1e-5))
             # print(ce_loss)
             # print(weights)
             final_ce_loss = ce_loss * weights  # B D L
@@ -1157,6 +1160,12 @@ class MSAGenModel(Model):
             per_sample_loss = final_ce_loss.sum(dim=(1, 2)) / valid_counts  # B
             loss = per_sample_loss.mean()
             mean_ce = ce_loss[filter_mask].mean()
+            if torch.isnan(mean_ce):
+                mean_ce = torch.tensor(
+                    0.0, device=mean_ce.device, requires_grad=True
+                )  # in case of filter_mask all false
+            # print(ce_loss)
+            # print(ce_loss[filter_mask])
             kl_loss = torch.tensor(0.0, requires_grad=True)
             return loss, mean_ce, kl_loss
             # differ_mask = differ_mask & ~is_gap[filter_mask]

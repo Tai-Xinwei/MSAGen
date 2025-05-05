@@ -94,8 +94,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=1024
+[ -z "${train_batch_size}" ] && train_batch_size=2048
+[ -z "${val_batch_size}" ] && val_batch_size=2048
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
@@ -233,14 +233,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${bf16}" ] && bf16=False
+[ -z "${bf16}" ] && bf16=True
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_ranked_mode1_OADM_1B_normal_fixloss_8_2
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprot-ranked_mode1_OADM_1B_normal_fixloss_sqrtD_8_2
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
