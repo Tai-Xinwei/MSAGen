@@ -831,13 +831,13 @@ class MSAGenModel(Model):
             self.cut_off = 2
         elif mode == 2:
             self.psm_config.keep_clean_num = 2  # mode2: 2->2
-            self.cut_off = 4
+            self.cut_off = 3
         elif mode == 3:
-            self.psm_config.keep_clean_num = 4  # mode3: 4->4
-            self.cut_off = 8
+            self.psm_config.keep_clean_num = 3  # mode3: 4->4
+            self.cut_off = 4
         elif mode == 4:
-            self.psm_config.keep_clean_num = 8  # mode4: 8->8
-            self.cut_off = 16
+            self.psm_config.keep_clean_num = 4  # mode4: 8->8
+            self.cut_off = 5
         elif mode == 5:
             self.psm_config.keep_clean_num = 16  # mode5: 16->16
             self.cut_off = 32
