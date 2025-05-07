@@ -869,6 +869,13 @@ class MSADiffusionModule(nn.Module):
             nn.SiLU(),
             nn.Linear(psm_config.embedding_dim // 2, 27, bias=False),
         )
+        self.binary_proj = nn.Sequential(
+            nn.Linear(
+                psm_config.embedding_dim, psm_config.embedding_dim // 2, bias=False
+            ),
+            nn.SiLU(),
+            nn.Linear(psm_config.embedding_dim // 2, 1, bias=False),
+        )
 
     def add_2d_positional_encoding(self, x):
         """
@@ -985,9 +992,10 @@ class MSADiffusionModule(nn.Module):
                 ifbackprop=ifbackprop,
             )
         x0_pred = self.out_proj(x)
+        mutation_pred = self.binary_proj(x)
         # if len(x0_pred.shape) == 3:
         #     x0_pred = x0_pred.unsqueeze(1)
-        return x0_pred
+        return x0_pred, mutation_pred
 
     # def _predict_x0(
     #     self,

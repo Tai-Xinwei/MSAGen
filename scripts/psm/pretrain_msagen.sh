@@ -96,7 +96,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=2048
 [ -z "${val_batch_size}" ] && val_batch_size=2048
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -199,7 +199,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='msas-uniprot-ranked.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
@@ -240,7 +240,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprot-ranked_4mode_OADM_1B_normal_fixloss_sqrtD_total1024
+[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen-OADM1B-12345-4mode-uniprot-noenlarge-addbceloss
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
@@ -378,7 +378,7 @@ export OMP_NUM_THREADS=16
 
 # cp sfm/utils/barrier.py . && touch READY && python barrier_amd.py $OMPI_COMM_WORLD_SIZE $OMPI_COMM_WORLD_RANK
 
-DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_msagen.py \
+DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS --master-port 7777 sfm/tasks/psm/pretrain_msagen.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
           backbone=$backbone \

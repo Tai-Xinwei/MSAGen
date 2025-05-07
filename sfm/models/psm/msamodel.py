@@ -260,13 +260,13 @@ class MSAGenModel(Model):
             self.cut_off = 2
         elif mode == 2:
             self.psm_config.keep_clean_num = 2  # mode2: 2->2
-            self.cut_off = 4
+            self.cut_off = 3
         elif mode == 3:
-            self.psm_config.keep_clean_num = 4  # mode3: 4->4
-            self.cut_off = 8
+            self.psm_config.keep_clean_num = 3  # mode3: 4->4
+            self.cut_off = 4
         elif mode == 4:
-            self.psm_config.keep_clean_num = 8  # mode4: 8->8
-            self.cut_off = 16
+            self.psm_config.keep_clean_num = 4  # mode4: 8->8
+            self.cut_off = 5
         elif mode == 5:
             self.psm_config.keep_clean_num = 16  # mode4: 16->16
             self.cut_off = 32
@@ -1030,6 +1030,7 @@ class MSAGenModel(Model):
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
         noise_pred = model_output["noise_pred"]
+        mutation_pred = model_output["mutation_pred"]
         filter_mask = ~batched_data["clean_mask"]  # B D L
         B, D, L = batched_data["128_2D_padding_mask"].size()
         is_gap = batched_data["ori_128_msa_token_type"] == 26
@@ -1047,9 +1048,15 @@ class MSAGenModel(Model):
             )
         elif self.psm_config.diffusion_mode in ["diff-lm", "OADM"]:
             noise_label = batched_data["ori_128_msa_token_type"]
-            diffusion_loss, diff_celoss, recons_loss = self.compute_diff_loss(
+            (
+                diffusion_loss,
+                diff_celoss,
+                recons_loss,
+                diff_bceloss,
+            ) = self.compute_diff_loss(
                 noise_label,
                 noise_pred,
+                mutation_pred,
                 is_gap,
                 1.0,
                 "L2",
@@ -1078,6 +1085,7 @@ class MSAGenModel(Model):
         logging_output = {
             "total_loss": float(loss.detach()),
             "diffusion_loss": float(diffusion_loss.detach()),
+            "diffusion_bce_loss": float(diff_bceloss.detach()),
             # "diffusion_kl_loss": float(diffusion_kl_loss.detach()),
             "diffusion_ce_loss": float(diff_celoss.detach()),
             "recons_loss": float(recons_loss.detach()),
@@ -1093,6 +1101,7 @@ class MSAGenModel(Model):
         self,
         label,
         pred,
+        mutation_pred,
         is_gap,
         gap_weight,
         loss_type="L1",
@@ -1143,31 +1152,37 @@ class MSAGenModel(Model):
                 == batched_data["token_type"].unsqueeze(1)
             )  # true means differ
             # if differ, enlarge the loss, except for gap
-            differ_mask = differ_mask & ~is_gap
-            ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
+            differ_mask = differ_mask  # & ~is_gap
+            # ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
+            bce_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                mutation_pred.squeeze(-1), differ_mask.float(), reduction="none"
+            )
+
             # reweight
             non_pad_counts = (~padding_mask).sum(dim=-1, keepdim=True)
             non_pad_counts = non_pad_counts.expand_as(padding_mask).float()
-            # print("counts",non_pad_counts)
-            # print("time",time_step)
-            weights = torch.sqrt(non_pad_counts) * (1.0 / (time_step + 1e-5))
-            # print(ce_loss)
-            # print(weights)
-            final_ce_loss = ce_loss * weights  # B D L
-            final_ce_loss = final_ce_loss * filter_mask.float()
+            weights = non_pad_counts * (1.0 / (time_step + 1e-5))
+            total_loss = ce_loss + bce_loss
+            reweight_loss = ce_loss * weights  # B D L
+            reweight_loss = reweight_loss * filter_mask.float()
             # first sample-internal mean and then cross-sample mean
             valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
-            per_sample_loss = final_ce_loss.sum(dim=(1, 2)) / valid_counts  # B
+            per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts  # B
             loss = per_sample_loss.mean()
             mean_ce = ce_loss[filter_mask].mean()
+            mean_bce_loss = bce_loss[filter_mask].mean()
             if torch.isnan(mean_ce):
                 mean_ce = torch.tensor(
+                    0.0, device=mean_ce.device, requires_grad=True
+                )  # in case of filter_mask all false
+            if torch.isnan(mean_bce_loss):
+                mean_bce_loss = torch.tensor(
                     0.0, device=mean_ce.device, requires_grad=True
                 )  # in case of filter_mask all false
             # print(ce_loss)
             # print(ce_loss[filter_mask])
             kl_loss = torch.tensor(0.0, requires_grad=True)
-            return loss, mean_ce, kl_loss
+            return loss, mean_ce, kl_loss, mean_bce_loss
             # differ_mask = differ_mask & ~is_gap[filter_mask]
 
     def compute_cross_entropy_loss(self, logits, target, filter_mask):
@@ -1268,7 +1283,7 @@ class MSAGen(nn.Module):
         else:
             msa_embedding = batched_data["128_msa_one_hot"].clone()
 
-        noise_pred = self.decoder(
+        noise_pred, mutation_pred = self.decoder(
             batched_data,
             msa_embedding,
             # encoder_x.transpose(0, 1)
@@ -1291,6 +1306,7 @@ class MSAGen(nn.Module):
         # aa_logits = self.aa_mask_head(encoder_x)
         result_dict = {
             "noise_pred": noise_pred,
+            "mutation_pred": mutation_pred,
             # "aa_logits": aa_logits.transpose(0, 1),
             # # "true_prob": batched_data["true_prob"],
             # "model_prob": model_prob,
