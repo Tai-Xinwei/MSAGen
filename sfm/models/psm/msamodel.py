@@ -124,6 +124,7 @@ class MSAGenModel(Model):
 
         elif self.psm_config.diffusion_mode in ["diff-lm", "OADM"]:
             self.noise_loss = nn.CrossEntropyLoss(reduction="none")
+            self.bce_loss = nn.BCEWithLogitsLoss(reduction="none")
 
         self.diffnoise = DiffNoise(self.psm_config)
 
@@ -1080,7 +1081,7 @@ class MSAGenModel(Model):
             B, D, L, 27, device=batched_data["msa_token_type"].device
         ).float()
 
-        loss = diffusion_loss  # + kl_loss
+        loss = diffusion_loss  # + diff_bceloss  # + kl_loss
         # loss += cross_entropy_loss
         logging_output = {
             "total_loss": float(loss.detach()),
@@ -1154,16 +1155,14 @@ class MSAGenModel(Model):
             # if differ, enlarge the loss, except for gap
             differ_mask = differ_mask  # & ~is_gap
             # ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
-            bce_loss = torch.nn.functional.binary_cross_entropy_with_logits(
-                mutation_pred.squeeze(-1), differ_mask.float(), reduction="none"
-            )
+            bce_loss = self.bce_loss(mutation_pred.squeeze(-1), differ_mask.float())
 
             # reweight
             non_pad_counts = (~padding_mask).sum(dim=-1, keepdim=True)
             non_pad_counts = non_pad_counts.expand_as(padding_mask).float()
             weights = non_pad_counts * (1.0 / (time_step + 1e-5))
             total_loss = ce_loss + bce_loss
-            reweight_loss = ce_loss * weights  # B D L
+            reweight_loss = total_loss * weights  # B D L
             reweight_loss = reweight_loss * filter_mask.float()
             # first sample-internal mean and then cross-sample mean
             valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
