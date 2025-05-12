@@ -5,15 +5,15 @@
 MODEL_CONFIG=config_msagen_1B
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=MSAGen_smalldata-ranked_4mode_OADM_1B_normal_fixloss_sqrtD
+WORK_NAME=uniprot-4-1-lr_2e-5_enlarge
 
 WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen_v2/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step3680
+STEP_FLAG=global_step80000
 
 DATA_PATH=../msadata
-DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
+DATA_LMDB=msas-uniprot-ranked.lmdb
 # DATA_LMDB=posebusters-428structures-20250221-670e6562.removeLIGs.removeHs.lmdb
 
 # if [[ $DATA_LMDB == *"proteintest"* ]]; then
@@ -29,11 +29,11 @@ DATA_LMDB=protein_msa_40_0.1_1k_clean.lmdb
 psm_validate_for_train_set=true
 
 if [ "$psm_validate_for_train_set" = true ]; then
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_1
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_3-1
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_1
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_3-1
 fi
-
+# save_dir=./output/msas-uniprot-easyrank-subset/
 master_port=7777
 
 DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_msagen.py \
@@ -61,7 +61,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   random_select_msa=false \
   save_dir=$save_dir \
   keep_clean_num=2 \
-  mode=1 \
+  mode=4 \
   OADM_row_random=true \
   # sample_ligand_only=true \
 
