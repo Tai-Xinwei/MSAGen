@@ -247,7 +247,7 @@ class MSAGenModel(Model):
             #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
             # )
             probs = torch.tensor(
-                [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+                [0.60, 0.20, 0.10, 0.10, 0.0, 0.0], dtype=torch.float, device="cpu"
             )
             idx = torch.multinomial(probs, num_samples=1).item()
             mode = idx + 1
@@ -818,7 +818,7 @@ class MSAGenModel(Model):
             #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
             # )
             probs = torch.tensor(
-                [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+                [0.60, 0.20, 0.10, 0.10, 0.0, 0.0], dtype=torch.float, device="cpu"
             )
             idx = torch.multinomial(probs, num_samples=1).item()
             mode = idx + 1
@@ -1153,7 +1153,8 @@ class MSAGenModel(Model):
                 == batched_data["token_type"].unsqueeze(1)
             )  # true means differ
             # if differ, enlarge the loss, except for gap
-            differ_mask = differ_mask  # & ~is_gap
+            differ_mask = differ_mask & ~is_gap
+            same_mask = (~differ_mask) & ~is_gap
             # ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
             bce_loss = self.bce_loss(mutation_pred.squeeze(-1), differ_mask.float())
 
@@ -1164,9 +1165,34 @@ class MSAGenModel(Model):
             total_loss = ce_loss + bce_loss
             reweight_loss = total_loss * weights  # B D L
             reweight_loss = reweight_loss * filter_mask.float()
-            # first sample-internal mean and then cross-sample mean
-            valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
-            per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts  # B
+            # first sample-internal mean and then cross-sample mean and according mask to mean
+            counts_diff = (
+                (differ_mask & filter_mask).sum(dim=2).clamp(min=1).float()
+            )  # (B,D)
+            counts_same = (
+                (same_mask & filter_mask).sum(dim=2).clamp(min=1).float()
+            )  # (B,D)
+            counts_gap = (is_gap & filter_mask).sum(dim=2).clamp(min=1).float()  # (B,D)
+
+            sum_diff = (reweight_loss * (differ_mask & filter_mask).float()).sum(
+                dim=2
+            )  # (B,D)
+            sum_same = (reweight_loss * (same_mask & filter_mask).float()).sum(
+                dim=2
+            )  # (B,D)
+            sum_gap = (reweight_loss * (is_gap & filter_mask).float()).sum(
+                dim=2
+            )  # (B,D)
+
+            mean_diff = sum_diff / counts_diff  # (B,D)
+            mean_same = sum_same / counts_same  # (B,D)
+            mean_gap = sum_gap / counts_gap  # (B,D)
+
+            per_row_loss = torch.stack([mean_diff, mean_same, mean_gap], dim=-1).mean(
+                dim=-1
+            )  # (B,D)
+            # valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
+            per_sample_loss = per_row_loss.mean(dim=1)  # B
             loss = per_sample_loss.mean()
             mean_ce = ce_loss[filter_mask].mean()
             mean_bce_loss = bce_loss[filter_mask].mean()
