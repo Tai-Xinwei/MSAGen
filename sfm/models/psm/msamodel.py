@@ -1162,7 +1162,7 @@ class MSAGenModel(Model):
             non_pad_counts = (~padding_mask).sum(dim=-1, keepdim=True)
             non_pad_counts = non_pad_counts.expand_as(padding_mask).float()
             weights = non_pad_counts * (1.0 / (time_step + 1e-5))
-            total_loss = ce_loss + bce_loss
+            total_loss = ce_loss  # + bce_loss
             reweight_loss = total_loss * weights  # B D L
             reweight_loss = reweight_loss * filter_mask.float()
             # first sample-internal mean and then cross-sample mean and according mask to mean
@@ -1184,7 +1184,7 @@ class MSAGenModel(Model):
                 dim=2
             )  # (B,D)
 
-            mean_diff = sum_diff / counts_diff  # (B,D)
+            mean_diff = 5.0 * (sum_diff / counts_diff)  # (B,D)
             mean_same = sum_same / counts_same  # (B,D)
             mean_gap = sum_gap / counts_gap  # (B,D)
 

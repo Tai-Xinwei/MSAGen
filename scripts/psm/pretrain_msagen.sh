@@ -96,7 +96,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=2048
 [ -z "${val_batch_size}" ] && val_batch_size=2048
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -196,14 +196,14 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='msas-uniprot-easyrank-subset.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
-[ -z "${OADM_row_random}" ] && OADM_row_random=False
+[ -z "${OADM_row_random}" ] && OADM_row_random=false
 [ -z "${mode}" ] && mode=1 # 0 1 2 3 4 5 6, 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
@@ -240,7 +240,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-norank50w-1B-1to32-avg-addbceloss-total512-lr2e-5
+[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-easyrank-1B-mode1-avgbut5xdiff-total2048-lr2e-5
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
