@@ -5,15 +5,15 @@
 MODEL_CONFIG=config_msagen_1B
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=uniprot-eanyrank-1B-mode1-avg-addbceloss-total2048-lr2e-5
+WORK_NAME=uniprot-random-1-1-lr2e-5
 
 WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen_v2/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step1464
+STEP_FLAG=global_step80000
 
-DATA_PATH=../msadata
-DATA_LMDB=msas-uniprot-easyrank-subset.lmdb
+DATA_PATH=/datadisk
+DATA_LMDB=msas-uniprot.lmdb
 # DATA_LMDB=posebusters-428structures-20250221-670e6562.removeLIGs.removeHs.lmdb
 
 # if [[ $DATA_LMDB == *"proteintest"* ]]; then

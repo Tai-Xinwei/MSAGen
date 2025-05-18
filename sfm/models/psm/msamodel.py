@@ -1184,15 +1184,16 @@ class MSAGenModel(Model):
                 dim=2
             )  # (B,D)
 
-            mean_diff = 5.0 * (sum_diff / counts_diff)  # (B,D)
+            mean_diff = sum_diff / counts_diff  # (B,D)
             mean_same = sum_same / counts_same  # (B,D)
-            mean_gap = sum_gap / counts_gap  # (B,D)
+            mean_gap = 0.1 * (sum_gap / counts_gap)  # (B,D)
 
             per_row_loss = torch.stack([mean_diff, mean_same, mean_gap], dim=-1).mean(
                 dim=-1
             )  # (B,D)
             # valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
             per_sample_loss = per_row_loss.mean(dim=1)  # B
+            # per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts
             loss = per_sample_loss.mean()
             mean_ce = ce_loss[filter_mask].mean()
             mean_bce_loss = bce_loss[filter_mask].mean()

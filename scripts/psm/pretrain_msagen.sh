@@ -199,7 +199,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='msas-uniprot-easyrank-subset.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
 [ -z "${cutoff}" ] && cutoff=2
 [ -z "${random_select_msa}"] && random_select_msa=False
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
@@ -240,7 +240,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-easyrank-1B-mode1-avgbut5xdiff-total2048-lr2e-5
+[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-easyrank-1B-mode1-enlarge5xbutnogap-total2048-lr2e-5
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
