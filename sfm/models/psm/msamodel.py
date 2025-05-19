@@ -1155,7 +1155,7 @@ class MSAGenModel(Model):
             # if differ, enlarge the loss, except for gap
             differ_mask = differ_mask & ~is_gap
             same_mask = (~differ_mask) & ~is_gap
-            # ce_loss = ce_loss * (1 + 4.0 * differ_mask.float())
+            ce_loss = ce_loss * (1 + 1.0 * differ_mask.float())
             bce_loss = self.bce_loss(mutation_pred.squeeze(-1), differ_mask.float())
 
             # reweight
@@ -1188,12 +1188,10 @@ class MSAGenModel(Model):
             mean_same = sum_same / counts_same  # (B,D)
             mean_gap = 0.1 * (sum_gap / counts_gap)  # (B,D)
 
-            per_row_loss = torch.stack([mean_diff, mean_same, mean_gap], dim=-1).mean(
-                dim=-1
-            )  # (B,D)
-            # valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
-            per_sample_loss = per_row_loss.mean(dim=1)  # B
-            # per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts
+            torch.stack([mean_diff, mean_same, mean_gap], dim=-1).mean(dim=-1)  # (B,D)
+            valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
+            # per_sample_loss = per_row_loss.mean(dim=1)  # B
+            per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts
             loss = per_sample_loss.mean()
             mean_ce = ce_loss[filter_mask].mean()
             mean_bce_loss = bce_loss[filter_mask].mean()

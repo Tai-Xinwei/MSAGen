@@ -69,7 +69,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: p11stan-1node-uniprot-easyrank-1B-mode1-enlarge5xbutnogap-total2048-lr2e-5
+- name: p11stan-1node-uniprot-easyrank-1B-mode1-enlarge2xbutnogap-total2048-lr2e-5
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:

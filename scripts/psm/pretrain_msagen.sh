@@ -240,7 +240,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-easyrank-1B-mode1-enlarge5xbutnogap-total2048-lr2e-5
+[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-easyrank-1B-mode1-enlarge2xbutnogap-total2048-lr2e-5
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
