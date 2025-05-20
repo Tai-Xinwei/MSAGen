@@ -267,7 +267,7 @@ class MSAGenModel(Model):
             self.cut_off = 4
         elif mode == 4:
             self.psm_config.keep_clean_num = 4  # mode4: 8->8
-            self.cut_off = 5
+            self.cut_off = 8
         elif mode == 5:
             self.psm_config.keep_clean_num = 16  # mode4: 16->16
             self.cut_off = 32
@@ -524,8 +524,17 @@ class MSAGenModel(Model):
                     #         ).bool()
                     #         & is_mask
                     #     )
-
-                    sample = logits.argmax(dim=-1)  # B D L
+                    logits = F.softmax(logits, dim=-1)
+                    logits[:, :, :, 26] /= 5
+                    B, D, L, V = logits.shape
+                    sample_probs = logits.permute(0, 1, 2, 3).reshape(
+                        -1, V
+                    )  # [B*D*L, 27]
+                    sample = torch.multinomial(
+                        sample_probs, num_samples=1
+                    )  # [B*D*L, 1]
+                    sample = sample.view(B, D, L)
+                    # sample = logits.argmax(dim=-1)  # B D L
                     batched_data["128_msa_token_type"] = torch.where(
                         n, sample, batched_data["128_msa_token_type"]
                     )
@@ -838,7 +847,7 @@ class MSAGenModel(Model):
             self.cut_off = 4
         elif mode == 4:
             self.psm_config.keep_clean_num = 4  # mode4: 8->8
-            self.cut_off = 5
+            self.cut_off = 8
         elif mode == 5:
             self.psm_config.keep_clean_num = 16  # mode5: 16->16
             self.cut_off = 32

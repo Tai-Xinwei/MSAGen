@@ -3474,7 +3474,7 @@ class MSAGenDataset(FoundationModelDataset):
         dataset_val = self.__class__(
             self.args,
             self.lmdb_path,
-            keys=self.valid_keys,
+            keys=self.valid_keys[:100],
             env=self._env,
             txn=self._txn,
         )
