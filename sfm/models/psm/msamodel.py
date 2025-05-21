@@ -246,8 +246,13 @@ class MSAGenModel(Model):
             # probs = torch.tensor(
             #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
             # )
+            # probs = torch.tensor(
+            #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+            # )
             probs = torch.tensor(
-                [0.60, 0.20, 0.10, 0.10, 0.0, 0.0], dtype=torch.float, device="cpu"
+                [1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7],
+                dtype=torch.float,
+                device="cpu",
             )
             idx = torch.multinomial(probs, num_samples=1).item()
             mode = idx + 1
@@ -267,13 +272,16 @@ class MSAGenModel(Model):
             self.cut_off = 4
         elif mode == 4:
             self.psm_config.keep_clean_num = 4  # mode4: 8->8
-            self.cut_off = 8
+            self.cut_off = 5
         elif mode == 5:
-            self.psm_config.keep_clean_num = 16  # mode4: 16->16
-            self.cut_off = 32
+            self.psm_config.keep_clean_num = 5  # mode4: 16->16
+            self.cut_off = 6
         elif mode == 6:
-            self.psm_config.keep_clean_num = 32  # mode4: 32->32
-            self.cut_off = 64
+            self.psm_config.keep_clean_num = 6  # mode4: 32->32
+            self.cut_off = 7
+        elif mode == 7:
+            self.psm_config.keep_clean_num = 7  # mode4: 32->32
+            self.cut_off = 8
 
         batched_data["128_msa_token_type"] = batched_data["msa_token_type"][
             :, : self.cut_off, :
@@ -826,8 +834,13 @@ class MSAGenModel(Model):
             # probs = torch.tensor(
             #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
             # )
+            # probs = torch.tensor(
+            #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+            # )
             probs = torch.tensor(
-                [0.60, 0.20, 0.10, 0.10, 0.0, 0.0], dtype=torch.float, device="cpu"
+                [1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7],
+                dtype=torch.float,
+                device="cpu",
             )
             idx = torch.multinomial(probs, num_samples=1).item()
             mode = idx + 1
@@ -847,13 +860,16 @@ class MSAGenModel(Model):
             self.cut_off = 4
         elif mode == 4:
             self.psm_config.keep_clean_num = 4  # mode4: 8->8
-            self.cut_off = 8
+            self.cut_off = 5
         elif mode == 5:
-            self.psm_config.keep_clean_num = 16  # mode5: 16->16
-            self.cut_off = 32
+            self.psm_config.keep_clean_num = 5  # mode4: 16->16
+            self.cut_off = 6
         elif mode == 6:
-            self.psm_config.keep_clean_num = 32  # mode6: 32->32
-            self.cut_off = 64
+            self.psm_config.keep_clean_num = 6  # mode4: 32->32
+            self.cut_off = 7
+        elif mode == 7:
+            self.psm_config.keep_clean_num = 7  # mode4: 32->32
+            self.cut_off = 8
 
         cut_off = self.cut_off
         batched_data["cut_off"] = cut_off
@@ -1164,7 +1180,7 @@ class MSAGenModel(Model):
             # if differ, enlarge the loss, except for gap
             differ_mask = differ_mask & ~is_gap
             same_mask = (~differ_mask) & ~is_gap
-            ce_loss = ce_loss * (1 + 1.0 * differ_mask.float())
+            # ce_loss = ce_loss * (1 + 1.0 * differ_mask.float())
             bce_loss = self.bce_loss(mutation_pred.squeeze(-1), differ_mask.float())
 
             # reweight
@@ -1195,12 +1211,14 @@ class MSAGenModel(Model):
 
             mean_diff = sum_diff / counts_diff  # (B,D)
             mean_same = sum_same / counts_same  # (B,D)
-            mean_gap = 0.1 * (sum_gap / counts_gap)  # (B,D)
+            mean_gap = sum_gap / counts_gap  # (B,D)
 
-            torch.stack([mean_diff, mean_same, mean_gap], dim=-1).mean(dim=-1)  # (B,D)
-            valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
-            # per_sample_loss = per_row_loss.mean(dim=1)  # B
-            per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts
+            per_row_loss = torch.stack([mean_diff, mean_same, mean_gap], dim=-1).mean(
+                dim=-1
+            )  # (B,D)
+            # valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
+            per_sample_loss = per_row_loss.mean(dim=1)  # B
+            # per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts
             loss = per_sample_loss.mean()
             mean_ce = ce_loss[filter_mask].mean()
             mean_bce_loss = bce_loss[filter_mask].mean()
