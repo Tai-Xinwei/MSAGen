@@ -839,18 +839,18 @@ class MSADiffusionModule(nn.Module):
         self.x_proj = nn.Linear(27, psm_config.embedding_dim, bias=False)
         self.psm_config = psm_config
         # self.time_emb = nn.Embedding(T + 1, psm_config.embedding_dim)
-        if psm_config.diffusion_mode != "OADM":
-            self.time_step_encoder = MSATimeStepEncoder(
-                psm_config.num_timesteps,
-                psm_config.embedding_dim,
-                psm_config.diffusion_time_step_encoder_type,
-            )
-        else:
-            self.time_step_encoder = MSATimeStepEncoder(
-                psm_config.max_length,
-                psm_config.embedding_dim,
-                DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE,
-            )
+        # if psm_config.diffusion_mode != "OADM":
+        #     self.time_step_encoder = MSATimeStepEncoder(
+        #         psm_config.num_timesteps,
+        #         psm_config.embedding_dim,
+        #         psm_config.diffusion_time_step_encoder_type,
+        #     )
+        # else:
+        #     self.time_step_encoder = MSATimeStepEncoder(
+        #         psm_config.max_length,
+        #         psm_config.embedding_dim,
+        #         DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE,
+        #     )
         for nl in range(psm_config.num_pred_attn_layer):
             self.layers.extend(
                 [

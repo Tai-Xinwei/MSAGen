@@ -12,8 +12,8 @@ WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen_v2/$WORK_NAME
 
 STEP_FLAG=global_step90000
 
-DATA_PATH=/datadisk
-DATA_LMDB=msas-uniprot.lmdb
+DATA_PATH=../msadata
+DATA_LMDB=casp15_length_lessthan128.lmdb
 # DATA_LMDB=posebusters-428structures-20250221-670e6562.removeLIGs.removeHs.lmdb
 
 # if [[ $DATA_LMDB == *"proteintest"* ]]; then
@@ -27,14 +27,14 @@ DATA_LMDB=msas-uniprot.lmdb
 #   exit 1
 # fi
 psm_validate_for_train_set=false
-
+num=16
 if [ "$psm_validate_for_train_set" = true ]; then
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_penalty0_prob_1-64
+    save_dir=./output/casp15_lessthan128/$WORK_NAME/$STEP_FLAG/1-64
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_penalty0_prob_1-64
+    save_dir=./output/casp15_lessthan128/$WORK_NAME/$STEP_FLAG/1-64
 fi
 # save_dir=./output/msas-uniprot-easyrank-subset/
-master_port=8888
+master_port=8891
 
 DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --master_port $master_port sfm/tasks/psm/pretrain_msagen.py \
   --config-name=$MODEL_CONFIG \
@@ -58,11 +58,11 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   diffusion_mode=OADM \
   psm_validate_for_train_set=$psm_validate_for_train_set \
   cutoff=4 \
-  random_select_msa=true \
+  random_select_msa=false \
   save_dir=$save_dir \
   keep_clean_num=2 \
-  mode=0 \
-  seed=1211 \
+  mode=1 \
+  seed=$num \
   OADM_row_random=true \
   # sample_ligand_only=true \
 
