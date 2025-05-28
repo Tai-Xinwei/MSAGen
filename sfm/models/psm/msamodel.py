@@ -260,7 +260,7 @@ class MSAGenModel(Model):
             mode = self.psm_config.mode
         # mode = 1
         batched_data["mode"] = mode
-        for i in range(1, 64):
+        for i in range(1, 2):
             mode = i
             print(mode)
             # MSAGen has 4 mode
