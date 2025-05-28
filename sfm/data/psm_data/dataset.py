@@ -3466,7 +3466,7 @@ class MSAGenDataset(FoundationModelDataset):
         dataset_train = self.__class__(
             self.args,
             self.lmdb_path,
-            keys=self.train_keys[:500000],
+            keys=self.train_keys,
             env=self._env,
             txn=self._txn,
         )
@@ -3475,6 +3475,7 @@ class MSAGenDataset(FoundationModelDataset):
             self.args,
             self.lmdb_path,
             keys=self.valid_keys,
+            # keys=['T1106s2'],
             env=self._env,
             txn=self._txn,
         )

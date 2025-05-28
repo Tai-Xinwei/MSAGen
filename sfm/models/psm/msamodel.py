@@ -260,9 +260,9 @@ class MSAGenModel(Model):
             mode = self.psm_config.mode
         # mode = 1
         batched_data["mode"] = mode
-        for i in range(1, 2):
+        for i in range(32, 63):
             mode = i
-            print(mode)
+            # print(mode)
             # MSAGen has 4 mode
             if mode == 1:
                 self.psm_config.keep_clean_num = 1  # mode1: 1->1
@@ -291,7 +291,7 @@ class MSAGenModel(Model):
 
             self.psm_config.keep_clean_num = mode
             self.cut_off = mode + 1
-            if i == 1:
+            if i == 32:
                 batched_data["ori_128_msa_token_type"] = batched_data["msa_token_type"][
                     :, : self.cut_off, :
                 ].clone()
@@ -870,57 +870,57 @@ class MSAGenModel(Model):
         """
         pre forward operation
         """
-        # if self.psm_config.mode == 0:
-        #     # probs = torch.tensor(
-        #     #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
-        #     # )
-        #     # probs = torch.tensor(
-        #     #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
-        #     # )
-        #     probs = torch.tensor(
-        #         [1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7],
-        #         dtype=torch.float,
-        #         device="cpu",
-        #     )
-        #     idx = torch.multinomial(probs, num_samples=1).item()
-        #     mode = idx + 1
-        # else:
-        #     mode = self.psm_config.mode
-        # # mode = 1
-        # batched_data["mode"] = mode
-        # # MSAGen has 4 mode
-        # if mode == 1:
-        #     self.psm_config.keep_clean_num = 1  # mode1: 1->1
-        #     self.cut_off = 2
-        # elif mode == 2:
-        #     self.psm_config.keep_clean_num = 2  # mode2: 2->2
-        #     self.cut_off = 3
-        # elif mode == 3:
-        #     self.psm_config.keep_clean_num = 3  # mode3: 4->4
-        #     self.cut_off = 4
-        # elif mode == 4:
-        #     self.psm_config.keep_clean_num = 4  # mode4: 8->8
-        #     self.cut_off = 5
-        # elif mode == 5:
-        #     self.psm_config.keep_clean_num = 5  # mode4: 16->16
-        #     self.cut_off = 6
-        # elif mode == 6:
-        #     self.psm_config.keep_clean_num = 6  # mode4: 32->32
-        #     self.cut_off = 7
-        # elif mode == 7:
-        #     self.psm_config.keep_clean_num = 7  # mode4: 32->32
-        #     self.cut_off = 8
         if self.psm_config.mode == 0:
-            # 从 1 到 63 均匀采样一个 mode
-            probs = torch.ones(63, dtype=torch.float, device="cpu") / 63
+            # probs = torch.tensor(
+            #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
+            # )
+            # probs = torch.tensor(
+            #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+            # )
+            probs = torch.tensor(
+                [1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7],
+                dtype=torch.float,
+                device="cpu",
+            )
             idx = torch.multinomial(probs, num_samples=1).item()
-            mode = idx + 1  # idx ∈ [0,62] → mode ∈ [1,63]
+            mode = idx + 1
         else:
             mode = self.psm_config.mode
-        mode = 1
+        # mode = 1
         batched_data["mode"] = mode
-        self.psm_config.keep_clean_num = mode
-        self.cut_off = mode + 1
+        # MSAGen has 4 mode
+        if mode == 1:
+            self.psm_config.keep_clean_num = 1  # mode1: 1->1
+            self.cut_off = 2
+        elif mode == 2:
+            self.psm_config.keep_clean_num = 2  # mode2: 2->2
+            self.cut_off = 3
+        elif mode == 3:
+            self.psm_config.keep_clean_num = 3  # mode3: 4->4
+            self.cut_off = 4
+        elif mode == 4:
+            self.psm_config.keep_clean_num = 4  # mode4: 8->8
+            self.cut_off = 5
+        elif mode == 5:
+            self.psm_config.keep_clean_num = 5  # mode4: 16->16
+            self.cut_off = 6
+        elif mode == 6:
+            self.psm_config.keep_clean_num = 6  # mode4: 32->32
+            self.cut_off = 7
+        elif mode == 7:
+            self.psm_config.keep_clean_num = 7  # mode4: 32->32
+            self.cut_off = 8
+        # if self.psm_config.mode == 0:
+        #     # 从 1 到 63 均匀采样一个 mode
+        #     probs = torch.ones(63, dtype=torch.float, device="cpu") / 63
+        #     idx = torch.multinomial(probs, num_samples=1).item()
+        #     mode = idx + 1  # idx ∈ [0,62] → mode ∈ [1,63]
+        # else:
+        #     mode = self.psm_config.mode
+        # mode = 1
+        batched_data["mode"] = mode
+        # self.psm_config.keep_clean_num = mode
+        # self.cut_off = mode + 1
         cut_off = self.cut_off
         batched_data["cut_off"] = cut_off
         token_id = batched_data["token_type"]

@@ -13,10 +13,10 @@ env_defaults:
 
 target:
   # service: sing
-  name: palisades11
+  # name: palisades11
   # name: msrresrchbasicvc
   # name: msrresrchlab
-  # name: msroctovc
+  name: msroctovc
   # name: quickdevvc
   # name: whitney02
   workspace_name: sfm-ws
@@ -69,16 +69,16 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: p11-2node80-uniprot-norank-1B-1-64-avg-total512-lr2e-5
+- name: octo-16G40-uniprot-norank-all-1B-1-1-avg-random-total1024-lr2e-5
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
-  # preemptible: false
+  preemptible: false
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}
   mpi: true
-  sla_tier: Standard
+  # sla_tier: Standard
   identity: managed
   priority: High
   process_count_per_node: 1
