@@ -7,16 +7,16 @@
 description: msagen
 
 env_defaults:
-  NODES: 2
+  NODES: 1
   GPUS: 8
   WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
 
 target:
   # service: sing
-  # name: palisades11
+  name: palisades11
   # name: msrresrchbasicvc
   # name: msrresrchlab
-  name: msroctovc
+  # name: msroctovc
   # name: quickdevvc
   # name: whitney02
   workspace_name: sfm-ws
@@ -69,7 +69,7 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: octo-16G40-uniprot-norank-all-1B-1-1-avg-random-total1024-lr2e-5
+- name: octo-8G40-pdb-all-1B-1-1-avg-random-total256-lr2e-5
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:

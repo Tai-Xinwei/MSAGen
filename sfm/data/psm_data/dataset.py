@@ -3355,16 +3355,21 @@ class MSAGenDataset(FoundationModelDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
-        metadata = self._txn.get("_metadata_keys_1k".encode("utf-8"))
+        metadata = self._txn.get("_metadata__".encode("utf-8"))
         train_keys = self._txn.get("_train_keys_1k".encode("utf-8"))
         valid_keys = self._txn.get("_valid_keys_1k".encode("utf-8"))
         if train_keys is None:
             train_keys = self._txn.get("train_keys".encode("utf-8"))
             valid_keys = self._txn.get("valid_keys".encode("utf-8"))
-            metadata = self._txn.get("kept_ids".encode("utf-8"))
-        self._keys = json.loads(metadata.decode("utf-8"))
+            total_keys = self._txn.get("kept_ids".encode("utf-8"))
+        self.metadata = json.loads(metadata.decode("utf-8"))
+        if "cluster_to_keys" in self.metadata:
+            self.is_cluster = True
+        else:
+            self.is_cluster = False
         self._train_keys = json.loads(train_keys.decode("utf-8"))
         self._valid_keys = json.loads(valid_keys.decode("utf-8"))
+        self._keys = json.loads(total_keys.decode("utf-8"))
 
     def _close_db(self):
         if self._env is not None:
@@ -3403,6 +3408,13 @@ class MSAGenDataset(FoundationModelDataset):
         return self._valid_keys
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        if self.is_cluster:
+            cluster_num = len(self.metadata["cluster_to_keys"])
+            choose_cluster = idx % cluster_num
+            choose_cluster_keys = (list(self.meatadata["cluster_to_keys"].keys()))[
+                choose_cluster
+            ]
+            idx = random.choice(self.metadata["cluster_to_keys"][choose_cluster_keys])
         key = self.keys[idx]
         value = self.txn.get(key.encode("utf-8"))
         if value is None:
