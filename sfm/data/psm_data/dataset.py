@@ -3328,6 +3328,7 @@ class MSAGenDataset(FoundationModelDataset):
         self._keys = None
         self._train_keys = None
         self._valid_keys = None
+        self.is_cluster = False
         if keys is not None:
             if env is not None:
                 self._env = env
@@ -3355,16 +3356,17 @@ class MSAGenDataset(FoundationModelDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
-        metadata = self._txn.get("_metadata__".encode("utf-8"))
+        metadata = self._txn.get("__metadata__".encode("utf-8"))
         train_keys = self._txn.get("_train_keys_1k".encode("utf-8"))
         valid_keys = self._txn.get("_valid_keys_1k".encode("utf-8"))
         if train_keys is None:
             train_keys = self._txn.get("train_keys".encode("utf-8"))
             valid_keys = self._txn.get("valid_keys".encode("utf-8"))
             total_keys = self._txn.get("kept_ids".encode("utf-8"))
-        self.metadata = json.loads(metadata.decode("utf-8"))
-        if "cluster_to_keys" in self.metadata:
-            self.is_cluster = True
+        if metadata is None:
+            self.metadata = json.loads(metadata.decode("utf-8"))
+            if "cluster_to_keys" in self.metadata:
+                self.is_cluster = True
         else:
             self.is_cluster = False
         self._train_keys = json.loads(train_keys.decode("utf-8"))
