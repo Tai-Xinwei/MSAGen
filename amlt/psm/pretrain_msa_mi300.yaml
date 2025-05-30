@@ -7,7 +7,7 @@
 description: MSAGen
 
 env_defaults:
-  NODES: 1
+  NODES: 8
   GPUS: 8
   WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
 
@@ -16,8 +16,8 @@ target:
   # name: palisades11
   # name: msrresrchvc
   # name: msroctovc
-  # name: quickdevvc
-  name: whitney02
+  name: msroctobasicvc
+  # name: whitney02
   workspace_name: sfm-ws
 
 # environment:
@@ -68,17 +68,17 @@ code:
   local_dir: ../PSM
 
 jobs:
-- name: Mi300-8-uniprotmsa-1B_6mode_norank_fp32_384_noenlarge
+- name: Mi300-64-uniprot-all-1B-ar-1-64-avg-weightD-random-total2048-lr2e-5
   submit_args:
     max_run_duration_seconds: 1209600 # 14days
     env:
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
-  preemptible: false
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-MI200
   mpi: true
   identity: managed
   priority: High
+  sla_tier: Standard
   process_count_per_node: 1
   command:
   # - df -h && nvidia-smi

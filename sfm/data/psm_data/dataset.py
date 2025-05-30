@@ -3363,7 +3363,7 @@ class MSAGenDataset(FoundationModelDataset):
             train_keys = self._txn.get("train_keys".encode("utf-8"))
             valid_keys = self._txn.get("valid_keys".encode("utf-8"))
             total_keys = self._txn.get("kept_ids".encode("utf-8"))
-        if metadata is None:
+        if metadata is not None:
             self.metadata = json.loads(metadata.decode("utf-8"))
             if "cluster_to_keys" in self.metadata:
                 self.is_cluster = True

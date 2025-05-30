@@ -107,8 +107,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='../msadata'
-[ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/pdb/msadata'
+[ -z "${data_path}" ] && data_path='../msadata'
+# [ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/pdb/msadata'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -199,12 +199,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='protein_msa_all_40.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
-[ -z "${cutoff}" ] && cutoff=2
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${cutoff}" ] && cutoff=64
 [ -z "${random_select_msa}"] && random_select_msa=true
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
 [ -z "${OADM_row_random}" ] && OADM_row_random=false
-[ -z "${mode}" ] && mode=1 # 0 1 2 3 4 5 6, 0 means random mode
+[ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 6, 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.2,0.2,0.2'
@@ -240,8 +240,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=pdb-all-1B-1-1-avg-random-total256-lr2e-5
-# [ -z "${wandb_run_name}" ] && wandb_run_name=debug
+# [ -z "${wandb_run_name}" ] && wandb_run_name=pdb-all-1B-1-1-avg-random-total256-lr2e-5
+[ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa

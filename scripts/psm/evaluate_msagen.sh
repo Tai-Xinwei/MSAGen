@@ -5,12 +5,12 @@
 MODEL_CONFIG=config_msagen_1B
 NUM_SAMPLING_TIME=1
 
-WORK_NAME=uniprot-norank-1B-1-64-avg-total512-lr2e-5
+WORK_NAME=uniprot-norank-all-1B-1-1-avg-random-total1024-lr2e-5
 
 WORK_PATH=/psm/xinwei/sfmexpresults/MSAGen_v2/$WORK_NAME
 # WORK_PATH=/psm/sfmexpresults/xinwei/MSAGen/MSAGen_1000_2_to_2_change_ce_to_L1_loss_enlargediff5xbutnogap
 
-STEP_FLAG=global_step90000
+STEP_FLAG=global_step6000
 
 DATA_PATH=/datadisk
 DATA_LMDB=msas-uniprot.lmdb
@@ -29,9 +29,9 @@ DATA_LMDB=msas-uniprot.lmdb
 psm_validate_for_train_set=false
 
 if [ "$psm_validate_for_train_set" = true ]; then
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_penalty0_prob_1-64
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/train_random_penalty0_prob_1-1
 else
-    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_penalty0_prob_1-64
+    save_dir=./output/$WORK_NAME/$STEP_FLAG/valid_random_penalty0_prob_1-1
 fi
 # save_dir=./output/msas-uniprot-easyrank-subset/
 master_port=8888
@@ -61,7 +61,7 @@ DDP_TIMEOUT_MINUTES=3000 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node 1 --ma
   random_select_msa=true \
   save_dir=$save_dir \
   keep_clean_num=2 \
-  mode=0 \
+  mode=1 \
   seed=1211 \
   OADM_row_random=true \
   # sample_ligand_only=true \

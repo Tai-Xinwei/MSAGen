@@ -260,7 +260,7 @@ class MSAGenModel(Model):
             mode = self.psm_config.mode
         # mode = 1
         batched_data["mode"] = mode
-        for i in range(32, 63):
+        for i in range(1, 2):
             mode = i
             # print(mode)
             # MSAGen has 4 mode
@@ -291,7 +291,7 @@ class MSAGenModel(Model):
 
             self.psm_config.keep_clean_num = mode
             self.cut_off = mode + 1
-            if i == 32:
+            if i == 1:
                 batched_data["ori_128_msa_token_type"] = batched_data["msa_token_type"][
                     :, : self.cut_off, :
                 ].clone()
@@ -870,46 +870,46 @@ class MSAGenModel(Model):
         """
         pre forward operation
         """
-        if self.psm_config.mode == 0:
-            # probs = torch.tensor(
-            #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
-            # )
-            # probs = torch.tensor(
-            #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
-            # )
-            probs = torch.tensor(
-                [1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7],
-                dtype=torch.float,
-                device="cpu",
-            )
-            idx = torch.multinomial(probs, num_samples=1).item()
-            mode = idx + 1
-        else:
-            mode = self.psm_config.mode
-        # mode = 1
-        batched_data["mode"] = mode
-        # MSAGen has 4 mode
-        if mode == 1:
-            self.psm_config.keep_clean_num = 1  # mode1: 1->1
-            self.cut_off = 2
-        elif mode == 2:
-            self.psm_config.keep_clean_num = 2  # mode2: 2->2
-            self.cut_off = 3
-        elif mode == 3:
-            self.psm_config.keep_clean_num = 3  # mode3: 4->4
-            self.cut_off = 4
-        elif mode == 4:
-            self.psm_config.keep_clean_num = 4  # mode4: 8->8
-            self.cut_off = 5
-        elif mode == 5:
-            self.psm_config.keep_clean_num = 5  # mode4: 16->16
-            self.cut_off = 6
-        elif mode == 6:
-            self.psm_config.keep_clean_num = 6  # mode4: 32->32
-            self.cut_off = 7
-        elif mode == 7:
-            self.psm_config.keep_clean_num = 7  # mode4: 32->32
-            self.cut_off = 8
+        # if self.psm_config.mode == 0:
+        #     # probs = torch.tensor(
+        #     #     [0.2, 0.2, 0.2, 0.2, 0.1, 0.1], dtype=torch.float, device="cpu"
+        #     # )
+        #     # probs = torch.tensor(
+        #     #     [0.25, 0.25, 0.25, 0.25, 0.0, 0.0], dtype=torch.float, device="cpu"
+        #     # )
+        #     probs = torch.tensor(
+        #         [1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7, 1 / 7],
+        #         dtype=torch.float,
+        #         device="cpu",
+        #     )
+        #     idx = torch.multinomial(probs, num_samples=1).item()
+        #     mode = idx + 1
+        # else:
+        #     mode = self.psm_config.mode
+        # # mode = 1
+        # batched_data["mode"] = mode
+        # # MSAGen has 4 mode
+        # if mode == 1:
+        #     self.psm_config.keep_clean_num = 1  # mode1: 1->1
+        #     self.cut_off = 2
+        # elif mode == 2:
+        #     self.psm_config.keep_clean_num = 2  # mode2: 2->2
+        #     self.cut_off = 3
+        # elif mode == 3:
+        #     self.psm_config.keep_clean_num = 3  # mode3: 4->4
+        #     self.cut_off = 4
+        # elif mode == 4:
+        #     self.psm_config.keep_clean_num = 4  # mode4: 8->8
+        #     self.cut_off = 5
+        # elif mode == 5:
+        #     self.psm_config.keep_clean_num = 1  # mode4: 16->16
+        #     self.cut_off = 10
+        # elif mode == 6:
+        #     self.psm_config.keep_clean_num = 6  # mode4: 32->32
+        #     self.cut_off = 7
+        # elif mode == 7:
+        #     self.psm_config.keep_clean_num = 7  # mode4: 32->32
+        #     self.cut_off = 8
         # if self.psm_config.mode == 0:
         #     # 从 1 到 63 均匀采样一个 mode
         #     probs = torch.ones(63, dtype=torch.float, device="cpu") / 63
@@ -918,9 +918,9 @@ class MSAGenModel(Model):
         # else:
         #     mode = self.psm_config.mode
         # mode = 1
-        batched_data["mode"] = mode
-        # self.psm_config.keep_clean_num = mode
-        # self.cut_off = mode + 1
+        # batched_data["mode"] = mode
+        self.psm_config.keep_clean_num = 1
+        self.cut_off = self.psm_config.cutoff
         cut_off = self.cut_off
         batched_data["cut_off"] = cut_off
         token_id = batched_data["token_type"]
@@ -1222,16 +1222,29 @@ class MSAGenModel(Model):
             return loss, ce_loss.mean(), kl_loss.mean()
         else:
             # OADM
+            # shift
+            pred = pred[:, :-1, :, :]
+            label = label[:, 1:, :]
+            padding_mask = (padding_mask[:, :-1, :]) | (
+                padding_mask[:, 1:, :]
+            )  # to avoid predict padding
+            is_gap = is_gap[:, 1:, :]
+            filter_mask = filter_mask[:, :-1, :]
+            filter_mask = filter_mask & ~padding_mask  # update filter_mask
+            time_step = time_step[:, :-1, :]
+
             ce_loss = self.noise_loss(pred.permute(0, 3, 1, 2), label.long())
+            # print(ce_loss)
             differ_mask = ~(
-                batched_data["ori_128_msa_token_type"]
-                == batched_data["token_type"].unsqueeze(1)
+                label == batched_data["token_type"].unsqueeze(1)
             )  # true means differ
             # if differ, enlarge the loss, except for gap
             differ_mask = differ_mask & ~is_gap
             same_mask = (~differ_mask) & ~is_gap
             # ce_loss = ce_loss * (1 + 1.0 * differ_mask.float())
-            bce_loss = self.bce_loss(mutation_pred.squeeze(-1), differ_mask.float())
+            bce_loss = self.bce_loss(
+                mutation_pred.squeeze(-1)[:, 1:, :], differ_mask.float()
+            )
 
             # reweight
             non_pad_counts = (~padding_mask).sum(dim=-1, keepdim=True)
@@ -1239,7 +1252,9 @@ class MSAGenModel(Model):
             weights = non_pad_counts * (1.0 / (time_step + 1e-5))
             total_loss = ce_loss  # + bce_loss
             reweight_loss = total_loss * weights  # B D L
+            # print(reweight_loss)
             reweight_loss = reweight_loss * filter_mask.float()
+            # print(filter_mask)
             # first sample-internal mean and then cross-sample mean and according mask to mean
             counts_diff = (
                 (differ_mask & filter_mask).sum(dim=2).clamp(min=1).float()
@@ -1266,11 +1281,16 @@ class MSAGenModel(Model):
             per_row_loss = torch.stack([mean_diff, mean_same, mean_gap], dim=-1).mean(
                 dim=-1
             )  # (B,D)
+            D = per_row_loss.shape[1]
+            row_weight = torch.arange(D, 0, -1, device=per_row_loss.device).float() / D
+            # print(row_weight)
+            per_row_loss = per_row_loss * row_weight.unsqueeze(0)  # (B,D)
             # valid_counts = filter_mask.sum(dim=(1, 2)).clamp(min=1).float()  # (B)
             per_sample_loss = (
                 per_row_loss.sum(dim=-1)
                 / filter_mask.any(dim=2).sum(dim=1).clamp(min=1).float()
             )  # B
+            # print(per_sample_loss)
             # per_sample_loss = reweight_loss.sum(dim=(1, 2)) / valid_counts
             loss = per_sample_loss.mean()
             mean_ce = ce_loss[filter_mask].mean()

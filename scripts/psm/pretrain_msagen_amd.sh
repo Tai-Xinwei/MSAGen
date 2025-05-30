@@ -91,12 +91,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${max_lr}" ] && max_lr=2e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${train_batch_size}" ] && train_batch_size=2048
+[ -z "${val_batch_size}" ] && val_batch_size=2048
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -199,11 +199,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
-[ -z "${cutoff}" ] && cutoff=2
-[ -z "${random_select_msa}"] && random_select_msa=False
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
+[ -z "${cutoff}" ] && cutoff=64
+[ -z "${random_select_msa}"] && random_select_msa=true
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
-[ -z "${OADM_row_random}" ] && OADM_row_random=False
+[ -z "${OADM_row_random}" ] && OADM_row_random=false
 [ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 6, 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
@@ -233,14 +233,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${bf16}" ] && bf16=False
+[ -z "${bf16}" ] && bf16=True
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=MSAGen_uniprotdata_norank_6mode_OADM_1B_normal_bsz64_fp32_384
+[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-all-1B-ar-1-64-avg-weightD-random-total2048-lr2e-5
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
@@ -301,7 +301,6 @@ echo "Random number: ${random_number}"
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
 [ -z "${unified_data_num_workers}" ] && unified_data_num_workers=1
-
 
 
 echo -e "\n\n"
@@ -379,7 +378,7 @@ export OMP_NUM_THREADS=16
 
 # cp sfm/utils/barrier.py . && touch READY && python barrier_amd.py $OMPI_COMM_WORLD_SIZE $OMPI_COMM_WORLD_RANK
 
-DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_msagen.py \
+DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS --master-port 7777 sfm/tasks/psm/pretrain_msagen.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
           backbone=$backbone \
@@ -446,6 +445,6 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_msage
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size plddt_threshold=$plddt_threshold \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
           cutoff=$cutoff random_select_msa=$random_select_msa keep_clean_num=$keep_clean_num OADM_row_random=$OADM_row_random mode=$mode \
-          # ifresume=True \
+          ifresume=True \
 
 sleep infinity

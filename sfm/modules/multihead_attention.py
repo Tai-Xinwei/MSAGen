@@ -620,7 +620,7 @@ class RowSelfAttention(nn.Module):
         self.head_dim = embed_dim // num_heads
         self.scaling = self.head_dim**-0.5
         self.max_tokens_per_msa = max_tokens_per_msa
-        self.attn_shape = "hnij"
+        self.attn_shape = "rhnij"
         self.rot_emb = None
         if add_rope:
             self.rot_emb = SFM2DRotaryEmbedding(dim=self.head_dim)
@@ -634,6 +634,15 @@ class RowSelfAttention(nn.Module):
     def align_scaling(self, q):
         num_rows = q.size(0)
         return self.scaling / math.sqrt(num_rows)
+
+    def row_causal_mask(self, attn_weights):
+        r, h, n, i, j = attn_weights.shape
+        nw = torch.zeros_like(attn_weights)
+        cumsum = torch.zeros_like(attn_weights[0])
+        for k in range(r):
+            cumsum += attn_weights[k]
+            nw[k] = cumsum / (k + 1)
+        return nw
 
     def _batched_forward(
         self,
@@ -712,15 +721,20 @@ class RowSelfAttention(nn.Module):
             ).permute(2, 3, 0, 1, 4)
         attn_weights = torch.einsum(f"rinhd,rjnhd->{self.attn_shape}", q, k)
 
+        # add row causal mask
+        attn_weights = self.row_causal_mask(attn_weights)  # rhnij
         if self_attn_mask is not None:
             raise NotImplementedError
             # Mask Size: [B x R x C], Weights Size: [H x B x C x C]
 
         if self_attn_padding_mask is not None:
-            attn_weights = attn_weights.masked_fill(
-                self_attn_padding_mask[:, 0].unsqueeze(0).unsqueeze(2),
-                -10000,
-            )
+            # attn_weights = attn_weights.masked_fill(
+            #     self_attn_padding_mask[:, 0].unsqueeze(0).unsqueeze(2),
+            #     -10000,
+            # )
+            key_padding_mask = self_attn_padding_mask.permute(1, 0, 2)
+            key_padding_mask = key_padding_mask.unsqueeze(1).unsqueeze(3)
+            attn_weights = attn_weights.masked_fill(key_padding_mask, -10000)
 
         return attn_weights
 
@@ -792,6 +806,10 @@ class ColumnSelfAttention(nn.Module):
 
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=o_bias)
         self.dropout_module = nn.Dropout(dropout)
+
+    def build_column_causal_mask(self, num_cols, device):
+        # shape: [cols, cols]
+        return torch.tril(torch.ones((num_cols, num_cols), device=device)).bool()
 
     def _batched_forward(
         self,
@@ -868,6 +886,12 @@ class ColumnSelfAttention(nn.Module):
                     batch_size, self.num_heads, num_rows, num_cols, self.head_dim
                 ).permute(2, 3, 0, 1, 4)
             attn_weights = torch.einsum("icnhd,jcnhd->hcnij", q, k)
+
+            # add column causal mask
+            col_causal_mask = self.build_column_causal_mask(num_rows, x.device)
+            attn_weights = attn_weights.masked_fill(
+                ~col_causal_mask[None, None, None, :, :], -10000
+            )
 
             if self_attn_mask is not None:
                 raise NotImplementedError
