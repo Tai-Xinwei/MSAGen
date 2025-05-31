@@ -96,7 +96,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=2048
 [ -z "${val_batch_size}" ] && val_batch_size=2048
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -107,8 +107,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='../msadata'
-# [ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/pdb/msadata'
+# [ -z "${data_path}" ] && data_path='../msadata'
+[ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/UniProt'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -196,11 +196,11 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='protein_msa_all_40.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='msas-uniprot.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
-[ -z "${cutoff}" ] && cutoff=64
+[ -z "${cutoff}" ] && cutoff=32
 [ -z "${random_select_msa}"] && random_select_msa=true
 [ -z "${keep_clean_num}" ] && keep_clean_num=1
 [ -z "${OADM_row_random}" ] && OADM_row_random=false
@@ -240,8 +240,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-# [ -z "${wandb_run_name}" ] && wandb_run_name=pdb-all-1B-1-1-avg-random-total256-lr2e-5
-[ -z "${wandb_run_name}" ] && wandb_run_name=debug
+[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-all-1B-AR-1-32-avg-weightD-random-total2048-lr2e-5
+# [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_msa
