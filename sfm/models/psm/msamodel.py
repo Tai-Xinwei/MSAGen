@@ -315,11 +315,22 @@ class MSAGenModel(Model):
                 * 2
                 - 1
             )
-            for i in range(self.cut_off):
+            for i in range(self.cut_off - 1):
                 ## AR generate
                 self.psm_config.keep_clean_num = i + 1
                 self.cut_off = self.psm_config.keep_clean_num + 1
                 print(self.cut_off)
+                if i != 0:
+                    batched_data["ori_128_msa_token_type"] = torch.cat(
+                        [
+                            batched_data["128_msa_token_type"].clone(),
+                            torch.full_like(
+                                batched_data["128_msa_token_type"][:, :1, :], 27
+                            ),
+                        ],
+                        dim=1,
+                    )
+
                 for sample_time_index in range(self.psm_config.num_sampling_time):
                     batched_data["init_128_msa_one_hot"] = torch.zeros(
                         B, self.cut_off, L, 27, device=device
