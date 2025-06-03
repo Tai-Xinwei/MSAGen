@@ -290,7 +290,7 @@ class MSAGenModel(Model):
                 self.cut_off = mode + 1
 
             self.psm_config.keep_clean_num = mode
-            self.cut_off = mode + 1
+            self.cut_off = self.psm_config.cutoff
             if i == 1:
                 batched_data["ori_128_msa_token_type"] = batched_data["msa_token_type"][
                     :, : self.cut_off, :
@@ -317,8 +317,9 @@ class MSAGenModel(Model):
             )
             for i in range(self.cut_off):
                 ## AR generate
-                self.keep_clean = i + 1
-                self.cut_off = self.keep_clean + 1
+                self.psm_config.keep_clean_num = i + 1
+                self.cut_off = self.psm_config.keep_clean_num + 1
+                print(self.cut_off)
                 for sample_time_index in range(self.psm_config.num_sampling_time):
                     batched_data["init_128_msa_one_hot"] = torch.zeros(
                         B, self.cut_off, L, 27, device=device
@@ -355,7 +356,7 @@ class MSAGenModel(Model):
                     if clean_mask is not None:
                         batched_data["128_msa_one_hot"][:, :min_D, :, :] = torch.where(
                             clean_mask[:, :min_D, :].unsqueeze(-1),
-                            ori_128_msa_one_hot,
+                            ori_128_msa_one_hot[:, :min_D, :, :],
                             batched_data["128_msa_one_hot"][:, :min_D, :, :],
                         )
                     batched_data["clean_mask"] = clean_mask
@@ -551,7 +552,7 @@ class MSAGenModel(Model):
                                 :, :min_D, :
                             ] = torch.where(
                                 clean_mask[:, :min_D, :],
-                                batched_data["ori_128_msa_token_type"],
+                                batched_data["ori_128_msa_token_type"][:, :min_D, :],
                                 batched_data["128_msa_token_type"][:, :min_D, :],
                             )
                         for t in range(1, L + 1):
@@ -601,10 +602,13 @@ class MSAGenModel(Model):
                                     :, :min_D, :
                                 ] = torch.where(
                                     clean_mask[:, :min_D, :],
-                                    batched_data["ori_128_msa_token_type"],
+                                    batched_data["ori_128_msa_token_type"][
+                                        :, :min_D, :
+                                    ],
                                     batched_data["128_msa_token_type"][:, :min_D, :],
                                 )
                         pred_msa = batched_data["128_msa_token_type"]
+                        # print(pred_msa.shape)
                         pred_seq = self.convert(batched_data["128_msa_token_type"])
 
         gt_seq = self.convert(batched_data["msa_token_type"][:, : self.cut_off, :])
@@ -641,7 +645,7 @@ class MSAGenModel(Model):
         B, D, L = generated.shape
 
         if self.psm_config.keep_clean_num > 0:
-            clean_msa_num = self.psm_config.keep_clean_num
+            clean_msa_num = 1
         else:
             clean_msa_num = 1
         ground_truth = batched_data["msa_token_type"][:, : self.cut_off, :]

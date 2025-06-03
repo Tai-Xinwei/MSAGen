@@ -3356,19 +3356,20 @@ class MSAGenDataset(FoundationModelDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
-        metadata = self._txn.get("__metadata__".encode("utf-8"))
+        self._txn.get("__metadata__".encode("utf-8"))
         train_keys = self._txn.get("_train_keys_1k".encode("utf-8"))
         valid_keys = self._txn.get("_valid_keys_1k".encode("utf-8"))
         if train_keys is None:
             train_keys = self._txn.get("train_keys".encode("utf-8"))
             valid_keys = self._txn.get("valid_keys".encode("utf-8"))
             total_keys = self._txn.get("kept_ids".encode("utf-8"))
-        if metadata is not None:
-            self.metadata = json.loads(metadata.decode("utf-8"))
-            if "cluster_to_keys" in self.metadata:
-                self.is_cluster = True
-        else:
-            self.is_cluster = False
+        self.is_cluster = False
+        # if metadata is not None:
+        #     self.metadata = json.loads(metadata.decode("utf-8"))
+        #     if "cluster_to_keys" in self.metadata:
+        #         self.is_cluster = True
+        # else:
+        #     self.is_cluster = False
         self._train_keys = json.loads(train_keys.decode("utf-8"))
         self._valid_keys = json.loads(valid_keys.decode("utf-8"))
         self._keys = json.loads(total_keys.decode("utf-8"))
