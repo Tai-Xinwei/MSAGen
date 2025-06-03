@@ -315,275 +315,237 @@ class MSAGenModel(Model):
                 * 2
                 - 1
             )
-            for sample_time_index in range(self.psm_config.num_sampling_time):
-                batched_data["init_128_msa_one_hot"] = torch.zeros(
-                    B, self.cut_off, L, 27, device=device
-                ).float()
-                if self.args.fp16:
-                    batched_data["init_128_msa_one_hot"] = batched_data[
-                        "init_128_msa_one_hot"
-                    ].to(torch.float16)
-                    ori_128_msa_one_hot = ori_128_msa_one_hot.to(torch.float16)
-                elif self.args.bf16:
-                    batched_data["init_128_msa_one_hot"] = batched_data[
-                        "init_128_msa_one_hot"
-                    ].to(torch.bfloat16)
-                    ori_128_msa_one_hot = ori_128_msa_one_hot.to(torch.bfloat16)
-                else:
-                    pass
-                batched_data["128_msa_one_hot"] = self.diffnoise.get_sampling_start(
-                    batched_data["init_128_msa_one_hot"]
-                )
-                padding_mask_2D = (
-                    batched_data["token_type"]
-                    .eq(0)
-                    .unsqueeze(1)
-                    .repeat(1, self.cut_off, 1)
-                )
-                clean_mask = torch.zeros(
-                    B, self.cut_off, L, dtype=torch.bool, device=device
-                )
-                min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
-                clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
-                # set first to clean
-                if self.psm_config.keep_clean_num > 0:
-                    clean_mask[:, : self.psm_config.keep_clean_num, :] = True
-                if clean_mask is not None:
-                    batched_data["128_msa_one_hot"][:, :min_D, :, :] = torch.where(
-                        clean_mask[:, :min_D, :].unsqueeze(-1),
-                        ori_128_msa_one_hot,
-                        batched_data["128_msa_one_hot"][:, :min_D, :, :],
+            for i in range(self.cut_off):
+                ## AR generate
+                self.keep_clean = i + 1
+                self.cut_off = self.keep_clean + 1
+                for sample_time_index in range(self.psm_config.num_sampling_time):
+                    batched_data["init_128_msa_one_hot"] = torch.zeros(
+                        B, self.cut_off, L, 27, device=device
+                    ).float()
+                    if self.args.fp16:
+                        batched_data["init_128_msa_one_hot"] = batched_data[
+                            "init_128_msa_one_hot"
+                        ].to(torch.float16)
+                        ori_128_msa_one_hot = ori_128_msa_one_hot.to(torch.float16)
+                    elif self.args.bf16:
+                        batched_data["init_128_msa_one_hot"] = batched_data[
+                            "init_128_msa_one_hot"
+                        ].to(torch.bfloat16)
+                        ori_128_msa_one_hot = ori_128_msa_one_hot.to(torch.bfloat16)
+                    else:
+                        pass
+                    batched_data["128_msa_one_hot"] = self.diffnoise.get_sampling_start(
+                        batched_data["init_128_msa_one_hot"]
                     )
-                batched_data["clean_mask"] = clean_mask
-                # T = torch.full((B,), self.T - 1, device=device)
-                # x_T = self.diffusion.q_sample(
-                #     batched_data["128_msa_one_hot"], T, clean_mask, device
-                # )
-                batched_data["128_2D_padding_mask"] = padding_mask_2D
-                # batched_data["128_msa_one_hot"] = x_T
-                # batched_data["time_step"] = T
-                # true_prob = self.calculate_prob(batched_data["msa_token_type"])
-                if self.psm_config.diffusion_mode == "epsilon":
-                    for t in range(
-                        self.psm_config.num_timesteps - 1,
-                        -1,
-                        self.psm_config.num_timesteps_stepsize,
-                    ):
-                        # forward
-                        time_step = self.time_step_sampler.get_continuous_time_step(
-                            t,
-                            B,
-                            device=device,
-                            dtype=batched_data["128_msa_one_hot"].dtype,
+                    padding_mask_2D = (
+                        batched_data["token_type"]
+                        .eq(0)
+                        .unsqueeze(1)
+                        .repeat(1, self.cut_off, 1)
+                    )
+                    clean_mask = torch.zeros(
+                        B, self.cut_off, L, dtype=torch.bool, device=device
+                    )
+                    min_D = min(self.cut_off, ori_128_msa_one_hot.shape[1])
+                    clean_mask = clean_mask.masked_fill(padding_mask_2D, True)
+                    # set first to clean
+                    if self.psm_config.keep_clean_num > 0:
+                        clean_mask[:, : self.psm_config.keep_clean_num, :] = True
+                    if clean_mask is not None:
+                        batched_data["128_msa_one_hot"][:, :min_D, :, :] = torch.where(
+                            clean_mask[:, :min_D, :].unsqueeze(-1),
+                            ori_128_msa_one_hot,
+                            batched_data["128_msa_one_hot"][:, :min_D, :, :],
                         )
-                        time_step = (
-                            time_step.unsqueeze(-1)
-                            .unsqueeze(-1)
-                            .repeat(1, self.cut_off, L)
-                        )
-                        if clean_mask is not None:
-                            time_step = time_step.masked_fill(clean_mask, 0.0)
-                        x_t = batched_data["128_msa_one_hot"].clone()
-                        # batched_data[
-                        #     "sqrt_one_minus_alphas_cumprod_t"
-                        # ] = self.diffnoise._extract(
-                        #     self.diffnoise.sqrt_one_minus_alphas_cumprod,
-                        #     (time_step * self.psm_config.num_timesteps).long(),
-                        #     batched_data["128_msa_one_hot"].shape,
-                        # )
-                        batched_data["time_step"] = time_step
-                        net_result = self.net(batched_data)
-                        predicted_noise = net_result["noise_pred"]
-                        epsilon = self.diffnoise.get_noise(
-                            batched_data["128_msa_one_hot"]
-                        )
-                        batched_data[
-                            "128_msa_one_hot"
-                        ] = self.diffusion_process.sample_step(
-                            x_t,
-                            batched_data["init_128_msa_one_hot"],
-                            predicted_noise,
-                            epsilon,
-                            t,
-                            stepsize=-self.psm_config.num_timesteps_stepsize,
-                        )
-                        if clean_mask is not None:
-                            batched_data["128_msa_one_hot"] = torch.where(
-                                clean_mask.unsqueeze(-1),
-                                ori_128_msa_one_hot,
-                                batched_data["128_msa_one_hot"],
+                    batched_data["clean_mask"] = clean_mask
+                    # T = torch.full((B,), self.T - 1, device=device)
+                    # x_T = self.diffusion.q_sample(
+                    #     batched_data["128_msa_one_hot"], T, clean_mask, device
+                    # )
+                    batched_data["128_2D_padding_mask"] = padding_mask_2D
+                    # batched_data["128_msa_one_hot"] = x_T
+                    # batched_data["time_step"] = T
+                    # true_prob = self.calculate_prob(batched_data["msa_token_type"])
+                    if self.psm_config.diffusion_mode == "epsilon":
+                        for t in range(
+                            self.psm_config.num_timesteps - 1,
+                            -1,
+                            self.psm_config.num_timesteps_stepsize,
+                        ):
+                            # forward
+                            time_step = self.time_step_sampler.get_continuous_time_step(
+                                t,
+                                B,
+                                device=device,
+                                dtype=batched_data["128_msa_one_hot"].dtype,
                             )
-                        batched_data["128_msa_one_hot"] = batched_data[
-                            "128_msa_one_hot"
-                        ].detach()
-                elif self.psm_config.diffusion_mode == "diff-lm":
-                    # diff-lm
-                    for t in range(
-                        self.psm_config.num_timesteps - 1,
-                        -1,
-                        self.psm_config.num_timesteps_stepsize,
-                    ):
-                        # forward
-                        time_step = self.time_step_sampler.get_continuous_time_step(
-                            t,
-                            B,
-                            device=device,
-                            dtype=batched_data["128_msa_one_hot"].dtype,
-                        )
-                        time_step = (
-                            time_step.unsqueeze(-1)
-                            .unsqueeze(-1)
-                            .repeat(1, self.cut_off, L)
-                        )
-                        if clean_mask is not None:
-                            time_step = time_step.masked_fill(clean_mask, 0.0)
-                        x_t = batched_data["128_msa_one_hot"].clone()
-                        # batched_data[
-                        #     "sqrt_one_minus_alphas_cumprod_t"
-                        # ] = self.diffnoise._extract(
-                        #     self.diffnoise.sqrt_one_minus_alphas_cumprod,
-                        #     (time_step * self.psm_config.num_timesteps).long(),
-                        #     batched_data["128_msa_one_hot"].shape,
-                        # )
-                        batched_data["time_step"] = time_step
-                        net_result = self.net(batched_data)
-                        x0_pred = net_result["noise_pred"]
-                        if t == 0:
-                            batched_data["128_msa_one_hot"] = x0_pred
-                            if clean_mask is not None:
-                                batched_data["128_msa_one_hot"][
-                                    :, :min_D, :, :
-                                ] = torch.where(
-                                    clean_mask[:, :min_D, :].unsqueeze(-1),
-                                    ori_128_msa_one_hot,
-                                    batched_data["128_msa_one_hot"][:, :min_D, :, :],
-                                )
-                            continue
-                        else:
-                            time_step_pre = (
-                                self.time_step_sampler.get_continuous_time_step(
-                                    t - 1,
-                                    B,
-                                    device=device,
-                                    dtype=batched_data["128_msa_one_hot"].dtype,
-                                )
-                            )
-
-                            time_step_pre = (
-                                time_step_pre.unsqueeze(-1)
+                            time_step = (
+                                time_step.unsqueeze(-1)
                                 .unsqueeze(-1)
                                 .repeat(1, self.cut_off, L)
                             )
-                            (
-                                noise_msa,
-                                noise,
-                                sqrt_one_minus_alphas_cumprod_t,
-                                sqrt_alphas_cumprod_t,
-                            ) = self.diffnoise.noise_sample(
-                                x_start=x0_pred,
-                                t=time_step_pre,
-                                clean_mask=clean_mask,
-                            )
-                            # epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
-                            # batched_data[
-                            #     "128_msa_one_hot"
-                            # ] = self.diffusion_process.sample_step(
-                            #     x_t,
-                            #     batched_data["init_128_msa_one_hot"],
-                            #     predicted_noise,
-                            #     epsilon,
-                            #     t,
-                            #     stepsize=-self.psm_config.num_timesteps_stepsize,
-                            # )
-                            batched_data["128_msa_one_hot"] = noise_msa
                             if clean_mask is not None:
-                                batched_data["128_msa_one_hot"][
-                                    :, :min_D, :, :
-                                ] = torch.where(
-                                    clean_mask[:, :min_D, :].unsqueeze(-1),
+                                time_step = time_step.masked_fill(clean_mask, 0.0)
+                            x_t = batched_data["128_msa_one_hot"].clone()
+                            # batched_data[
+                            #     "sqrt_one_minus_alphas_cumprod_t"
+                            # ] = self.diffnoise._extract(
+                            #     self.diffnoise.sqrt_one_minus_alphas_cumprod,
+                            #     (time_step * self.psm_config.num_timesteps).long(),
+                            #     batched_data["128_msa_one_hot"].shape,
+                            # )
+                            batched_data["time_step"] = time_step
+                            net_result = self.net(batched_data)
+                            predicted_noise = net_result["noise_pred"]
+                            epsilon = self.diffnoise.get_noise(
+                                batched_data["128_msa_one_hot"]
+                            )
+                            batched_data[
+                                "128_msa_one_hot"
+                            ] = self.diffusion_process.sample_step(
+                                x_t,
+                                batched_data["init_128_msa_one_hot"],
+                                predicted_noise,
+                                epsilon,
+                                t,
+                                stepsize=-self.psm_config.num_timesteps_stepsize,
+                            )
+                            if clean_mask is not None:
+                                batched_data["128_msa_one_hot"] = torch.where(
+                                    clean_mask.unsqueeze(-1),
                                     ori_128_msa_one_hot,
-                                    batched_data["128_msa_one_hot"][:, :min_D, :, :],
+                                    batched_data["128_msa_one_hot"],
                                 )
                             batched_data["128_msa_one_hot"] = batched_data[
                                 "128_msa_one_hot"
                             ].detach()
-                    pred_msa = batched_data["128_msa_one_hot"].clone().argmax(dim=-1)
-
-                    # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
-                    # pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
-                    pred_seq = self.convert(pred_msa)
-                else:
-                    # OADM
-                    if self.psm_config.OADM_row_random:
-                        sigma = torch.stack(
-                            [
-                                torch.stack(
-                                    [
-                                        torch.randperm(L, device=device)
-                                        for _ in range(self.cut_off)
-                                    ]
+                    elif self.psm_config.diffusion_mode == "diff-lm":
+                        # diff-lm
+                        for t in range(
+                            self.psm_config.num_timesteps - 1,
+                            -1,
+                            self.psm_config.num_timesteps_stepsize,
+                        ):
+                            # forward
+                            time_step = self.time_step_sampler.get_continuous_time_step(
+                                t,
+                                B,
+                                device=device,
+                                dtype=batched_data["128_msa_one_hot"].dtype,
+                            )
+                            time_step = (
+                                time_step.unsqueeze(-1)
+                                .unsqueeze(-1)
+                                .repeat(1, self.cut_off, L)
+                            )
+                            if clean_mask is not None:
+                                time_step = time_step.masked_fill(clean_mask, 0.0)
+                            x_t = batched_data["128_msa_one_hot"].clone()
+                            # batched_data[
+                            #     "sqrt_one_minus_alphas_cumprod_t"
+                            # ] = self.diffnoise._extract(
+                            #     self.diffnoise.sqrt_one_minus_alphas_cumprod,
+                            #     (time_step * self.psm_config.num_timesteps).long(),
+                            #     batched_data["128_msa_one_hot"].shape,
+                            # )
+                            batched_data["time_step"] = time_step
+                            net_result = self.net(batched_data)
+                            x0_pred = net_result["noise_pred"]
+                            if t == 0:
+                                batched_data["128_msa_one_hot"] = x0_pred
+                                if clean_mask is not None:
+                                    batched_data["128_msa_one_hot"][
+                                        :, :min_D, :, :
+                                    ] = torch.where(
+                                        clean_mask[:, :min_D, :].unsqueeze(-1),
+                                        ori_128_msa_one_hot,
+                                        batched_data["128_msa_one_hot"][
+                                            :, :min_D, :, :
+                                        ],
+                                    )
+                                continue
+                            else:
+                                time_step_pre = (
+                                    self.time_step_sampler.get_continuous_time_step(
+                                        t - 1,
+                                        B,
+                                        device=device,
+                                        dtype=batched_data["128_msa_one_hot"].dtype,
+                                    )
                                 )
-                                for _ in range(B)
-                            ]
-                        )
-                    else:
-                        sigma = (
-                            torch.randperm(L, device=device)
-                            .unsqueeze(0)
-                            .unsqueeze(0)
-                            .repeat(B, self.cut_off, 1)
-                        )
-                    batched_data["128_msa_token_type"] = torch.full(
-                        (B, self.cut_off, L), 27, device=device
-                    )  # B,D,L 27means mask
-                    if clean_mask is not None:
-                        batched_data["128_msa_token_type"][:, :min_D, :] = torch.where(
-                            clean_mask[:, :min_D, :],
-                            batched_data["ori_128_msa_token_type"],
-                            batched_data["128_msa_token_type"][:, :min_D, :],
-                        )
-                    for t in range(1, L + 1):
-                        # m = (sigma < t).unsqueeze(0).unsqueeze(0).repeat(B,self.cut_off,1)
-                        n = sigma + 1 == t
-                        time_step = torch.full(
-                            (B, self.cut_off, L), L - t + 1, device=device
-                        )
-                        if clean_mask is not None:
-                            time_step = time_step.masked_fill(clean_mask, 0)
-                        batched_data["time_step"] = time_step
-                        net_result = self.net(batched_data)
-                        logits = net_result["noise_pred"]  # B D L 27
 
-                        # according the biggest prob to denoise
-                        # if True:
-                        #     is_mask = batched_data["128_msa_token_type"] == 27
-                        #     logits_max_perL = F.softmax(logits, dim=-1).max(dim=-1).values
-                        #     logits_max_perL = logits_max_perL.masked_fill(
-                        #         ~is_mask, -float("inf")
-                        #     )
-                        #     # col consistency
-                        #     # logits_max_perL = logits_max_perL.sum(dim=1).unsqueeze(1).repeat(1,logits.size(1),1) #B D L
-                        #     n = (
-                        #         F.one_hot(
-                        #             logits_max_perL.argmax(dim=-1),
-                        #             num_classes=logits.size(2),
-                        #         ).bool()
-                        #         & is_mask
-                        #     )
-                        logits = F.softmax(logits, dim=-1)
-                        logits[:, :, :, 26] /= 1
-                        B, D, L, V = logits.shape
-                        sample_probs = logits.permute(0, 1, 2, 3).reshape(
-                            -1, V
-                        )  # [B*D*L, 27]
-                        sample = torch.multinomial(
-                            sample_probs, num_samples=1
-                        )  # [B*D*L, 1]
-                        sample = sample.view(B, D, L)
-                        # sample = logits.argmax(dim=-1)  # B D L
-                        batched_data["128_msa_token_type"] = torch.where(
-                            n, sample, batched_data["128_msa_token_type"]
+                                time_step_pre = (
+                                    time_step_pre.unsqueeze(-1)
+                                    .unsqueeze(-1)
+                                    .repeat(1, self.cut_off, L)
+                                )
+                                (
+                                    noise_msa,
+                                    noise,
+                                    sqrt_one_minus_alphas_cumprod_t,
+                                    sqrt_alphas_cumprod_t,
+                                ) = self.diffnoise.noise_sample(
+                                    x_start=x0_pred,
+                                    t=time_step_pre,
+                                    clean_mask=clean_mask,
+                                )
+                                # epsilon = self.diffnoise.get_noise(batched_data["128_msa_one_hot"])
+                                # batched_data[
+                                #     "128_msa_one_hot"
+                                # ] = self.diffusion_process.sample_step(
+                                #     x_t,
+                                #     batched_data["init_128_msa_one_hot"],
+                                #     predicted_noise,
+                                #     epsilon,
+                                #     t,
+                                #     stepsize=-self.psm_config.num_timesteps_stepsize,
+                                # )
+                                batched_data["128_msa_one_hot"] = noise_msa
+                                if clean_mask is not None:
+                                    batched_data["128_msa_one_hot"][
+                                        :, :min_D, :, :
+                                    ] = torch.where(
+                                        clean_mask[:, :min_D, :].unsqueeze(-1),
+                                        ori_128_msa_one_hot,
+                                        batched_data["128_msa_one_hot"][
+                                            :, :min_D, :, :
+                                        ],
+                                    )
+                                batched_data["128_msa_one_hot"] = batched_data[
+                                    "128_msa_one_hot"
+                                ].detach()
+                        pred_msa = (
+                            batched_data["128_msa_one_hot"].clone().argmax(dim=-1)
                         )
+
+                        # kl_loss=self.kl(x_t.argmax(dim=-1),batched_data["msa_token_type"])
+                        # pred_prob = self.calculate_prob(pred_msa.argmax(dim=-1))
+                        pred_seq = self.convert(pred_msa)
+                    else:
+                        # OADM
+                        if self.psm_config.OADM_row_random:
+                            sigma = torch.stack(
+                                [
+                                    torch.stack(
+                                        [
+                                            torch.randperm(L, device=device)
+                                            for _ in range(self.cut_off)
+                                        ]
+                                    )
+                                    for _ in range(B)
+                                ]
+                            )
+                        else:
+                            sigma = (
+                                torch.randperm(L, device=device)
+                                .unsqueeze(0)
+                                .unsqueeze(0)
+                                .repeat(B, self.cut_off, 1)
+                            )
+                        batched_data["128_msa_token_type"] = torch.full(
+                            (B, self.cut_off, L), 27, device=device
+                        )  # B,D,L 27means mask
                         if clean_mask is not None:
                             batched_data["128_msa_token_type"][
                                 :, :min_D, :
@@ -592,8 +554,58 @@ class MSAGenModel(Model):
                                 batched_data["ori_128_msa_token_type"],
                                 batched_data["128_msa_token_type"][:, :min_D, :],
                             )
-                    pred_msa = batched_data["128_msa_token_type"]
-                    pred_seq = self.convert(batched_data["128_msa_token_type"])
+                        for t in range(1, L + 1):
+                            # m = (sigma < t).unsqueeze(0).unsqueeze(0).repeat(B,self.cut_off,1)
+                            n = sigma + 1 == t
+                            time_step = torch.full(
+                                (B, self.cut_off, L), L - t + 1, device=device
+                            )
+                            if clean_mask is not None:
+                                time_step = time_step.masked_fill(clean_mask, 0)
+                            batched_data["time_step"] = time_step
+                            net_result = self.net(batched_data)
+                            logits = net_result["noise_pred"]  # B D L 27
+
+                            # according the biggest prob to denoise
+                            # if True:
+                            #     is_mask = batched_data["128_msa_token_type"] == 27
+                            #     logits_max_perL = F.softmax(logits, dim=-1).max(dim=-1).values
+                            #     logits_max_perL = logits_max_perL.masked_fill(
+                            #         ~is_mask, -float("inf")
+                            #     )
+                            #     # col consistency
+                            #     # logits_max_perL = logits_max_perL.sum(dim=1).unsqueeze(1).repeat(1,logits.size(1),1) #B D L
+                            #     n = (
+                            #         F.one_hot(
+                            #             logits_max_perL.argmax(dim=-1),
+                            #             num_classes=logits.size(2),
+                            #         ).bool()
+                            #         & is_mask
+                            #     )
+                            logits = F.softmax(logits, dim=-1)
+                            logits[:, :, :, 26] /= 1
+                            B, D, L, V = logits.shape
+                            sample_probs = logits.permute(0, 1, 2, 3).reshape(
+                                -1, V
+                            )  # [B*D*L, 27]
+                            sample = torch.multinomial(
+                                sample_probs, num_samples=1
+                            )  # [B*D*L, 1]
+                            sample = sample.view(B, D, L)
+                            # sample = logits.argmax(dim=-1)  # B D L
+                            batched_data["128_msa_token_type"] = torch.where(
+                                n, sample, batched_data["128_msa_token_type"]
+                            )
+                            if clean_mask is not None:
+                                batched_data["128_msa_token_type"][
+                                    :, :min_D, :
+                                ] = torch.where(
+                                    clean_mask[:, :min_D, :],
+                                    batched_data["ori_128_msa_token_type"],
+                                    batched_data["128_msa_token_type"][:, :min_D, :],
+                                )
+                        pred_msa = batched_data["128_msa_token_type"]
+                        pred_seq = self.convert(batched_data["128_msa_token_type"])
 
         gt_seq = self.convert(batched_data["msa_token_type"][:, : self.cut_off, :])
         # samples.append(self.convert(pred_msa.argmax(dim=-1)))
@@ -601,11 +613,17 @@ class MSAGenModel(Model):
             pred_msa[:, :min_D, :],
             batched_data,
         )
+        true_prob = self.calculate_prob(batched_data["msa_token_type"])
+        pred_prob = self.calculate_prob(pred_msa)
+        diff_prob = abs(true_prob - pred_prob).sum()
+
         return (
             results,
             pred_seq,
             gt_seq,
+            diff_prob,
         )
+
         # self.net.train()
         # plot_probability_heatmaps(true_prob, pred_prob, padding_mask, batched_data)
         # return torch.stack(samples, dim=0)
@@ -1046,6 +1064,7 @@ class MSAGenModel(Model):
                 results,
                 pred_seqs,
                 gt_seqs,
+                _,
             ) = self.sample(batched_data)
             B = batched_data["msa_token_type"].shape[0]
             for i in range(B):
