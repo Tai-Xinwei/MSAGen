@@ -1263,9 +1263,9 @@ class MSAGenModel(Model):
                 padding_mask[:, 1:, :]
             )  # to avoid predict padding
             is_gap = is_gap[:, 1:, :]
-            filter_mask = filter_mask[:, :-1, :]
+            filter_mask = filter_mask[:, 1:, :]
             filter_mask = filter_mask & ~padding_mask  # update filter_mask
-            time_step = time_step[:, :-1, :]
+            time_step = time_step[:, 1:, :]
 
             ce_loss = self.noise_loss(pred.permute(0, 3, 1, 2), label.long())
             # print(ce_loss)
@@ -1288,6 +1288,7 @@ class MSAGenModel(Model):
             reweight_loss = total_loss * weights  # B D L
             # print(reweight_loss)
             reweight_loss = reweight_loss * filter_mask.float()
+            # print(reweight_loss)
             # print(filter_mask)
             # first sample-internal mean and then cross-sample mean and according mask to mean
             counts_diff = (

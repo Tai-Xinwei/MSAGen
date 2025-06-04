@@ -16,7 +16,7 @@ save_dir_base=./output/casp15_lessthan128/$WORK_NAME/$STEP_FLAG/
 master_port=8891
 
 for num in $(seq 1 1); do
-  save_dir="${save_dir_base}/seed_${num}"
+  save_dir="${save_dir_base}/P10_seed_${num}"
 
   echo "▶️ Running seed $num → save_dir: $save_dir"
 

@@ -104,7 +104,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=2048
 [ -z "${val_batch_size}" ] && val_batch_size=2048
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=64
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -115,7 +115,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='1.0,0.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='../msadata'
+# [ -z "${data_path}" ] && data_path='/datadisk'
 [ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/UniProt'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
@@ -245,10 +245,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path=''
+[ -z "${loadcheck_path}" ] && loadcheck_path='/psm/xinwei/sfmexpresults/MSAGen_v2/uniprot-all-1B-AR-1-32-avg-weightD-random-total2048-lr2e-5/global_step20000/mp_rank_00_model_states.pt'
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=uniprot-all-3B-AR-1-32-avg-weightD-random-total2048-lr2e-5
+[ -z "${wandb_run_name}" ] && wandb_run_name=ft2w-uniprot-all-1B-AR-1-32-avg-weightD-random-total2048-lr2e-5
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
 [ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
