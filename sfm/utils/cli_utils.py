@@ -25,6 +25,7 @@ def wandb_init(args):
                 entity=args.wandb_team,
                 id=str(uuid.uuid4()),
                 config=args,
+                mode="offline",
             )
 
 

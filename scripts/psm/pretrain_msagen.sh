@@ -104,7 +104,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=2048
 [ -z "${val_batch_size}" ] && val_batch_size=2048
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -116,7 +116,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.0,0.0,0.5' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 # [ -z "${data_path}" ] && data_path='/datadisk'
-[ -z "${data_path}" ] && data_path='/psm/xinwei/msadata/UniProt'
+[ -z "${data_path}" ] && data_path='/dev/shm/xinwei/'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -208,10 +208,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name_list}" ] && dataset_name_list='msageneration'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
-[ -z "${cutoff}" ] && cutoff=32
-[ -z "${random_select_msa}"] && random_select_msa=true
-[ -z "${keep_clean_num}" ] && keep_clean_num=1
-[ -z "${OADM_row_random}" ] && OADM_row_random=false
+[ -z "${cutoff}" ] && cutoff=2 # control ar length,if cut_off = 2 && keep_clean_num=1 means 1->1，32&1 means 1->32
+[ -z "${random_select_msa}"] && random_select_msa=true # if random select from msas
+[ -z "${keep_clean_num}" ] && keep_clean_num=1 
+[ -z "${OADM_row_random}" ] && OADM_row_random=false #row random sample
 [ -z "${mode}" ] && mode=0 # 0 1 2 3 4 5 6, 0 means random mode
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,AFDB90-plddt60to70-reduce.lmdb,MGnify,20240630_PDB_Training_Data,PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,esm,mgnify,pdbcomplexmultimer,pm6-wb97xd3'
@@ -245,17 +245,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/psm/xinwei/sfmexpresults/MSAGen_v2/uniprot-all-1B-AR-1-32-avg-weightD-random-total2048-lr2e-5/global_step20000/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path=''
 
 
-[ -z "${wandb_run_name}" ] && wandb_run_name=ft2w-uniprot-all-1B-AR-1-32-avg-weightD-random-total2048-lr2e-5
+[ -z "${wandb_run_name}" ] && wandb_run_name=localdebug
 # [ -z "${wandb_run_name}" ] && wandb_run_name=debug
-[ -z "${wandb_group}" ] && wandb_group=msagen_v3.0
-[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_msa
-[ -z "${wandb_key}" ] && wandb_key=local-4475b85516f93bca7c53acde577024463126c48c
+[ -z "${wandb_group}" ] && wandb_group=msagen
+# [ -z "${wandb_team}" ] && wandb_team=
+[ -z "${wandb_project}" ] && wandb_project=msagen
+[ -z "${wandb_key}" ] && wandb_key=54f5d19fb6f2e13668b26d592e0408381cf5f6c6
 
-[ -z "${save_dir}" ] && save_dir=/psm/xinwei/sfmexpresults/MSAGen_v2/${wandb_run_name}
+[ -z "${save_dir}" ] && save_dir=/dev/shm/xinwei/sfmexpresults/MSAGen_v2/${wandb_run_name}
 
 random_number=$((RANDOM))
 echo "Random number: ${random_number}"
@@ -362,7 +362,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 export OMP_NUM_THREADS=4
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+wandb login --relogin --host=https://api.wandb.ai $wandb_key
 export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
@@ -435,7 +435,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS --master-port 7777 sfm/tasks
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
+          wandb=True wandb_group=$wandb_group  wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
           use_dali_pipeline=$use_dali_pipeline \
           molecule_energy_loss_ratio=$molecule_energy_loss_ratio molecule_force_loss_ratio=$molecule_force_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
