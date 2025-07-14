@@ -1,6 +1,4 @@
-[![Build Status](https://dev.azure.com/AI4ScienceSFM/SFM_framework/_apis/build/status%2FPython%20Unit%20Tests?branchName=main)](https://dev.azure.com/AI4ScienceSFM/SFM_framework/_build/latest?definitionId=1&branchName=main)
-
-# SFM Repository
+# MSAGen Repository
 
 
 ## Pre-commit hooks
