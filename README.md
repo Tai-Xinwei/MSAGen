@@ -122,23 +122,6 @@ amlt run ./amlt/pfm/BFM3B.yaml BFM3B
 
 > **These images are Singularity compatible and have built-in `sfm` conda environment with pre-installed packages.**
 
-CUDA 11.7:
-- `msrmoldyn.azurecr.io/pj/sfm:cu117`
-
-CUDA 12.1, Python 3.11:
- - `msrmoldyn.azurecr.io/ai4s-sfm:20240531.170731`
-
-CUDA 12.4, Python 3.11:
- - `msrmoldyn.azurecr.io/ai4s-sfm:20241112.142059-cu124`
-
-ROCm 6.2.4, Python 3.11:
- - `msrmoldyn.azurecr.io/ai4s-sfm/amd:20241111.140607-rocm624`
-> **NOTE:** AMD images are updated regularly for best performance and compatibility, please check the latest tag from [msrmoldyn](https://ms.portal.azure.com/#view/Microsoft_Azure_ContainerRegistries/RepositoryBlade/id/%2Fsubscriptions%2F3eaeebff-de6e-4e20-9473-24de9ca067dc%2FresourceGroups%2Fshared_infrastructure%2Fproviders%2FMicrosoft.ContainerRegistry%2Fregistries%2Fmsrmoldyn/repository/ai4s-sfm%2Famd).
-
-## Data
-
-Refer to [ms.portal.azure.com](https://ms.portal.azure.com/#@microsoft.onmicrosoft.com/resource/subscriptions/c5b6f974-9372-41db-b1e7-86608c3a6afd/resourceGroups/SFM/resourcevisualizer) with your SC account to get the current SFM storage accounts.
-
 
 ## Documentation
 
